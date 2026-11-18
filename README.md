@@ -137,6 +137,7 @@ FastAPI juga menyediakan dokumentasi interaktif otomatis di `http://127.0.0.1:80
 | `POST /chat` | Ajukan pertanyaan RAG dan simpan ke riwayat SQLite |
 | `GET /history` | Ambil riwayat chat per sesi |
 | `DELETE /history` | Bersihkan riwayat chat per sesi |
+| `GET /sessions` | Ambil daftar sesi percakapan tersimpan |
 
 ---
 

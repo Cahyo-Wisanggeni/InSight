@@ -35,6 +35,14 @@ class MessageRecord:
     created_at: str
 
 
+@dataclass(frozen=True)
+class SessionSummary:
+    session_id: str
+    title: str
+    message_count: int
+    updated_at: str
+
+
 class SQLiteStore:
     """Lightweight persistent store backed by a single SQLite file."""
 
@@ -187,3 +195,38 @@ class SQLiteStore:
         with self._connect() as conn:
             cur = conn.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
         return cur.rowcount
+
+    def list_sessions(self, limit: int = 50) -> list[SessionSummary]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    session_id,
+                    COALESCE(
+                        (
+                            SELECT m2.content
+                            FROM messages m2
+                            WHERE m2.session_id = m1.session_id AND m2.role = 'user'
+                            ORDER BY m2.id ASC
+                            LIMIT 1
+                        ),
+                        session_id
+                    ) AS title,
+                    COUNT(*) AS message_count,
+                    MAX(created_at) AS updated_at
+                FROM messages m1
+                GROUP BY session_id
+                ORDER BY MAX(id) DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [
+            SessionSummary(
+                session_id=row["session_id"],
+                title=str(row["title"])[:64],
+                message_count=int(row["message_count"]),
+                updated_at=row["updated_at"],
+            )
+            for row in rows
+        ]

@@ -129,4 +129,9 @@ def create_app(engine: InSightEngine | None = None) -> FastAPI:
         deleted_count = rag.clear_history(session_id=session_id)
         return {"session_id": session_id, "deleted_count": deleted_count}
 
+    @app.get("/sessions", dependencies=[Depends(require_auth)])
+    def list_sessions() -> dict:
+        sessions = rag.list_sessions()
+        return {"sessions": [asdict(s) for s in sessions]}
+
     return app

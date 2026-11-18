@@ -10,7 +10,7 @@ from typing import Any
 from insight.config import Settings
 from insight.llm import LazyLLM
 from insight.parser import chunk_markdown, parse_file
-from insight.storage import DocumentRecord, MessageRecord, SQLiteStore
+from insight.storage import DocumentRecord, MessageRecord, SessionSummary, SQLiteStore
 from insight.vectorstore import LocalVectorStore, RetrievedChunk
 
 
@@ -119,3 +119,6 @@ class InSightEngine:
 
     def clear_history(self, session_id: str = "default") -> int:
         return self.store.clear_messages(session_id=session_id)
+
+    def list_sessions(self) -> list[SessionSummary]:
+        return self.store.list_sessions()

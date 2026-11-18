@@ -91,6 +91,11 @@ def test_rag_ingest_ask_history_and_delete(tmp_path: Path, monkeypatch) -> None:
     assert history_res.status_code == 200
     assert len(history_res.json()["messages"]) == 2
 
+    sessions_res = client.get("/sessions")
+    assert sessions_res.status_code == 200
+    assert len(sessions_res.json()["sessions"]) == 1
+    assert sessions_res.json()["sessions"][0]["session_id"] == "default"
+
     del_res = client.delete(f"/documents/{doc_id}")
     assert del_res.status_code == 200
     assert client.get("/documents").json()["documents"] == []
