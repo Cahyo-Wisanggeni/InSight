@@ -50,10 +50,12 @@ def main() -> None:
     os.environ.setdefault("INSIGHT_AUTO_SHUTDOWN", "1")
     host = os.getenv("INSIGHT_HOST", "127.0.0.1")
     preferred_port = int(os.getenv("INSIGHT_PORT", "8000"))
+
+    from run import serve, stop_stale_instances
+
+    stop_stale_instances(preferred_port)
     port = _find_open_port(preferred_port)
     url = f"http://{host}:{port}"
-
-    from run import serve
 
     server_thread = threading.Thread(target=serve, args=(host, port), daemon=False)
     server_thread.start()

@@ -115,7 +115,7 @@ Salin `.env.example` jika ingin mengatur konfigurasi secara persisten:
 | `INSIGHT_PORT` | `8000` | Port server |
 | `INSIGHT_DATA_DIR` | `./data` | Direktori penyimpanan SQLite dan Qdrant lokal |
 | `INSIGHT_PASSWORD` | `""` (kosong) | Kata sandi sesi opsional untuk login |
-| `INSIGHT_LLM_BACKEND` | `retrieval_only` | Pilihan: `retrieval_only`, `ollama`, `unsloth`, `hf` |
+| `INSIGHT_LLM_BACKEND` | `auto` | Pilihan: `auto`, `local_smart`, `retrieval_only`, `ollama`, `unsloth`, `hf` |
 | `INSIGHT_LLM_MODEL` | `unsloth/Qwen2.5-7B-Instruct-bnb-4bit` | Nama model Hugging Face / Unsloth / Ollama |
 | `INSIGHT_PRECISION` | `4bit` | Presisi model: `4bit`, `8bit`, atau `full` |
 | `INSIGHT_EMBED_MODEL` | `BAAI/bge-small-en-v1.5` | Model embedding Step 1 |

@@ -2,11 +2,51 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Protocol
 
 from insight.config import Settings
 from insight.vectorstore import RetrievedChunk
+
+GREETING_WORDS = {
+    "halo",
+    "hai",
+    "hi",
+    "hello",
+    "hey",
+    "pagi",
+    "siang",
+    "sore",
+    "malam",
+    "tes",
+    "test",
+    "ping",
+    "bantuan",
+    "help",
+}
+GREETING_PHRASES = {
+    "apa kabar",
+    "bisa apa",
+    "selamat pagi",
+    "selamat siang",
+    "selamat sore",
+    "selamat malam",
+}
+QUERY_TOKEN_RE = re.compile(r"[A-Za-z0-9_]{2,}")
+SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
+
+
+def is_greeting(text: str) -> bool:
+    """Return True when the user sent a short conversational greeting or help check."""
+    cleaned = re.sub(r"[^\w\s]", " ", text.lower()).strip()
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    if not cleaned:
+        return False
+    if cleaned in GREETING_WORDS or cleaned in GREETING_PHRASES:
+        return True
+    words = cleaned.split()
+    return len(words) <= 3 and all(w in GREETING_WORDS for w in words)
 
 SYSTEM_PROMPT = (
     "You are InSight, a private document assistant. "
@@ -36,28 +76,83 @@ def build_prompt(question: str, contexts: list[RetrievedChunk]) -> str:
     )
 
 
-class RetrievalOnlyRunner:
-    """Zero-model fallback returning retrieved passages directly."""
+class SmartLocalRunner:
+    """Zero-download local synthesis runner with greeting awareness and extractive summary."""
 
-    label = "retrieval_only"
+    label = "local_smart"
 
     def generate(self, question: str, contexts: list[RetrievedChunk]) -> str:
+        if is_greeting(question):
+            if not contexts:
+                return (
+                    "Halo! Saya InSight, asisten dokumen pribadi Anda. "
+                    "Saat ini belum ada dokumen di ruang kerja. Klik '+' atau 'Unggah Dokumen' di panel kiri "
+                    "untuk menambahkan file, lalu tanyakan isinya kepada saya."
+                )
+            names = list(dict.fromkeys(ctx.filename for ctx in contexts))
+            return (
+                f"Halo! Dokumen Anda siap ditelusuri ({', '.join(names)}). "
+                "Silakan ajukan pertanyaan spesifik atau minta ringkasan isinya."
+            )
+
         if not contexts:
             return "Tidak ada potongan dokumen yang relevan ditemukan."
+
+        q_lower = question.lower().strip()
+        q_tokens = set(QUERY_TOKEN_RE.findall(q_lower))
+        candidates: list[tuple[float, str, RetrievedChunk]] = []
+        seen_sentences: set[str] = set()
+
+        for rank, ctx in enumerate(contexts):
+            raw_parts = [p.strip() for p in SENTENCE_SPLIT_RE.split(ctx.text) if len(p.strip()) >= 15]
+            if not raw_parts and ctx.text.strip():
+                raw_parts = [ctx.text.strip()[:300]]
+            for part in raw_parts:
+                clean_line = re.sub(r"^#+\s*", "", part).strip()
+                norm_key = clean_line.lower()
+                if len(clean_line) < 12 or norm_key in seen_sentences:
+                    continue
+                seen_sentences.add(norm_key)
+
+                p_tokens = set(QUERY_TOKEN_RE.findall(norm_key))
+                overlap = (len(q_tokens & p_tokens) / max(len(q_tokens), 1)) if q_tokens else 0.0
+                phrase_bonus = 0.35 if q_lower and q_lower in norm_key else 0.0
+                num_bonus = 0.1 if re.search(r"\d", clean_line) else 0.0
+                def_bonus = 0.1 if (":" in clean_line or " adalah " in norm_key or " merupakan " in norm_key) else 0.0
+                rank_bonus = max(0.0, 0.2 - (rank * 0.04))
+                score = overlap + phrase_bonus + num_bonus + def_bonus + rank_bonus + (ctx.score * 0.15)
+                candidates.append((score, clean_line[:320], ctx))
+
+        candidates.sort(key=lambda item: item[0], reverse=True)
+        top_items = candidates[:4]
+
+        if not top_items:
+            top_ctx = contexts[0]
+            snippet = top_ctx.text[:350].replace("\n", " ").strip()
+            return f"Berdasarkan **{top_ctx.filename}** ({top_ctx.section}):\n\n{snippet}"
+
+        lead_score, lead_text, lead_ctx = top_items[0]
         lines = [
-            "Mode preview aktif (belum terhubung ke LLM lokal/GPU). Berikut kutipan paling relevan dari dokumen Anda:",
+            f"Berdasarkan dokumen **{lead_ctx.filename}** ({lead_ctx.section}), poin paling relevan untuk pertanyaan Anda:",
             "",
+            lead_text,
         ]
-        for idx, ctx in enumerate(contexts, start=1):
-            snippet = ctx.text[:350].replace("\n", " ").strip()
-            if len(ctx.text) > 350:
-                snippet += "..."
-            lines.append(f"{idx}. **{ctx.filename}** ({ctx.section}): {snippet}")
+        if len(top_items) > 1:
+            lines.append("")
+            lines.append("Rincian pendukung dari dokumen:")
+            for _, text, ctx in top_items[1:]:
+                lines.append(f"- {text} [{ctx.filename} - {ctx.section}]")
         return "\n".join(lines)
 
 
+class RetrievalOnlyRunner(SmartLocalRunner):
+    """Backward-compatible alias delegating to SmartLocalRunner."""
+
+    label = "retrieval_only"
+
+
 class OllamaRunner:
-    """Calls a local Ollama server over HTTP (100% offline)."""
+    """Calls a local Ollama server over HTTP, falling back to SmartLocalRunner if unreachable."""
 
     def __init__(self, model: str, base_url: str) -> None:
         self.model = model
@@ -68,21 +163,54 @@ class OllamaRunner:
         import httpx
 
         user_prompt = build_prompt(question, contexts)
-        response = httpx.post(
-            f"{self.base_url}/api/chat",
-            json={
-                "model": self.model,
-                "stream": False,
-                "messages": [
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-            },
-            timeout=120.0,
-        )
-        response.raise_for_status()
-        data = response.json()
-        return str(data.get("message", {}).get("content", "")).strip()
+        try:
+            response = httpx.post(
+                f"{self.base_url}/api/chat",
+                json={
+                    "model": self.model,
+                    "stream": False,
+                    "messages": [
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                },
+                timeout=120.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            content = str(data.get("message", {}).get("content", "")).strip()
+            if content:
+                return content
+        except Exception:
+            pass
+        return SmartLocalRunner().generate(question, contexts)
+
+
+class AutoRunner:
+    """Uses local Ollama when available, otherwise falls back seamlessly to SmartLocalRunner."""
+
+    def __init__(self, settings: Settings) -> None:
+        self._delegate: LLMRunner = self._resolve(settings)
+        self.label = self._delegate.label
+
+    @staticmethod
+    def _resolve(settings: Settings) -> LLMRunner:
+        import httpx
+
+        try:
+            res = httpx.get(f"{settings.ollama_url}/api/tags", timeout=0.5)
+            if res.status_code == 200:
+                models = [m.get("name", "") for m in res.json().get("models", []) if m.get("name")]
+                if models:
+                    target = settings.llm_model
+                    chosen = target if target in models else models[0]
+                    return OllamaRunner(chosen, settings.ollama_url)
+        except Exception:
+            pass
+        return SmartLocalRunner()
+
+    def generate(self, question: str, contexts: list[RetrievedChunk]) -> str:
+        return self._delegate.generate(question, contexts)
 
 
 class UnslothRunner:
@@ -198,7 +326,11 @@ class LazyLLM:
             return self._runner
 
         backend = self.settings.llm_backend
-        if backend == "ollama":
+        if backend == "auto":
+            self._runner = AutoRunner(self.settings)
+        elif backend == "local_smart":
+            self._runner = SmartLocalRunner()
+        elif backend == "ollama":
             self._runner = OllamaRunner(self.settings.llm_model, self.settings.ollama_url)
         elif backend == "unsloth":
             self._runner = UnslothRunner(self.settings)

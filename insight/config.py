@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Literal
 
 PrecisionMode = Literal["4bit", "8bit", "full"]
-LLMBackend = Literal["unsloth", "hf", "ollama", "retrieval_only"]
+LLMBackend = Literal["auto", "local_smart", "unsloth", "hf", "ollama", "retrieval_only"]
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -54,9 +54,9 @@ class Settings:
         if precision not in {"4bit", "8bit", "full"}:
             precision = "4bit"
 
-        backend = os.getenv("INSIGHT_LLM_BACKEND", "retrieval_only").strip().lower()
-        if backend not in {"unsloth", "hf", "ollama", "retrieval_only"}:
-            backend = "retrieval_only"
+        backend = os.getenv("INSIGHT_LLM_BACKEND", "auto").strip().lower()
+        if backend not in {"auto", "local_smart", "unsloth", "hf", "ollama", "retrieval_only"}:
+            backend = "auto"
 
         return cls(
             data_dir=root,

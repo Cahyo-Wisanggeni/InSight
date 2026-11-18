@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from insight.config import Settings
-from insight.llm import LazyLLM
+from insight.llm import LazyLLM, is_greeting
 from insight.parser import chunk_markdown, parse_file
 from insight.storage import DocumentRecord, MessageRecord, SessionSummary, SQLiteStore
 from insight.vectorstore import LocalVectorStore, RetrievedChunk
@@ -84,7 +84,28 @@ class InSightEngine:
 
         docs = self.store.list_documents()
         if not docs:
-            answer = "Belum ada dokumen yang diunggah. Silakan unggah dokumen terlebih dahulu."
+            if is_greeting(cleaned):
+                answer = (
+                    "Halo! Saya InSight, asisten dokumen pribadi Anda. "
+                    "Saat ini belum ada dokumen di ruang kerja. Silakan klik tombol '+' atau 'Unggah Dokumen' "
+                    "di panel kiri untuk mengunggah file (PDF, DOCX, PPTX, XLSX, HTML, Markdown, TXT, CSV, atau JSON), "
+                    "lalu tanyakan isinya kepada saya."
+                )
+            else:
+                answer = (
+                    "Belum ada dokumen yang diunggah untuk menjawab pertanyaan tersebut. "
+                    "Silakan klik '+' atau 'Unggah Dokumen' di panel kiri untuk menambahkan dokumen terlebih dahulu."
+                )
+            self.store.add_message(session_id=session_id, role="assistant", content=answer, sources=[])
+            return ChatResult(answer=answer, sources=[], session_id=session_id)
+
+        if is_greeting(cleaned):
+            doc_names = ", ".join(doc.filename for doc in docs[:5])
+            extra = f" (dan {len(docs) - 5} lainnya)" if len(docs) > 5 else ""
+            answer = (
+                f"Halo! Saat ini ada {len(docs)} dokumen siap ditelusuri: {doc_names}{extra}. "
+                "Silakan tanyakan bagian yang ingin Anda cari atau minta ringkasannya."
+            )
             self.store.add_message(session_id=session_id, role="assistant", content=answer, sources=[])
             return ChatResult(answer=answer, sources=[], session_id=session_id)
 

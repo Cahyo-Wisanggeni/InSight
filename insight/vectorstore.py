@@ -34,19 +34,30 @@ class Embedder(Protocol):
 class HashingEmbedder:
     """Zero-dependency deterministic fallback embedder for offline tests and smoke runs."""
 
-    dimension = 256
-    name = "hashing-fallback-256d"
+    dimension = 384
+    name = "local-hybrid-384d"
 
     def embed(self, texts: list[str]) -> list[list[float]]:
+        from collections import Counter
+
         vectors: list[list[float]] = []
         for text in texts:
             vec = [0.0] * self.dimension
-            tokens = TOKEN_RE.findall(text.lower())
-            for tok in tokens:
-                digest = hashlib.blake2b(tok.encode("utf-8"), digest_size=8).digest()
+            normalized = text.lower().strip()
+            tokens = TOKEN_RE.findall(normalized)
+            features: list[str] = list(tokens)
+            features.extend(f"{tokens[i]}_{tokens[i + 1]}" for i in range(len(tokens) - 1))
+            compact = " ".join(tokens)
+            if len(compact) >= 4:
+                features.extend(compact[i : i + 4] for i in range(len(compact) - 3))
+
+            counts = Counter(features)
+            for feat, count in counts.items():
+                weight = 1.0 + math.log(count)
+                digest = hashlib.blake2b(feat.encode("utf-8"), digest_size=8).digest()
                 idx = int.from_bytes(digest[:4], "little") % self.dimension
                 sign = 1.0 if (digest[4] & 1) == 0 else -1.0
-                vec[idx] += sign
+                vec[idx] += sign * weight
             norm = math.sqrt(sum(v * v for v in vec)) or 1.0
             vectors.append([v / norm for v in vec])
         return vectors
