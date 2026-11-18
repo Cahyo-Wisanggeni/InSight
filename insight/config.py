@@ -43,6 +43,9 @@ class Settings:
     chunk_size: int
     chunk_overlap: int
     password: str
+    auto_shutdown: bool
+    shutdown_grace_seconds: float
+    heartbeat_timeout_seconds: float
 
     @classmethod
     def from_env(cls, base_dir: Path | None = None) -> "Settings":
@@ -74,6 +77,9 @@ class Settings:
             chunk_size=int(os.getenv("INSIGHT_CHUNK_SIZE", "900")),
             chunk_overlap=int(os.getenv("INSIGHT_CHUNK_OVERLAP", "150")),
             password=os.getenv("INSIGHT_PASSWORD", ""),
+            auto_shutdown=_env_bool("INSIGHT_AUTO_SHUTDOWN", False),
+            shutdown_grace_seconds=float(os.getenv("INSIGHT_SHUTDOWN_GRACE", "4.0")),
+            heartbeat_timeout_seconds=float(os.getenv("INSIGHT_HEARTBEAT_TIMEOUT", "25.0")),
         )
 
     def ensure_dirs(self) -> None:

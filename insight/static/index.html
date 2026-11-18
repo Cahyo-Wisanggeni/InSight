@@ -1047,6 +1047,8 @@
         <dd id="set-reranker">-</dd>
         <dt>Dokumen</dt>
         <dd id="set-docs">-</dd>
+        <dt>Auto-Shutdown</dt>
+        <dd id="set-autoshutdown">-</dd>
       </dl>
       <div class="modal-actions">
         <a href="/docs" target="_blank" rel="noopener" class="btn-secondary-warm">Buka API Docs</a>
@@ -1207,9 +1209,12 @@
         document.getElementById("set-embedder").textContent = info.embedder;
         document.getElementById("set-reranker").textContent = info.use_reranker ? "enabled" : "disabled";
         document.getElementById("set-docs").textContent = String(info.document_count);
+        document.getElementById("set-autoshutdown").textContent = info.auto_shutdown ? "active (stops on UI close)" : "off";
 
         if (info.auth_required && !state.token) {
           openAuthModal();
+        } else {
+          sendHeartbeat();
         }
       } catch {
         el.topPillText.textContent = "Server offline";
@@ -1598,6 +1603,28 @@
         }
       }
     });
+
+    async function sendHeartbeat() {
+      if (el.authModal.classList.contains("open")) return;
+      try {
+        await fetch("/runtime/heartbeat", {
+          method: "POST",
+          headers: authHeaders(),
+        });
+      } catch {
+        // Ignore transient network errors while checking runtime status.
+      }
+    }
+
+    function sendDisconnectBeacon() {
+      const qs = state.token ? `?token=${encodeURIComponent(state.token)}` : "";
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(`/runtime/disconnect${qs}`);
+      }
+    }
+
+    window.addEventListener("pagehide", sendDisconnectBeacon);
+    setInterval(sendHeartbeat, 5000);
 
     async function refreshAll() {
       await loadHealth();

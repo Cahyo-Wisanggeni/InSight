@@ -5,10 +5,12 @@ from __future__ import annotations
 import hmac
 import secrets
 import tempfile
+import threading
+import time
 from dataclasses import asdict
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -28,10 +30,59 @@ class ChatRequest(BaseModel):
     session_id: str = "default"
 
 
+class RuntimeTracker:
+    """Tracks active UI heartbeats and triggers graceful auto-shutdown on disconnect."""
+
+    def __init__(
+        self,
+        enabled: bool = False,
+        grace_seconds: float = 4.0,
+        idle_timeout_seconds: float = 25.0,
+    ) -> None:
+        self.enabled = enabled
+        self.grace_seconds = grace_seconds
+        self.idle_timeout_seconds = idle_timeout_seconds
+        self._lock = threading.Lock()
+        self.has_client = False
+        self.last_seen: float | None = None
+        self.disconnect_deadline: float | None = None
+
+    def record_heartbeat(self, now: float | None = None) -> None:
+        with self._lock:
+            t = time.monotonic() if now is None else now
+            self.has_client = True
+            self.last_seen = t
+            self.disconnect_deadline = None
+
+    def record_disconnect(self, now: float | None = None) -> None:
+        with self._lock:
+            if not self.enabled or not self.has_client:
+                return
+            t = time.monotonic() if now is None else now
+            self.disconnect_deadline = t + self.grace_seconds
+
+    def should_shutdown(self, now: float | None = None) -> bool:
+        with self._lock:
+            if not self.enabled or not self.has_client:
+                return False
+            t = time.monotonic() if now is None else now
+            if self.disconnect_deadline is not None and t >= self.disconnect_deadline:
+                return True
+            if self.last_seen is not None and (t - self.last_seen) >= self.idle_timeout_seconds:
+                return True
+            return False
+
+
 def create_app(engine: InSightEngine | None = None) -> FastAPI:
     app = FastAPI(title="InSight", version=__version__)
     rag = engine or InSightEngine(Settings.from_env())
     active_tokens: set[str] = set()
+    tracker = RuntimeTracker(
+        enabled=rag.settings.auto_shutdown,
+        grace_seconds=rag.settings.shutdown_grace_seconds,
+        idle_timeout_seconds=rag.settings.heartbeat_timeout_seconds,
+    )
+    app.state.tracker = tracker
 
     def require_auth(x_insight_token: str | None = Header(default=None)) -> None:
         if not rag.settings.password:
@@ -56,7 +107,25 @@ def create_app(engine: InSightEngine | None = None) -> FastAPI:
             "embedder": rag.vectors.embedder.name,
             "use_reranker": rag.settings.use_reranker,
             "document_count": len(docs),
+            "auto_shutdown": rag.settings.auto_shutdown,
         }
+
+    @app.post("/runtime/heartbeat", dependencies=[Depends(require_auth)])
+    def runtime_heartbeat() -> dict:
+        tracker.record_heartbeat()
+        return {"ok": True, "auto_shutdown": tracker.enabled}
+
+    @app.post("/runtime/disconnect")
+    def runtime_disconnect(
+        x_insight_token: str | None = Header(default=None),
+        token: str | None = Query(default=None),
+    ) -> dict:
+        if rag.settings.password:
+            supplied = x_insight_token or token
+            if not supplied or supplied not in active_tokens:
+                raise HTTPException(status_code=401, detail="Authentication required.")
+        tracker.record_disconnect()
+        return {"ok": True, "auto_shutdown": tracker.enabled}
 
     @app.post("/auth/login")
     def login(payload: LoginRequest) -> dict:

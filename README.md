@@ -69,8 +69,9 @@ Aktifkan environment:
 pip install -r requirements.txt
 ```
 
-#### 3. Pilih mode LLM lokal
-- **Mode Preview Cepat (tanpa download model LLM dulu):** langsung jalankan server untuk menguji upload, parsing, pencarian Qdrant, dan riwayat SQLite.
+#### 3. Jalankan aplikasi (otomatis buka UI & mati saat UI ditutup)
+- **Cara termudah di Windows:** double-click **`InSight.bat`** (atau jalankan `python launch.py`). Server menyala di belakang layar, UI terbuka otomatis, dan saat jendela UI ditutup server ikut berhenti bersih.
+- **Mode Preview Cepat (lewat terminal manual, server tetap nyala):**
   ```bash
   python run.py
   ```
@@ -120,6 +121,7 @@ Salin `.env.example` jika ingin mengatur konfigurasi secara persisten:
 | `INSIGHT_EMBED_MODEL` | `BAAI/bge-small-en-v1.5` | Model embedding Step 1 |
 | `INSIGHT_USE_RERANKER` | `false` | Aktifkan Cross-Encoder reranker (`true` / `false`) |
 | `INSIGHT_RERANK_MODEL` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | Model reranker ringan Step 1 |
+| `INSIGHT_AUTO_SHUTDOWN` | `0` (`1` di `launch.py`) | Matikan server otomatis saat tab/jendela UI ditutup |
 
 ---
 

@@ -12,7 +12,7 @@ from insight.parser import chunk_markdown, parse_file
 from insight.rag import InSightEngine
 
 
-def _make_settings(tmp_path: Path, password: str = "") -> Settings:
+def _make_settings(tmp_path: Path, password: str = "", auto_shutdown: bool = False) -> Settings:
     return Settings(
         data_dir=tmp_path,
         sqlite_path=tmp_path / "insight.sqlite",
@@ -32,6 +32,9 @@ def _make_settings(tmp_path: Path, password: str = "") -> Settings:
         chunk_size=300,
         chunk_overlap=50,
         password=password,
+        auto_shutdown=auto_shutdown,
+        shutdown_grace_seconds=4.0,
+        heartbeat_timeout_seconds=25.0,
     )
 
 
@@ -131,3 +134,33 @@ def test_password_protection_flow(tmp_path: Path, monkeypatch) -> None:
 
     auth_docs = client.get("/documents", headers={"X-InSight-Token": token})
     assert auth_docs.status_code == 200
+
+
+def test_runtime_auto_shutdown_lifecycle(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "insight.vectorstore.build_embedder",
+        lambda _name: __import__("insight.vectorstore", fromlist=["HashingEmbedder"]).HashingEmbedder(),
+    )
+    settings = _make_settings(tmp_path, password="secret", auto_shutdown=True)
+    app = create_app(InSightEngine(settings))
+    tracker = app.state.tracker
+    client = TestClient(app)
+
+    assert tracker.should_shutdown(now=100.0) is False
+    assert client.post("/runtime/disconnect").status_code == 401
+
+    token = client.post("/auth/login", json={"password": "secret"}).json()["token"]
+    assert client.post("/runtime/heartbeat", headers={"X-InSight-Token": token}).status_code == 200
+    assert tracker.has_client is True
+    assert tracker.should_shutdown(now=100.0) is False
+
+    # Simulate disconnect via sendBeacon token query param, then cancel via refresh heartbeat.
+    assert client.post(f"/runtime/disconnect?token={token}").status_code == 200
+    assert tracker.disconnect_deadline is not None
+    tracker.record_heartbeat(now=101.0)
+    assert tracker.disconnect_deadline is None
+
+    # Now simulate real close past the 4s grace window.
+    tracker.record_disconnect(now=102.0)
+    assert tracker.should_shutdown(now=105.9) is False
+    assert tracker.should_shutdown(now=106.0) is True
