@@ -3,29 +3,30 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>InSight: Private Document Workspace</title>
+  <title>InSight</title>
   <style>
     :root {
-      --bg-shell: #0E0E10;
-      --bg-canvas: #050505;
-      --bg-card: #141416;
-      --bg-hover: #1B1B1F;
-      --bg-active: #232328;
-      --border-subtle: #242428;
-      --border-strong: #323238;
-      --ink-primary: #F3F4F6;
-      --ink-muted: #A1A1AA;
-      --ink-inverse: #09090B;
-      --btn-white: #F4F4F5;
-      --btn-white-hover: #E4E4E7;
+      --bg-canvas: #262624;
+      --bg-sidebar: #1E1E1C;
+      --bg-surface: #30302E;
+      --bg-hover: #2B2B28;
+      --bg-active: #363632;
+      --border-subtle: #343430;
+      --border-strong: #464641;
+      --ink-primary: #ECECE8;
+      --ink-muted: #B0AFA8;
+      --ink-dark: #141413;
+      --accent-warm: #D97757;
+      --accent-warm-hover: #E08567;
       --danger-ink: #FCA5A5;
-      --danger-bg: #2A1215;
-      --danger-border: #5B1E24;
+      --danger-bg: #36181B;
+      --danger-border: #6B282E;
       --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --font-serif: Georgia, "Times New Roman", Cambria, serif;
       --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      --radius-sm: 6px;
-      --radius-md: 10px;
-      --radius-lg: 14px;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
     }
 
     *, *::before, *::after {
@@ -40,7 +41,7 @@
       margin: 0;
       padding: 0;
       height: 100%;
-      background-color: var(--bg-shell);
+      background-color: var(--bg-canvas);
       color: var(--ink-primary);
       font-family: var(--font-sans);
       line-height: 1.5;
@@ -56,7 +57,7 @@
     }
 
     :focus-visible {
-      outline: 2px solid var(--btn-white);
+      outline: 2px solid var(--accent-warm);
       outline-offset: 2px;
     }
 
@@ -72,354 +73,388 @@
       border: 0;
     }
 
-    .app-frame {
-      display: grid;
-      grid-template-columns: 276px 1fr;
-      grid-template-rows: 46px 1fr;
+    .app-layout {
+      display: flex;
       height: 100dvh;
-      background-color: var(--bg-shell);
+      width: 100%;
+      overflow: hidden;
+      background-color: var(--bg-canvas);
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 268px;
+      flex-shrink: 0;
+      background-color: var(--bg-sidebar);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      transition: width 150ms ease;
+    }
+
+    .app-layout.sidebar-collapsed .sidebar {
+      width: 0;
+      border-right: none;
       overflow: hidden;
     }
 
-    /* Slim Top Bar */
-    .topbar {
-      grid-column: 1 / -1;
+    .sidebar-top {
+      padding: 12px 12px 6px;
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 0 14px;
-      background-color: var(--bg-shell);
-      font-size: 0.84rem;
-    }
-
-    .topbar-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-width: 0;
-    }
-
-    .brand-link {
-      display: inline-flex;
       align-items: center;
       gap: 8px;
-      color: var(--ink-primary);
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 0.9rem;
     }
 
-    .topbar-nav {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .topbar-item {
-      display: inline-flex;
-      align-items: center;
-      min-height: 36px;
-      padding: 0 10px;
+    .sidebar-toggle-btn {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
       border-radius: var(--radius-sm);
-      border: 1px solid transparent;
+      border: none;
       background: transparent;
       color: var(--ink-muted);
-      font-family: var(--font-sans);
-      font-size: 0.82rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sidebar-toggle-btn:hover {
+      background-color: var(--bg-hover);
+      color: var(--ink-primary);
+    }
+
+    .sidebar-brand {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--ink-primary);
       text-decoration: none;
+      letter-spacing: -0.01em;
     }
 
-    .topbar-item:hover {
-      color: var(--ink-primary);
-      background-color: var(--bg-hover);
-    }
-
-    .topbar-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .runtime-chip {
-      font-family: var(--font-mono);
-      font-size: 0.76rem;
-      color: var(--ink-muted);
-      background-color: var(--bg-card);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-sm);
-      padding: 4px 10px;
-      white-space: nowrap;
-    }
-
-    .mobile-drawer-btn {
-      display: none;
-      min-height: 36px;
-      min-width: 36px;
-      padding: 0 10px;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border-subtle);
-      background-color: var(--bg-card);
-      color: var(--ink-primary);
-      font-size: 0.82rem;
-      font-weight: 600;
-    }
-
-    /* Left Sidebar */
-    .sidebar {
-      background-color: var(--bg-shell);
-      padding: 6px 10px 10px 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      min-height: 0;
-    }
-
-    .new-chat-btn {
-      width: 100%;
-      min-height: 44px;
-      padding: 0 12px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background-color: var(--bg-hover);
-      color: var(--ink-primary);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      font-family: var(--font-sans);
-      font-size: 0.86rem;
-      font-weight: 600;
-      text-align: left;
-    }
-
-    .new-chat-btn:hover:not(:disabled) {
-      background-color: var(--bg-active);
-      border-color: var(--border-strong);
-    }
-
-    .sidebar-actions {
+    .sidebar-primary-nav {
+      padding: 6px 10px 8px;
       display: flex;
       flex-direction: column;
       gap: 2px;
     }
 
-    .sidebar-nav-btn {
+    .nav-btn {
       width: 100%;
       min-height: 44px;
       padding: 0 10px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: transparent;
-      color: var(--ink-muted);
       border: none;
       border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--ink-primary);
       font-family: var(--font-sans);
-      font-size: 0.84rem;
+      font-size: 0.87rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
       text-align: left;
+      text-decoration: none;
     }
 
-    .sidebar-nav-btn:hover:not(:disabled) {
+    .nav-btn:hover:not(:disabled) {
       background-color: var(--bg-hover);
+    }
+
+    .nav-btn.featured {
+      background-color: var(--bg-hover);
+      font-weight: 600;
+    }
+
+    .nav-btn.featured:hover:not(:disabled) {
+      background-color: var(--bg-active);
+    }
+
+    .nav-btn-left {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .nav-hint {
+      font-size: 0.74rem;
+      color: var(--ink-muted);
+    }
+
+    .sidebar-search-wrap {
+      padding: 0 10px 8px;
+    }
+
+    .sidebar-search {
+      width: 100%;
+      min-height: 44px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-strong);
+      background-color: var(--bg-canvas);
       color: var(--ink-primary);
+      font-size: 0.84rem;
     }
 
     .sidebar-scroll {
       flex: 1;
       overflow-y: auto;
+      padding: 4px 10px 12px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      padding-right: 2px;
+      gap: 14px;
     }
 
-    .sidebar-section {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .section-header {
+    .group-toggle {
+      width: 100%;
+      min-height: 36px;
+      padding: 0 8px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--ink-muted);
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      font-weight: 600;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 6px;
+      text-align: left;
     }
 
-    .section-label {
-      margin: 0;
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: var(--ink-muted);
-    }
-
-    .icon-action-btn {
-      min-width: 36px;
-      min-height: 36px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: transparent;
-      color: var(--ink-muted);
-      border: 1px solid transparent;
-      border-radius: var(--radius-sm);
-      font-size: 0.95rem;
-    }
-
-    .icon-action-btn:hover:not(:disabled) {
-      background-color: var(--bg-hover);
+    .group-toggle:hover {
       color: var(--ink-primary);
     }
 
-    .sidebar-list {
+    .item-list {
       list-style: none;
-      margin: 0;
+      margin: 2px 0 0;
       padding: 0;
       display: flex;
       flex-direction: column;
       gap: 2px;
     }
 
-    .sidebar-row {
+    .item-row {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
       border-radius: var(--radius-sm);
-      padding: 2px 4px;
+      padding-right: 4px;
     }
 
-    .sidebar-row:hover {
+    .item-row:hover {
       background-color: var(--bg-hover);
     }
 
-    .sidebar-row.active {
+    .item-row.active {
       background-color: var(--bg-active);
     }
 
-    .row-main-btn {
+    .item-main-btn {
       flex: 1;
       min-width: 0;
       min-height: 44px;
-      padding: 6px 6px;
+      padding: 6px 8px;
+      border: none;
+      background: transparent;
+      color: var(--ink-primary);
+      font-family: var(--font-sans);
+      font-size: 0.84rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-      background: transparent;
-      border: none;
-      color: var(--ink-primary);
-      font-family: var(--font-sans);
-      font-size: 0.83rem;
       text-align: left;
     }
 
-    .row-title {
+    .item-title {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    .row-meta {
+    .item-count {
       font-family: var(--font-mono);
       font-size: 0.72rem;
       color: var(--ink-muted);
       flex-shrink: 0;
     }
 
-    .row-delete-btn {
+    .item-del-btn {
       min-width: 36px;
       min-height: 36px;
       border: none;
+      border-radius: var(--radius-sm);
       background: transparent;
       color: var(--ink-muted);
-      border-radius: var(--radius-sm);
       font-size: 0.78rem;
       font-weight: 600;
       flex-shrink: 0;
     }
 
-    .row-delete-btn:hover:not(:disabled) {
+    .item-del-btn:hover {
       background-color: var(--danger-bg);
       color: var(--danger-ink);
     }
 
     .sidebar-footer {
       border-top: 1px solid var(--border-subtle);
-      padding-top: 6px;
+      padding: 8px 10px;
     }
 
-    /* Main Inset Dark Canvas */
-    .canvas-wrap {
-      padding: 0 10px 10px 2px;
-      min-height: 0;
-      display: flex;
-    }
-
-    .canvas-panel {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-      background-color: var(--bg-canvas);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-      position: relative;
-    }
-
-    .chat-scroll {
-      flex: 1;
-      overflow-y: auto;
-      padding: 24px 20px 16px;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* Centered Welcome State */
-    .welcome-state {
-      margin: auto;
-      max-width: 560px;
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 14px;
-      padding: 24px 12px;
-    }
-
-    .welcome-emblem {
-      width: 52px;
-      height: 52px;
-      color: #383840;
-    }
-
-    .welcome-heading {
-      margin: 0;
-      font-size: 1.45rem;
-      font-weight: 500;
-      letter-spacing: -0.02em;
+    .profile-btn {
+      width: 100%;
+      min-height: 44px;
+      padding: 4px 6px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: transparent;
       color: var(--ink-primary);
+      font-family: var(--font-sans);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      text-align: left;
     }
 
-    .welcome-sub {
-      margin: 0;
-      font-size: 0.9rem;
+    .profile-btn:hover {
+      background-color: var(--bg-hover);
+    }
+
+    .profile-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .avatar-circle {
+      width: 30px;
+      height: 30px;
+      border-radius: 999px;
+      background-color: var(--bg-active);
+      border: 1px solid var(--border-strong);
+      color: var(--ink-primary);
+      font-size: 0.76rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .profile-meta {
+      min-width: 0;
+    }
+
+    .profile-name {
+      display: block;
+      font-size: 0.83rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .profile-sub {
+      display: block;
+      font-size: 0.72rem;
       color: var(--ink-muted);
     }
 
-    .welcome-actions {
+    /* Main Workspace */
+    .workspace-main {
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
       display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 4px;
+      flex-direction: column;
+      position: relative;
+      background-color: var(--bg-canvas);
     }
 
-    /* Chat Messages */
+    .floating-open-btn {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 20;
+      display: none;
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      background-color: var(--bg-sidebar);
+      color: var(--ink-primary);
+      align-items: center;
+      justify-content: center;
+    }
+
+    .app-layout.sidebar-collapsed .floating-open-btn {
+      display: inline-flex;
+    }
+
+    .top-pill-wrap {
+      padding: 12px 16px 4px;
+      display: flex;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .top-pill-btn {
+      min-height: 36px;
+      padding: 4px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      background-color: var(--bg-sidebar);
+      color: var(--ink-muted);
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .top-pill-btn:hover {
+      color: var(--ink-primary);
+      border-color: var(--border-strong);
+    }
+
+    .top-pill-accent {
+      color: var(--accent-warm);
+      font-weight: 600;
+    }
+
+    /* Stage: Centered when empty, full-height chat when messages exist */
+    .stage-body {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 0 20px;
+    }
+
+    .workspace-main.has-messages .stage-body {
+      justify-content: flex-start;
+      padding: 0;
+    }
+
+    .chat-scroll {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px 20px 12px;
+    }
+
+    .workspace-main.has-messages .chat-scroll {
+      display: block;
+    }
+
     .chat-feed {
-      width: 100%;
-      max-width: 780px;
+      max-width: 720px;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
@@ -429,35 +464,34 @@
     .msg-item {
       padding: 14px 16px;
       border-radius: var(--radius-md);
-      border: 1px solid var(--border-subtle);
-      background-color: var(--bg-shell);
+      font-size: 0.95rem;
     }
 
     .msg-item.user {
       align-self: flex-end;
       max-width: 82%;
-      background-color: var(--bg-hover);
-      border-color: var(--border-strong);
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-strong);
     }
 
     .msg-item.assistant {
       align-self: stretch;
-      background-color: var(--bg-shell);
+      background-color: transparent;
+      padding-left: 4px;
+      padding-right: 4px;
     }
 
     .msg-role {
       font-family: var(--font-mono);
-      font-size: 0.72rem;
+      font-size: 0.74rem;
       color: var(--ink-muted);
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
 
     .msg-body {
       margin: 0;
       white-space: pre-wrap;
       word-break: break-word;
-      font-size: 0.94rem;
-      color: var(--ink-primary);
     }
 
     .sources-wrap {
@@ -471,183 +505,202 @@
 
     .source-chip {
       font-family: var(--font-mono);
-      font-size: 0.75rem;
+      font-size: 0.76rem;
       color: var(--ink-muted);
-      background-color: var(--bg-canvas);
+      background-color: var(--bg-sidebar);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-sm);
-      padding: 6px 8px;
+      padding: 6px 10px;
     }
 
-    /* Status / Empty / Error Banners */
-    .status-note {
-      padding: 10px 12px;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border-subtle);
-      background-color: var(--bg-card);
-      color: var(--ink-muted);
-      font-size: 0.82rem;
+    /* Centered Greeting */
+    .welcome-row {
+      max-width: 680px;
+      width: 100%;
+      margin: 0 auto 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      text-align: center;
     }
 
-    .status-note.error {
-      background-color: var(--danger-bg);
-      border-color: var(--danger-border);
-      color: var(--danger-ink);
+    .workspace-main.has-messages .welcome-row {
+      display: none;
     }
 
-    /* Floating Bottom Composer (Matching Reference) */
-    .composer-dock {
-      padding: 8px 20px 22px;
-      background: transparent;
+    .spark-mark {
+      width: 30px;
+      height: 30px;
+      color: var(--accent-warm);
+      flex-shrink: 0;
+    }
+
+    .welcome-title {
+      margin: 0;
+      font-family: var(--font-serif);
+      font-weight: 400;
+      font-size: clamp(1.55rem, 3.2vw, 2.2rem);
+      letter-spacing: -0.015em;
+      color: var(--ink-primary);
+    }
+
+    /* Composer Card */
+    .composer-wrap {
+      width: 100%;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    .workspace-main.has-messages .composer-wrap {
+      max-width: 740px;
+      padding: 8px 20px 20px;
     }
 
     .composer-card {
-      max-width: 760px;
-      margin: 0 auto;
-      background-color: var(--bg-card);
+      background-color: var(--bg-surface);
       border: 1px solid var(--border-strong);
       border-radius: var(--radius-lg);
-      overflow: hidden;
-    }
-
-    .composer-top {
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
+      padding: 12px 14px 10px;
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 6px 12px;
-      border-bottom: 1px solid var(--border-subtle);
-      font-size: 0.78rem;
-      color: var(--ink-muted);
+      flex-direction: column;
+      gap: 10px;
     }
 
-    .scope-btn {
-      min-height: 32px;
-      padding: 0 8px;
-      background: transparent;
-      border: none;
-      border-radius: var(--radius-sm);
-      color: var(--ink-muted);
-      font-family: var(--font-sans);
-      font-size: 0.78rem;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .scope-btn:hover {
-      background-color: var(--bg-hover);
-      color: var(--ink-primary);
+    .composer-card:focus-within {
+      border-color: #63635C;
     }
 
     .composer-input {
       width: 100%;
-      min-height: 54px;
-      max-height: 170px;
-      padding: 12px 14px 6px;
-      resize: none;
+      min-height: 46px;
+      max-height: 180px;
       border: none;
+      resize: none;
       background: transparent;
       color: var(--ink-primary);
       font-family: var(--font-sans);
-      font-size: 0.94rem;
+      font-size: 0.96rem;
       line-height: 1.5;
+      padding: 2px 2px;
+    }
+
+    .composer-input::placeholder {
+      color: var(--ink-muted);
     }
 
     .composer-input:focus-visible {
       outline: none;
     }
 
-    .composer-card:focus-within {
-      border-color: #52525B;
-    }
-
-    .composer-bottom {
+    .composer-toolbar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
-      padding: 6px 10px 8px;
+      gap: 10px;
+      flex-wrap: wrap;
     }
 
-    .composer-left-tools,
-    .composer-right-tools {
+    .toolbar-left,
+    .toolbar-right {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
-    .tool-btn {
-      min-height: 44px;
-      padding: 0 10px;
-      background: transparent;
-      border: 1px solid transparent;
+    .plus-btn {
+      width: 44px;
+      height: 44px;
       border-radius: var(--radius-sm);
+      border: none;
+      background: transparent;
+      color: var(--ink-muted);
+      font-size: 1.25rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .plus-btn:hover {
+      background-color: var(--bg-active);
+      color: var(--ink-primary);
+    }
+
+    .mode-pill-group {
+      display: inline-flex;
+      background-color: var(--bg-canvas);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 2px;
+    }
+
+    .mode-pill-btn {
+      min-height: 36px;
+      padding: 0 12px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
       color: var(--ink-muted);
       font-family: var(--font-sans);
-      font-size: 0.8rem;
+      font-size: 0.82rem;
+      font-weight: 500;
+    }
+
+    .mode-pill-btn.active {
+      background-color: var(--bg-surface);
+      color: var(--ink-primary);
+    }
+
+    .model-trigger-btn {
+      min-height: 44px;
+      padding: 0 10px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--ink-muted);
+      font-family: var(--font-sans);
+      font-size: 0.82rem;
       display: inline-flex;
       align-items: center;
       gap: 6px;
     }
 
-    .tool-btn:hover:not(:disabled) {
-      background-color: var(--bg-hover);
+    .model-trigger-btn:hover {
+      background-color: var(--bg-active);
       color: var(--ink-primary);
     }
 
-    .send-pill-btn {
+    .send-btn {
       width: 44px;
       height: 44px;
       border-radius: 999px;
       border: none;
-      background-color: var(--btn-white);
-      color: var(--ink-inverse);
+      background-color: var(--accent-warm);
+      color: var(--ink-dark);
       display: inline-flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
     }
 
-    .send-pill-btn:hover:not(:disabled) {
-      background-color: var(--btn-white-hover);
+    .send-btn:hover:not(:disabled) {
+      background-color: var(--accent-warm-hover);
     }
 
-    .btn-primary-dark {
-      min-height: 44px;
-      padding: 0 16px;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--btn-white);
-      background-color: var(--btn-white);
-      color: var(--ink-inverse);
-      font-family: var(--font-sans);
-      font-size: 0.86rem;
-      font-weight: 600;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
+    .status-note {
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      background-color: var(--bg-canvas);
+      color: var(--ink-muted);
+      font-size: 0.8rem;
     }
 
-    .btn-primary-dark:hover:not(:disabled) {
-      background-color: var(--btn-white-hover);
-    }
-
-    .btn-secondary-dark {
-      min-height: 44px;
-      padding: 0 14px;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--border-strong);
-      background-color: var(--bg-hover);
-      color: var(--ink-primary);
-      font-family: var(--font-sans);
-      font-size: 0.86rem;
-      font-weight: 600;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .btn-secondary-dark:hover:not(:disabled) {
-      background-color: var(--bg-active);
+    .status-note.error {
+      background-color: var(--danger-bg);
+      border-color: var(--danger-border);
+      color: var(--danger-ink);
     }
 
     .file-input-hidden {
@@ -662,12 +715,12 @@
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background-color: rgba(0, 0, 0, 0.72);
+      background-color: rgba(15, 15, 14, 0.72);
       display: none;
       align-items: center;
       justify-content: center;
       padding: 16px;
-      z-index: 50;
+      z-index: 60;
     }
 
     .modal-backdrop.open {
@@ -677,9 +730,9 @@
     .modal-card {
       width: 100%;
       max-width: 440px;
-      background-color: var(--bg-shell);
+      background-color: var(--bg-sidebar);
       border: 1px solid var(--border-strong);
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius-md);
       padding: 20px;
       display: flex;
       flex-direction: column;
@@ -695,7 +748,7 @@
     .modal-kv {
       margin: 0;
       display: grid;
-      grid-template-columns: 130px 1fr;
+      grid-template-columns: 120px 1fr;
       gap: 8px 12px;
       font-size: 0.84rem;
     }
@@ -707,107 +760,156 @@
     .modal-kv dd {
       margin: 0;
       font-family: var(--font-mono);
-      color: var(--ink-primary);
       word-break: break-word;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn-primary-warm {
+      min-height: 44px;
+      padding: 0 16px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background-color: var(--accent-warm);
+      color: var(--ink-dark);
+      font-family: var(--font-sans);
+      font-size: 0.86rem;
+      font-weight: 600;
+    }
+
+    .btn-primary-warm:hover {
+      background-color: var(--accent-warm-hover);
+    }
+
+    .btn-secondary-warm {
+      min-height: 44px;
+      padding: 0 14px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      background-color: var(--bg-surface);
+      color: var(--ink-primary);
+      font-family: var(--font-sans);
+      font-size: 0.86rem;
+      font-weight: 500;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
     }
 
     .text-input {
       width: 100%;
       min-height: 44px;
       padding: 8px 12px;
-      border: 1px solid var(--border-strong);
       border-radius: var(--radius-sm);
+      border: 1px solid var(--border-strong);
       background-color: var(--bg-canvas);
       color: var(--ink-primary);
       font-size: 0.92rem;
     }
 
     @media (max-width: 768px) {
-      .app-frame {
-        grid-template-columns: 1fr;
-      }
-
-      .mobile-drawer-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .topbar-nav {
-        display: none;
-      }
-
       .sidebar {
-        display: none;
         position: fixed;
-        top: 46px;
+        top: 0;
         bottom: 0;
         left: 0;
-        width: min(86vw, 300px);
-        z-index: 40;
-        border-right: 1px solid var(--border-subtle);
+        z-index: 50;
+        width: min(84vw, 290px);
       }
 
-      .sidebar.open {
-        display: flex;
+      .sidebar:not(.mobile-open) {
+        display: none;
       }
 
-      .canvas-wrap {
-        padding: 0 8px 8px;
+      .floating-open-btn {
+        display: inline-flex;
       }
 
-      .composer-dock {
-        padding: 8px 10px 12px;
+      .app-layout.sidebar-collapsed .sidebar {
+        width: min(84vw, 290px);
+      }
+
+      .stage-body {
+        padding: 0 12px;
+      }
+
+      .workspace-main.has-messages .composer-wrap {
+        padding: 8px 12px 14px;
       }
     }
   </style>
 </head>
 <body>
-  <div class="app-frame">
-    <header class="topbar">
-      <div class="topbar-left">
+  <div id="app-layout" class="app-layout">
+    <aside id="sidebar" class="sidebar" aria-label="Menu utama dan daftar dokumen">
+      <div class="sidebar-top">
         <button
           type="button"
-          id="drawer-toggle"
-          class="mobile-drawer-btn"
-          aria-expanded="false"
-          aria-controls="workspace-sidebar"
+          id="sidebar-collapse-btn"
+          class="sidebar-toggle-btn"
+          aria-label="Tutup panel samping"
         >
-          Menu
-        </button>
-        <a href="/" class="brand-link">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M12 2C9.5 2 8.2 4.1 6.7 8.4L3.2 19.5C2.8 20.8 3.8 22 5.1 22C6.2 22 7.1 21.3 7.6 20.2C8.9 17.5 10.3 15.8 12 15.8C13.7 15.8 15.1 17.5 16.4 20.2C16.9 21.3 17.8 22 18.9 22C20.2 22 21.2 20.8 20.8 19.5L17.3 8.4C15.8 4.1 14.5 2 12 2Z" />
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <path d="M9 4v16" />
           </svg>
-          <span>InSight</span>
-        </a>
-        <nav class="topbar-nav" aria-label="Navigasi cepat">
-          <button type="button" id="top-new-chat" class="topbar-item">New Chat</button>
-          <label for="file-upload" class="topbar-item">Upload</label>
-          <a href="/docs" target="_blank" rel="noopener" class="topbar-item">API Docs</a>
-        </nav>
-      </div>
-      <div class="topbar-right">
-        <span id="runtime-chip" class="runtime-chip">Memuat...</span>
-        <button type="button" id="top-settings-btn" class="topbar-item">Settings</button>
-      </div>
-    </header>
-
-    <aside id="workspace-sidebar" class="sidebar" aria-label="Dokumen dan riwayat percakapan">
-      <button type="button" id="new-chat-btn" class="new-chat-btn">
-        <span aria-hidden="true">+</span>
-        <span>New Conversation</span>
-      </button>
-
-      <div class="sidebar-actions">
-        <label for="file-upload" class="sidebar-nav-btn">
-          <span aria-hidden="true">&#8679;</span>
-          <span>Upload Document</span>
-        </label>
-        <button type="button" id="clear-session-btn" class="sidebar-nav-btn">
-          <span aria-hidden="true">&#10005;</span>
-          <span>Clear Active Chat</span>
         </button>
+        <a href="/" class="sidebar-brand">InSight</a>
+      </div>
+
+      <nav class="sidebar-primary-nav" aria-label="Aksi utama">
+        <button type="button" id="new-chat-btn" class="nav-btn featured">
+          <span class="nav-btn-left">
+            <span aria-hidden="true">+</span>
+            <span>Buat baru</span>
+          </span>
+        </button>
+
+        <button type="button" id="toggle-search-btn" class="nav-btn">
+          <span class="nav-btn-left">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+            <span>Cari</span>
+          </span>
+        </button>
+
+        <label for="file-upload" class="nav-btn">
+          <span class="nav-btn-left">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="M12 16V4" />
+              <path d="m7 9 5-5 5 5" />
+              <path d="M4 20h16" />
+            </svg>
+            <span>Unggah Dokumen</span>
+          </span>
+        </label>
+
+        <button type="button" id="open-settings-nav" class="nav-btn">
+          <span class="nav-btn-left">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="M4 6h16M4 12h10M4 18h14" />
+            </svg>
+            <span>Kustomisasi</span>
+          </span>
+          <span id="precision-nav-hint" class="nav-hint">4bit</span>
+        </button>
+      </nav>
+
+      <div id="search-box-wrap" class="sidebar-search-wrap" hidden>
+        <label for="sidebar-search" class="sr-only">Cari dokumen atau percakapan</label>
+        <input
+          id="sidebar-search"
+          class="sidebar-search"
+          type="search"
+          placeholder="Filter dokumen atau riwayat..."
+        />
       </div>
 
       <input
@@ -817,90 +919,107 @@
         accept=".pdf,.docx,.doc,.pptx,.ppt,.xlsx,.xls,.html,.htm,.txt,.md,.csv,.json,.py,.png,.jpg,.jpeg,.webp"
       />
 
-      <div id="upload-status" class="status-note" hidden></div>
+      <div id="upload-status" class="status-note" style="margin: 0 10px 8px;" hidden></div>
 
       <div class="sidebar-scroll">
-        <section class="sidebar-section" aria-labelledby="docs-heading">
-          <div class="section-header">
-            <h2 id="docs-heading" class="section-label">Documents</h2>
-            <label for="file-upload" class="icon-action-btn" title="Unggah dokumen" aria-label="Unggah dokumen baru">+</label>
+        <section aria-labelledby="docs-toggle">
+          <button type="button" id="docs-toggle" class="group-toggle" aria-expanded="true">
+            <span>Dokumen</span>
+            <span id="docs-count-badge">0</span>
+          </button>
+          <div id="docs-panel">
+            <div id="doc-state" class="status-note">Memuat dokumen...</div>
+            <ul id="doc-list" class="item-list"></ul>
           </div>
-          <div id="doc-state" class="status-note">Memuat dokumen...</div>
-          <ul id="doc-list" class="sidebar-list"></ul>
         </section>
 
-        <section class="sidebar-section" aria-labelledby="sessions-heading">
-          <div class="section-header">
-            <h2 id="sessions-heading" class="section-label">Conversations</h2>
-            <button type="button" id="sessions-new-btn" class="icon-action-btn" title="Percakapan baru" aria-label="Buat percakapan baru">+</button>
+        <section aria-labelledby="sessions-toggle">
+          <button type="button" id="sessions-toggle" class="group-toggle" aria-expanded="true">
+            <span>Riwayat chat</span>
+            <span id="sessions-count-badge">0</span>
+          </button>
+          <div id="sessions-panel">
+            <div id="session-state" class="status-note">Memuat riwayat...</div>
+            <ul id="session-list" class="item-list"></ul>
           </div>
-          <div id="session-state" class="status-note">Memuat riwayat...</div>
-          <ul id="session-list" class="sidebar-list"></ul>
         </section>
       </div>
 
       <div class="sidebar-footer">
-        <button type="button" id="sidebar-settings-btn" class="sidebar-nav-btn">
-          <span aria-hidden="true">&#9881;</span>
-          <span>Settings</span>
+        <button type="button" id="footer-settings-btn" class="profile-btn">
+          <span class="profile-left">
+            <span class="avatar-circle" aria-hidden="true">IS</span>
+            <span class="profile-meta">
+              <span class="profile-name">InSight RAG</span>
+              <span id="footer-mode-sub" class="profile-sub">Memuat status...</span>
+            </span>
+          </span>
+          <span class="nav-hint">Info</span>
         </button>
       </div>
     </aside>
 
-    <main class="canvas-wrap">
-      <div class="canvas-panel">
-        <div id="chat-scroll" class="chat-scroll" aria-live="polite">
-          <div id="welcome-state" class="welcome-state">
-            <svg class="welcome-emblem" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M12 2C9.5 2 8.2 4.1 6.7 8.4L3.2 19.5C2.8 20.8 3.8 22 5.1 22C6.2 22 7.1 21.3 7.6 20.2C8.9 17.5 10.3 15.8 12 15.8C13.7 15.8 15.1 17.5 16.4 20.2C16.9 21.3 17.8 22 18.9 22C20.2 22 21.2 20.8 20.8 19.5L17.3 8.4C15.8 4.1 14.5 2 12 2Z" />
-            </svg>
-            <h1 class="welcome-heading">Welcome to InSight. What should we explore?</h1>
-            <p id="welcome-sub" class="welcome-sub">
-              Unggah dokumen lokal Anda lalu ajukan pertanyaan tanpa mengirim file ke API pihak ketiga.
-            </p>
-            <div class="welcome-actions">
-              <label for="file-upload" class="btn-primary-dark">Unggah Dokumen</label>
-              <button type="button" id="welcome-settings-btn" class="btn-secondary-dark">Lihat Info Runtime</button>
-            </div>
-          </div>
+    <main id="workspace-main" class="workspace-main">
+      <button
+        type="button"
+        id="sidebar-open-btn"
+        class="floating-open-btn"
+        aria-label="Buka panel samping"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <path d="M9 4v16" />
+        </svg>
+      </button>
 
+      <div class="top-pill-wrap">
+        <button type="button" id="top-pill-btn" class="top-pill-btn">
+          <span id="top-pill-text">Memuat runtime...</span>
+          <span class="top-pill-accent">Pengaturan</span>
+        </button>
+      </div>
+
+      <div class="stage-body">
+        <div id="chat-scroll" class="chat-scroll" aria-live="polite">
           <div id="chat-state" class="status-note" hidden></div>
           <div id="chat-feed" class="chat-feed"></div>
         </div>
 
-        <div class="composer-dock">
-          <form id="chat-form" class="composer-card">
-            <div class="composer-top">
-              <button type="button" id="scope-btn" class="scope-btn">
-                <span id="scope-label">No Documents</span>
-              </button>
-              <span id="session-badge" class="runtime-chip">Sesi: default</span>
-            </div>
+        <div class="welcome-row">
+          <svg class="spark-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93 4.93 19.07" />
+          </svg>
+          <h1 class="welcome-title">Halo, siap telusuri dokumen Anda</h1>
+        </div>
 
+        <div class="composer-wrap">
+          <form id="chat-form" class="composer-card">
             <label for="question-input" class="sr-only">Pertanyaan untuk dokumen</label>
             <textarea
               id="question-input"
               class="composer-input"
-              rows="1"
-              placeholder="Ask anything about your documents (Enter to send, Shift+Enter for new line)"
+              rows="2"
+              placeholder="Apa yang bisa saya bantu dari dokumen Anda?"
               required
             ></textarea>
 
-            <div class="composer-bottom">
-              <div class="composer-left-tools">
-                <label for="file-upload" class="tool-btn" aria-label="Lampirkan dokumen">
-                  <span aria-hidden="true">+</span>
-                  <span>Add File</span>
-                </label>
-                <button type="button" id="model-info-btn" class="tool-btn">
-                  <span id="model-label">Memuat model...</span>
-                </button>
+            <div class="composer-toolbar">
+              <div class="toolbar-left">
+                <label for="file-upload" class="plus-btn" title="Unggah dokumen" aria-label="Unggah dokumen">+</label>
+                <div class="mode-pill-group" role="group" aria-label="Tampilan cepat">
+                  <button type="button" id="mode-chat-btn" class="mode-pill-btn active">Chat</button>
+                  <button type="button" id="mode-docs-btn" class="mode-pill-btn">Dokumen (<span id="pill-doc-count">0</span>)</button>
+                </div>
               </div>
-              <div class="composer-right-tools">
-                <button type="submit" id="send-btn" class="send-pill-btn" aria-label="Kirim pertanyaan">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M5 12h14" />
-                    <path d="m12 5 7 7-7 7" />
+
+              <div class="toolbar-right">
+                <button type="button" id="model-trigger-btn" class="model-trigger-btn">
+                  <span id="model-label">retrieval_only · 4bit</span>
+                </button>
+                <button type="submit" id="send-btn" class="send-btn" aria-label="Kirim pertanyaan">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 19V5" />
+                    <path d="m5 12 7-7 7 7" />
                   </svg>
                 </button>
               </div>
@@ -911,42 +1030,45 @@
     </main>
   </div>
 
-  <!-- Settings / Runtime Modal -->
+  <!-- Settings Modal -->
   <div id="settings-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="settings-title">
     <div class="modal-card">
-      <h2 id="settings-title" class="modal-title">Runtime Settings</h2>
+      <h2 id="settings-title" class="modal-title">Pengaturan & Status Runtime</h2>
       <dl class="modal-kv">
         <dt>LLM Backend</dt>
         <dd id="set-backend">-</dd>
         <dt>LLM Model</dt>
         <dd id="set-model">-</dd>
-        <dt>Precision</dt>
+        <dt>Presisi</dt>
         <dd id="set-precision">-</dd>
         <dt>Embedder</dt>
         <dd id="set-embedder">-</dd>
         <dt>Reranker</dt>
         <dd id="set-reranker">-</dd>
-        <dt>Indexed Docs</dt>
+        <dt>Dokumen</dt>
         <dd id="set-docs">-</dd>
       </dl>
-      <p class="welcome-sub">
-        Untuk mengganti model atau mode presisi (`4bit`, `8bit`, `full`), atur variabel environment di `.env` atau sel konfigurasi Colab lalu jalankan ulang server.
-      </p>
-      <div class="welcome-actions">
-        <button type="button" id="close-settings-btn" class="btn-primary-dark">Tutup</button>
+      <div class="modal-actions">
+        <a href="/docs" target="_blank" rel="noopener" class="btn-secondary-warm">Buka API Docs</a>
+        <button type="button" id="clear-active-modal-btn" class="btn-secondary-warm">Bersihkan Chat Aktif</button>
+        <button type="button" id="close-settings-btn" class="btn-primary-warm">Tutup</button>
       </div>
     </div>
   </div>
 
-  <!-- Password Auth Modal -->
+  <!-- Auth Modal -->
   <div id="auth-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="auth-title">
     <form id="auth-form" class="modal-card">
       <h2 id="auth-title" class="modal-title">Masuk ke InSight</h2>
-      <p class="welcome-sub">Server ini dilindungi kata sandi sesi (`INSIGHT_PASSWORD`).</p>
+      <p style="margin: 0; font-size: 0.86rem; color: var(--ink-muted);">
+        Server dilindungi kata sandi sesi (`INSIGHT_PASSWORD`).
+      </p>
       <label for="auth-password" class="sr-only">Kata sandi sesi</label>
       <input id="auth-password" class="text-input" type="password" placeholder="Masukkan kata sandi..." required />
       <div id="auth-error" class="status-note error" hidden></div>
-      <button type="submit" class="btn-primary-dark">Buka Sesi</button>
+      <div class="modal-actions">
+        <button type="submit" class="btn-primary-warm">Buka Sesi</button>
+      </div>
     </form>
   </div>
 
@@ -958,41 +1080,53 @@
       token: sessionStorage.getItem(TOKEN_KEY) || "",
       sessionId: localStorage.getItem(SESSION_KEY) || "default",
       busy: false,
-      health: null,
+      docs: [],
+      sessions: [],
+      filterQuery: "",
     };
 
     const el = {
-      drawerToggle: document.getElementById("drawer-toggle"),
-      sidebar: document.getElementById("workspace-sidebar"),
-      topNewChat: document.getElementById("top-new-chat"),
+      appLayout: document.getElementById("app-layout"),
+      sidebar: document.getElementById("sidebar"),
+      sidebarCollapseBtn: document.getElementById("sidebar-collapse-btn"),
+      sidebarOpenBtn: document.getElementById("sidebar-open-btn"),
       newChatBtn: document.getElementById("new-chat-btn"),
-      sessionsNewBtn: document.getElementById("sessions-new-btn"),
-      clearSessionBtn: document.getElementById("clear-session-btn"),
+      toggleSearchBtn: document.getElementById("toggle-search-btn"),
+      searchBoxWrap: document.getElementById("search-box-wrap"),
+      sidebarSearch: document.getElementById("sidebar-search"),
+      openSettingsNav: document.getElementById("open-settings-nav"),
+      precisionNavHint: document.getElementById("precision-nav-hint"),
       fileUpload: document.getElementById("file-upload"),
       uploadStatus: document.getElementById("upload-status"),
+      docsToggle: document.getElementById("docs-toggle"),
+      docsPanel: document.getElementById("docs-panel"),
+      docsCountBadge: document.getElementById("docs-count-badge"),
       docState: document.getElementById("doc-state"),
       docList: document.getElementById("doc-list"),
+      sessionsToggle: document.getElementById("sessions-toggle"),
+      sessionsPanel: document.getElementById("sessions-panel"),
+      sessionsCountBadge: document.getElementById("sessions-count-badge"),
       sessionState: document.getElementById("session-state"),
       sessionList: document.getElementById("session-list"),
-      runtimeChip: document.getElementById("runtime-chip"),
-      scopeBtn: document.getElementById("scope-btn"),
-      scopeLabel: document.getElementById("scope-label"),
-      sessionBadge: document.getElementById("session-badge"),
-      modelInfoBtn: document.getElementById("model-info-btn"),
-      modelLabel: document.getElementById("model-label"),
-      welcomeState: document.getElementById("welcome-state"),
-      welcomeSub: document.getElementById("welcome-sub"),
-      welcomeSettingsBtn: document.getElementById("welcome-settings-btn"),
+      footerSettingsBtn: document.getElementById("footer-settings-btn"),
+      footerModeSub: document.getElementById("footer-mode-sub"),
+      workspaceMain: document.getElementById("workspace-main"),
+      topPillBtn: document.getElementById("top-pill-btn"),
+      topPillText: document.getElementById("top-pill-text"),
       chatScroll: document.getElementById("chat-scroll"),
       chatState: document.getElementById("chat-state"),
       chatFeed: document.getElementById("chat-feed"),
       chatForm: document.getElementById("chat-form"),
       questionInput: document.getElementById("question-input"),
+      modeChatBtn: document.getElementById("mode-chat-btn"),
+      modeDocsBtn: document.getElementById("mode-docs-btn"),
+      pillDocCount: document.getElementById("pill-doc-count"),
+      modelTriggerBtn: document.getElementById("model-trigger-btn"),
+      modelLabel: document.getElementById("model-label"),
       sendBtn: document.getElementById("send-btn"),
-      topSettingsBtn: document.getElementById("top-settings-btn"),
-      sidebarSettingsBtn: document.getElementById("sidebar-settings-btn"),
       settingsModal: document.getElementById("settings-modal"),
       closeSettingsBtn: document.getElementById("close-settings-btn"),
+      clearActiveModalBtn: document.getElementById("clear-active-modal-btn"),
       authModal: document.getElementById("auth-modal"),
       authForm: document.getElementById("auth-form"),
       authPassword: document.getElementById("auth-password"),
@@ -1042,36 +1176,30 @@
       el.settingsModal.classList.remove("open");
     }
 
+    function closeMobileSidebar() {
+      el.sidebar.classList.remove("mobile-open");
+    }
+
     function setActiveSession(sessionId) {
       state.sessionId = sessionId;
       localStorage.setItem(SESSION_KEY, sessionId);
-      el.sessionBadge.textContent = `Sesi: ${sessionId}`;
     }
 
     async function startNewConversation() {
-      const newId = `chat-${Date.now().toString(36)}`;
-      setActiveSession(newId);
+      setActiveSession(`chat-${Date.now().toString(36)}`);
       await Promise.all([loadHistory(), loadSessions()]);
       el.questionInput.focus();
-      closeMobileDrawer();
-    }
-
-    function closeMobileDrawer() {
-      if (el.sidebar.classList.contains("open")) {
-        el.sidebar.classList.remove("open");
-        el.drawerToggle.setAttribute("aria-expanded", "false");
-      }
+      closeMobileSidebar();
     }
 
     async function loadHealth() {
       try {
         const info = await fetch("/health").then((r) => r.json());
-        state.health = info;
-        el.runtimeChip.textContent = `${info.llm_backend} (${info.precision_mode})`;
-        el.modelLabel.textContent = `${info.llm_backend} | ${info.precision_mode}`;
-        el.scopeLabel.textContent = info.document_count > 0
-          ? `All Documents (${info.document_count})`
-          : "No Documents";
+        el.topPillText.textContent = `Mode ${info.llm_backend} (${info.precision_mode})`;
+        el.modelLabel.textContent = `${info.llm_backend} · ${info.precision_mode}`;
+        el.precisionNavHint.textContent = info.precision_mode;
+        el.footerModeSub.textContent = `${info.llm_backend} | ${info.precision_mode}`;
+        el.pillDocCount.textContent = String(info.document_count);
 
         document.getElementById("set-backend").textContent = info.llm_backend;
         document.getElementById("set-model").textContent = info.llm_model;
@@ -1084,111 +1212,137 @@
           openAuthModal();
         }
       } catch {
-        el.runtimeChip.textContent = "Server offline";
+        el.topPillText.textContent = "Server offline";
         el.modelLabel.textContent = "Offline";
+      }
+    }
+
+    function renderDocuments() {
+      el.docList.innerHTML = "";
+      const q = state.filterQuery.toLowerCase();
+      const filtered = state.docs.filter((d) => d.filename.toLowerCase().includes(q));
+      el.docsCountBadge.textContent = String(state.docs.length);
+
+      if (state.docs.length === 0) {
+        setNote(el.docState, "Belum ada dokumen.");
+        return;
+      }
+      if (filtered.length === 0) {
+        setNote(el.docState, "Tidak ada dokumen cocok.");
+        return;
+      }
+
+      el.docState.hidden = true;
+      for (const doc of filtered) {
+        const li = document.createElement("li");
+        li.className = "item-row";
+
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "item-main-btn";
+        btn.title = `${doc.filename} (${doc.chunk_count} chunks)`;
+        btn.addEventListener("click", () => {
+          el.questionInput.value = `Ringkas isi dokumen ${doc.filename}`;
+          el.questionInput.focus();
+          closeMobileSidebar();
+        });
+
+        const title = document.createElement("span");
+        title.className = "item-title";
+        title.textContent = doc.filename;
+
+        const count = document.createElement("span");
+        count.className = "item-count";
+        count.textContent = `${doc.chunk_count}c`;
+
+        btn.append(title, count);
+
+        const delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.className = "item-del-btn";
+        delBtn.textContent = "×";
+        delBtn.setAttribute("aria-label", `Hapus dokumen ${doc.filename}`);
+        delBtn.addEventListener("click", () => handleDeleteDoc(doc.doc_id, doc.filename));
+
+        li.append(btn, delBtn);
+        el.docList.appendChild(li);
       }
     }
 
     async function loadDocuments() {
       setNote(el.docState, "Memuat dokumen...");
-      el.docList.innerHTML = "";
       try {
         const data = await apiFetch("/documents");
-        const docs = data.documents || [];
-        if (docs.length === 0) {
-          setNote(el.docState, "Belum ada dokumen diunggah.");
-          return;
-        }
-        el.docState.hidden = true;
-        for (const doc of docs) {
-          const li = document.createElement("li");
-          li.className = "sidebar-row";
-
-          const mainBtn = document.createElement("button");
-          mainBtn.type = "button";
-          mainBtn.className = "row-main-btn";
-          mainBtn.title = `${doc.filename} (${doc.chunk_count} chunks, ${doc.parser_used})`;
-          mainBtn.addEventListener("click", () => {
-            el.questionInput.value = `Jelaskan isi utama dari ${doc.filename}`;
-            el.questionInput.focus();
-            closeMobileDrawer();
-          });
-
-          const title = document.createElement("span");
-          title.className = "row-title";
-          title.textContent = doc.filename;
-
-          const meta = document.createElement("span");
-          meta.className = "row-meta";
-          meta.textContent = `${doc.chunk_count}c`;
-
-          mainBtn.append(title, meta);
-
-          const delBtn = document.createElement("button");
-          delBtn.type = "button";
-          delBtn.className = "row-delete-btn";
-          delBtn.textContent = "Hapus";
-          delBtn.setAttribute("aria-label", `Hapus dokumen ${doc.filename}`);
-          delBtn.addEventListener("click", () => handleDeleteDoc(doc.doc_id, doc.filename));
-
-          li.append(mainBtn, delBtn);
-          el.docList.appendChild(li);
-        }
+        state.docs = data.documents || [];
+        renderDocuments();
       } catch (err) {
         setNote(el.docState, err.message, true);
       }
     }
 
+    function renderSessions() {
+      el.sessionList.innerHTML = "";
+      const q = state.filterQuery.toLowerCase();
+      const filtered = state.sessions.filter((s) => (s.title || s.session_id).toLowerCase().includes(q));
+      el.sessionsCountBadge.textContent = String(state.sessions.length);
+
+      if (state.sessions.length === 0) {
+        setNote(el.sessionState, "Belum ada riwayat.");
+        return;
+      }
+      if (filtered.length === 0) {
+        setNote(el.sessionState, "Tidak ada riwayat cocok.");
+        return;
+      }
+
+      el.sessionState.hidden = true;
+      for (const sess of filtered) {
+        const li = document.createElement("li");
+        li.className = `item-row${sess.session_id === state.sessionId ? " active" : ""}`;
+
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "item-main-btn";
+        btn.addEventListener("click", async () => {
+          setActiveSession(sess.session_id);
+          await Promise.all([loadHistory(), loadSessions()]);
+          closeMobileSidebar();
+        });
+
+        const title = document.createElement("span");
+        title.className = "item-title";
+        title.textContent = sess.title || sess.session_id;
+
+        const count = document.createElement("span");
+        count.className = "item-count";
+        count.textContent = `${sess.message_count}m`;
+
+        btn.append(title, count);
+
+        const delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.className = "item-del-btn";
+        delBtn.textContent = "×";
+        delBtn.setAttribute("aria-label", `Hapus riwayat ${sess.title || sess.session_id}`);
+        delBtn.addEventListener("click", async () => {
+          await apiFetch(`/history?session_id=${encodeURIComponent(sess.session_id)}`, { method: "DELETE" });
+          if (sess.session_id === state.sessionId) {
+            await loadHistory();
+          }
+          await loadSessions();
+        });
+
+        li.append(btn, delBtn);
+        el.sessionList.appendChild(li);
+      }
+    }
+
     async function loadSessions() {
       setNote(el.sessionState, "Memuat riwayat...");
-      el.sessionList.innerHTML = "";
       try {
         const data = await apiFetch("/sessions");
-        const sessions = data.sessions || [];
-        if (sessions.length === 0) {
-          setNote(el.sessionState, "Belum ada riwayat tersimpan.");
-          return;
-        }
-        el.sessionState.hidden = true;
-        for (const sess of sessions) {
-          const li = document.createElement("li");
-          li.className = `sidebar-row${sess.session_id === state.sessionId ? " active" : ""}`;
-
-          const mainBtn = document.createElement("button");
-          mainBtn.type = "button";
-          mainBtn.className = "row-main-btn";
-          mainBtn.addEventListener("click", async () => {
-            setActiveSession(sess.session_id);
-            await Promise.all([loadHistory(), loadSessions()]);
-            closeMobileDrawer();
-          });
-
-          const title = document.createElement("span");
-          title.className = "row-title";
-          title.textContent = sess.title || sess.session_id;
-
-          const meta = document.createElement("span");
-          meta.className = "row-meta";
-          meta.textContent = `${sess.message_count}m`;
-
-          mainBtn.append(title, meta);
-
-          const delBtn = document.createElement("button");
-          delBtn.type = "button";
-          delBtn.className = "row-delete-btn";
-          delBtn.textContent = "Hapus";
-          delBtn.setAttribute("aria-label", `Hapus riwayat ${sess.title || sess.session_id}`);
-          delBtn.addEventListener("click", async () => {
-            await apiFetch(`/history?session_id=${encodeURIComponent(sess.session_id)}`, { method: "DELETE" });
-            if (sess.session_id === state.sessionId) {
-              await loadHistory();
-            }
-            await loadSessions();
-          });
-
-          li.append(mainBtn, delBtn);
-          el.sessionList.appendChild(li);
-        }
+        state.sessions = data.sessions || [];
+        renderSessions();
       } catch (err) {
         setNote(el.sessionState, err.message, true);
       }
@@ -1200,7 +1354,7 @@
 
       const roleLabel = document.createElement("div");
       roleLabel.className = "msg-role";
-      roleLabel.textContent = role === "user" ? "You" : "InSight";
+      roleLabel.textContent = role === "user" ? "Anda" : "InSight";
 
       const body = document.createElement("p");
       body.className = "msg-body";
@@ -1227,26 +1381,21 @@
     async function loadHistory() {
       el.chatFeed.innerHTML = "";
       el.chatState.hidden = true;
-      el.sessionBadge.textContent = `Sesi: ${state.sessionId}`;
       try {
         const data = await apiFetch(`/history?session_id=${encodeURIComponent(state.sessionId)}`);
         const msgs = data.messages || [];
-        if (msgs.length === 0) {
-          el.welcomeState.hidden = false;
-          return;
-        }
-        el.welcomeState.hidden = true;
+        el.workspaceMain.classList.toggle("has-messages", msgs.length > 0);
         for (const msg of msgs) {
           renderMessage(msg.role, msg.content, msg.sources);
         }
       } catch (err) {
-        el.welcomeState.hidden = true;
+        el.workspaceMain.classList.add("has-messages");
         setNote(el.chatState, err.message, true);
       }
     }
 
     async function handleDeleteDoc(docId, filename) {
-      setNote(el.uploadStatus, `Menghapus ${filename} dari SQLite dan Qdrant...`);
+      setNote(el.uploadStatus, `Menghapus ${filename}...`);
       try {
         await apiFetch(`/documents/${encodeURIComponent(docId)}`, { method: "DELETE" });
         setNote(el.uploadStatus, `${filename} dihapus.`);
@@ -1260,7 +1409,7 @@
       const file = event.target.files?.[0];
       if (!file) return;
 
-      setNote(el.uploadStatus, `Memproses ${file.name}...`);
+      setNote(el.uploadStatus, `Mengindeks ${file.name}...`);
       const formData = new FormData();
       formData.append("file", file);
 
@@ -1269,7 +1418,7 @@
           method: "POST",
           body: formData,
         });
-        setNote(el.uploadStatus, `${file.name} berhasil diindeks.`);
+        setNote(el.uploadStatus, `${file.name} siap ditanya.`);
         await Promise.all([loadDocuments(), loadHealth()]);
       } catch (err) {
         setNote(el.uploadStatus, err.message, true);
@@ -1280,7 +1429,7 @@
 
     function autoResizeTextarea() {
       el.questionInput.style.height = "auto";
-      el.questionInput.style.height = `${Math.min(el.questionInput.scrollHeight, 170)}px`;
+      el.questionInput.style.height = `${Math.min(el.questionInput.scrollHeight, 180)}px`;
     }
 
     el.questionInput.addEventListener("input", autoResizeTextarea);
@@ -1292,7 +1441,7 @@
       state.busy = true;
       el.sendBtn.disabled = true;
       el.questionInput.disabled = true;
-      el.welcomeState.hidden = true;
+      el.workspaceMain.classList.add("has-messages");
       el.chatState.hidden = true;
 
       renderMessage("user", text);
@@ -1301,7 +1450,7 @@
 
       const pending = document.createElement("div");
       pending.className = "status-note";
-      pending.textContent = "Mencari konteks dokumen dan menyusun jawaban...";
+      pending.textContent = "Menelusuri dokumen dan menyusun jawaban...";
       el.chatFeed.appendChild(pending);
       el.chatScroll.scrollTop = el.chatScroll.scrollHeight;
 
@@ -1316,7 +1465,7 @@
         await loadSessions();
       } catch (err) {
         pending.classList.add("error");
-        pending.textContent = `Gagal memproses pertanyaan: ${err.message}`;
+        pending.textContent = `Gagal memproses: ${err.message}`;
       } finally {
         state.busy = false;
         el.sendBtn.disabled = false;
@@ -1338,32 +1487,83 @@
     });
 
     el.newChatBtn.addEventListener("click", startNewConversation);
-    el.topNewChat.addEventListener("click", startNewConversation);
-    el.sessionsNewBtn.addEventListener("click", startNewConversation);
 
-    el.clearSessionBtn.addEventListener("click", async () => {
-      try {
-        await apiFetch(`/history?session_id=${encodeURIComponent(state.sessionId)}`, { method: "DELETE" });
-        await Promise.all([loadHistory(), loadSessions()]);
-      } catch (err) {
-        setNote(el.chatState, err.message, true);
+    el.sidebarCollapseBtn.addEventListener("click", () => {
+      if (window.innerWidth <= 768) {
+        closeMobileSidebar();
+      } else {
+        el.appLayout.classList.add("sidebar-collapsed");
       }
     });
 
-    el.scopeBtn.addEventListener("click", () => {
+    el.sidebarOpenBtn.addEventListener("click", () => {
       if (window.innerWidth <= 768) {
-        const open = el.sidebar.classList.toggle("open");
-        el.drawerToggle.setAttribute("aria-expanded", String(open));
+        el.sidebar.classList.add("mobile-open");
       } else {
+        el.appLayout.classList.remove("sidebar-collapsed");
+      }
+    });
+
+    el.toggleSearchBtn.addEventListener("click", () => {
+      el.searchBoxWrap.hidden = !el.searchBoxWrap.hidden;
+      if (!el.searchBoxWrap.hidden) {
+        el.sidebarSearch.focus();
+      } else {
+        state.filterQuery = "";
+        el.sidebarSearch.value = "";
+        renderDocuments();
+        renderSessions();
+      }
+    });
+
+    el.sidebarSearch.addEventListener("input", () => {
+      state.filterQuery = el.sidebarSearch.value.trim();
+      renderDocuments();
+      renderSessions();
+    });
+
+    el.docsToggle.addEventListener("click", () => {
+      const open = el.docsPanel.hidden;
+      el.docsPanel.hidden = !open;
+      el.docsToggle.setAttribute("aria-expanded", String(open));
+    });
+
+    el.sessionsToggle.addEventListener("click", () => {
+      const open = el.sessionsPanel.hidden;
+      el.sessionsPanel.hidden = !open;
+      el.sessionsToggle.setAttribute("aria-expanded", String(open));
+    });
+
+    el.modeChatBtn.addEventListener("click", () => {
+      el.modeChatBtn.classList.add("active");
+      el.modeDocsBtn.classList.remove("active");
+      el.questionInput.focus();
+    });
+
+    el.modeDocsBtn.addEventListener("click", () => {
+      el.modeDocsBtn.classList.add("active");
+      el.modeChatBtn.classList.remove("active");
+      if (window.innerWidth <= 768) {
+        el.sidebar.classList.add("mobile-open");
+      } else {
+        el.appLayout.classList.remove("sidebar-collapsed");
+      }
+      if (state.docs.length === 0) {
         el.fileUpload.click();
       }
     });
 
-    el.topSettingsBtn.addEventListener("click", openSettingsModal);
-    el.sidebarSettingsBtn.addEventListener("click", openSettingsModal);
-    el.welcomeSettingsBtn.addEventListener("click", openSettingsModal);
-    el.modelInfoBtn.addEventListener("click", openSettingsModal);
+    el.openSettingsNav.addEventListener("click", openSettingsModal);
+    el.footerSettingsBtn.addEventListener("click", openSettingsModal);
+    el.topPillBtn.addEventListener("click", openSettingsModal);
+    el.modelTriggerBtn.addEventListener("click", openSettingsModal);
     el.closeSettingsBtn.addEventListener("click", closeSettingsModal);
+
+    el.clearActiveModalBtn.addEventListener("click", async () => {
+      await apiFetch(`/history?session_id=${encodeURIComponent(state.sessionId)}`, { method: "DELETE" });
+      closeSettingsModal();
+      await Promise.all([loadHistory(), loadSessions()]);
+    });
 
     el.authForm.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -1387,14 +1587,9 @@
       }
     });
 
-    el.drawerToggle.addEventListener("click", () => {
-      const open = el.sidebar.classList.toggle("open");
-      el.drawerToggle.setAttribute("aria-expanded", String(open));
-    });
-
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
-        closeMobileDrawer();
+        closeMobileSidebar();
         if (el.settingsModal.classList.contains("open")) {
           closeSettingsModal();
         }
