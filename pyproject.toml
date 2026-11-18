@@ -1,0 +1,10 @@
+[project]
+name = "insight-rag"
+version = "0.1.0"
+description = "Private Document RAG Workspace with Docling, Qdrant Local, SQLite, and selectable LLM inference."
+readme = "README.md"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

@@ -1,0 +1,35 @@
+# Python & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Local environment & runtime data
+.env
+data/
+uploads/
+qdrant_db/
+*.sqlite
+*.sqlite3
+*.db
+
+# Local model caches
+.cache/
+huggingface/
+models/
+
+# OS & editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local personal scratch notes
+InSight.md
+InSight Reference.txt

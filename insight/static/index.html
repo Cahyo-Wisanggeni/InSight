@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InSight: Private Document RAG</title>
+  <style>
+    :root {
+      --bg-paper: #F6F5F1;
+      --bg-rail: #ECEAE3;
+      --bg-sheet: #FFFFFF;
+      --ink-primary: #1A1D1B;
+      --ink-muted: #4E5450;
+      --border-hairline: #D4D0C5;
+      --accent-pine: #145347;
+      --accent-pine-hover: #0F3F36;
+      --danger-red: #991B1B;
+      --danger-bg: #FEF2F2;
+      --danger-border: #FECACA;
+      --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: var(--bg-paper);
+      color: var(--ink-primary);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+    }
+
+    button, input, textarea, select, summary, a[href], label[for] {
+      cursor: pointer;
+    }
+
+    button:disabled, input:disabled, textarea:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--accent-pine);
+      outline-offset: 2px;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .app-shell {
+      display: grid;
+      grid-template-columns: 310px 1fr;
+      grid-template-rows: auto 1fr;
+      height: 100dvh;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .topbar {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 18px;
+      background-color: var(--bg-sheet);
+      border-bottom: 1px solid var(--border-hairline);
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-md);
+      background-color: var(--accent-pine);
+      color: #FFFFFF;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 0.95rem;
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      margin: 0;
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .brand-sub {
+      margin: 0;
+      font-size: 0.82rem;
+      color: var(--ink-muted);
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .runtime-tag {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--ink-primary);
+      background-color: var(--bg-rail);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-sm);
+      padding: 4px 8px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 44px;
+      padding: 0 14px;
+      border-radius: var(--radius-md);
+      font-family: var(--font-sans);
+      font-size: 0.88rem;
+      font-weight: 600;
+      border: 1px solid transparent;
+      transition: background-color 120ms ease, border-color 120ms ease;
+    }
+
+    .btn-primary {
+      background-color: var(--accent-pine);
+      color: #FFFFFF;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background-color: var(--accent-pine-hover);
+    }
+
+    .btn-secondary {
+      background-color: var(--bg-sheet);
+      color: var(--ink-primary);
+      border-color: var(--border-hairline);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background-color: var(--bg-rail);
+    }
+
+    .btn-danger-ghost {
+      min-height: 44px;
+      min-width: 44px;
+      padding: 0 10px;
+      background-color: transparent;
+      color: var(--danger-red);
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .btn-danger-ghost:hover:not(:disabled) {
+      background-color: var(--danger-bg);
+      border-color: var(--danger-border);
+    }
+
+    .mobile-drawer-btn {
+      display: none;
+    }
+
+    /* Sidebar / Document Rail */
+    .sidebar {
+      background-color: var(--bg-rail);
+      border-right: 1px solid var(--border-hairline);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow-y: auto;
+    }
+
+    .section-heading {
+      margin: 0;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--ink-primary);
+    }
+
+    .upload-box {
+      background-color: var(--bg-sheet);
+      border: 1px dashed var(--accent-pine);
+      border-radius: var(--radius-lg);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .upload-hint {
+      margin: 0;
+      font-size: 0.82rem;
+      color: var(--ink-muted);
+    }
+
+    .file-input-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .doc-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .doc-item {
+      background-color: var(--bg-sheet);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .doc-meta {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .doc-name {
+      margin: 0;
+      font-size: 0.86rem;
+      font-weight: 600;
+      word-break: break-word;
+    }
+
+    .doc-sub {
+      margin: 2px 0 0;
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      color: var(--ink-muted);
+    }
+
+    /* Main Chat Workspace */
+    .workspace {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      background-color: var(--bg-paper);
+    }
+
+    .chat-feed {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .message-card {
+      max-width: 78ch;
+      padding: 14px 16px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-hairline);
+      background-color: var(--bg-sheet);
+    }
+
+    .message-card.user {
+      align-self: flex-end;
+      background-color: var(--accent-pine);
+      border-color: var(--accent-pine);
+      color: #FFFFFF;
+    }
+
+    .message-card.assistant {
+      align-self: flex-start;
+    }
+
+    .message-role {
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      opacity: 0.9;
+    }
+
+    .message-body {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.94rem;
+    }
+
+    .sources-list {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border-hairline);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .source-chip {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--ink-primary);
+      background-color: var(--bg-paper);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-sm);
+      padding: 6px 8px;
+    }
+
+    .state-banner {
+      padding: 12px 14px;
+      border-radius: var(--radius-md);
+      font-size: 0.88rem;
+      border: 1px solid var(--border-hairline);
+      background-color: var(--bg-sheet);
+      color: var(--ink-muted);
+    }
+
+    .state-banner.error {
+      background-color: var(--danger-bg);
+      border-color: var(--danger-border);
+      color: var(--danger-red);
+    }
+
+    /* Composer */
+    .composer-wrap {
+      padding: 14px 20px 18px;
+      background-color: var(--bg-sheet);
+      border-top: 1px solid var(--border-hairline);
+    }
+
+    .composer-form {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .composer-input {
+      flex: 1;
+      min-height: 44px;
+      max-height: 160px;
+      resize: vertical;
+      padding: 10px 12px;
+      font-family: var(--font-sans);
+      font-size: 0.94rem;
+      color: var(--ink-primary);
+      background-color: var(--bg-paper);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+    }
+
+    /* Auth Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(26, 29, 27, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 40;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-card {
+      width: 100%;
+      max-width: 400px;
+      background-color: var(--bg-sheet);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .text-input {
+      width: 100%;
+      min-height: 44px;
+      padding: 8px 12px;
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      font-size: 0.94rem;
+      color: var(--ink-primary);
+      background-color: var(--bg-paper);
+    }
+
+    @media (max-width: 768px) {
+      .app-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .mobile-drawer-btn {
+        display: inline-flex;
+      }
+
+      .sidebar {
+        display: none;
+        position: fixed;
+        top: 69px;
+        bottom: 0;
+        left: 0;
+        width: min(88vw, 320px);
+        z-index: 30;
+      }
+
+      .sidebar.open {
+        display: flex;
+      }
+
+      .brand-sub {
+        display: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-group">
+        <button
+          type="button"
+          id="drawer-toggle"
+          class="btn btn-secondary mobile-drawer-btn"
+          aria-expanded="false"
+          aria-controls="doc-sidebar"
+        >
+          Dokumen
+        </button>
+        <div class="brand-mark" aria-hidden="true">IS</div>
+        <div>
+          <h1 class="brand-title">InSight</h1>
+          <p class="brand-sub">Ruang Tanya Jawab Dokumen Pribadi</p>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <span id="runtime-badge" class="runtime-tag">Memuat status...</span>
+        <button type="button" id="clear-history-btn" class="btn btn-secondary">
+          Hapus Riwayat
+        </button>
+      </div>
+    </header>
+
+    <aside id="doc-sidebar" class="sidebar" aria-label="Daftar dokumen">
+      <h2 class="section-heading">Dokumen Sumber</h2>
+
+      <div class="upload-box">
+        <p class="upload-hint">
+          Unggah PDF, DOCX, PPTX, XLSX, HTML, gambar, atau Markdown/TXT. Dokumen diindeks ke Qdrant lokal.
+        </p>
+        <label for="file-upload" class="btn btn-primary">
+          Pilih dan Unggah File
+        </label>
+        <input
+          id="file-upload"
+          class="file-input-hidden"
+          type="file"
+          accept=".pdf,.docx,.doc,.pptx,.ppt,.xlsx,.xls,.html,.htm,.txt,.md,.csv,.json,.py,.png,.jpg,.jpeg,.webp"
+        />
+        <div id="upload-status" class="state-banner" hidden></div>
+      </div>
+
+      <div id="doc-state" class="state-banner">Memuat daftar dokumen...</div>
+      <ul id="doc-list" class="doc-list"></ul>
+    </aside>
+
+    <main class="workspace">
+      <div id="chat-feed" class="chat-feed" aria-live="polite">
+        <div id="chat-state" class="state-banner">Memuat riwayat percakapan...</div>
+      </div>
+
+      <div class="composer-wrap">
+        <form id="chat-form" class="composer-form">
+          <label for="question-input" class="sr-only">Pertanyaan untuk dokumen</label>
+          <textarea
+            id="question-input"
+            class="composer-input"
+            rows="1"
+            placeholder="Tulis pertanyaan tentang dokumen Anda (Enter untuk kirim, Shift+Enter baris baru)..."
+            required
+          ></textarea>
+          <button type="submit" id="send-btn" class="btn btn-primary">
+            Kirim
+          </button>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <div id="auth-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+    <form id="auth-form" class="modal-card">
+      <h2 id="auth-title" class="section-heading">Masuk ke InSight</h2>
+      <p class="upload-hint">Server ini dilindungi kata sandi sesi (`INSIGHT_PASSWORD`).</p>
+      <label for="auth-password" class="sr-only">Kata sandi sesi</label>
+      <input id="auth-password" class="text-input" type="password" placeholder="Masukkan kata sandi..." required />
+      <div id="auth-error" class="state-banner error" hidden></div>
+      <button type="submit" class="btn btn-primary">Buka Sesi</button>
+    </form>
+  </div>
+
+  <script>
+    const TOKEN_KEY = "insight_session_token";
+    const SESSION_ID = "default";
+
+    const state = {
+      token: sessionStorage.getItem(TOKEN_KEY) || "",
+      busy: false,
+    };
+
+    const el = {
+      runtimeBadge: document.getElementById("runtime-badge"),
+      drawerToggle: document.getElementById("drawer-toggle"),
+      sidebar: document.getElementById("doc-sidebar"),
+      fileUpload: document.getElementById("file-upload"),
+      uploadStatus: document.getElementById("upload-status"),
+      docState: document.getElementById("doc-state"),
+      docList: document.getElementById("doc-list"),
+      chatFeed: document.getElementById("chat-feed"),
+      chatState: document.getElementById("chat-state"),
+      chatForm: document.getElementById("chat-form"),
+      questionInput: document.getElementById("question-input"),
+      sendBtn: document.getElementById("send-btn"),
+      clearHistoryBtn: document.getElementById("clear-history-btn"),
+      authModal: document.getElementById("auth-modal"),
+      authForm: document.getElementById("auth-form"),
+      authPassword: document.getElementById("auth-password"),
+      authError: document.getElementById("auth-error"),
+    };
+
+    function authHeaders() {
+      return state.token ? { "X-InSight-Token": state.token } : {};
+    }
+
+    async function apiFetch(url, options = {}) {
+      const headers = { ...authHeaders(), ...(options.headers || {}) };
+      const res = await fetch(url, { ...options, headers });
+      if (res.status === 401) {
+        openAuthModal();
+        throw new Error("Autentikasi diperlukan.");
+      }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(err.detail || "Permintaan gagal.");
+      }
+      return res.json();
+    }
+
+    function openAuthModal() {
+      el.authModal.classList.add("open");
+      el.authPassword.focus();
+    }
+
+    function closeAuthModal() {
+      el.authModal.classList.remove("open");
+      el.authError.hidden = true;
+    }
+
+    function setBanner(node, message, isError = false) {
+      node.hidden = false;
+      node.textContent = message;
+      node.classList.toggle("error", isError);
+    }
+
+    async function loadHealth() {
+      try {
+        const info = await fetch("/health").then((r) => r.json());
+        el.runtimeBadge.textContent = `${info.llm_backend} (${info.precision_mode}) | ${info.document_count} dok`;
+        if (info.auth_required && !state.token) {
+          openAuthModal();
+        }
+      } catch {
+        el.runtimeBadge.textContent = "Server tidak terjangkau";
+      }
+    }
+
+    async function loadDocuments() {
+      setBanner(el.docState, "Memuat daftar dokumen...");
+      el.docList.innerHTML = "";
+      try {
+        const data = await apiFetch("/documents");
+        const docs = data.documents || [];
+        if (docs.length === 0) {
+          setBanner(el.docState, "Belum ada dokumen yang diunggah.");
+          return;
+        }
+        el.docState.hidden = true;
+        for (const doc of docs) {
+          const li = document.createElement("li");
+          li.className = "doc-item";
+
+          const meta = document.createElement("div");
+          meta.className = "doc-meta";
+
+          const title = document.createElement("p");
+          title.className = "doc-name";
+          title.textContent = doc.filename;
+
+          const sub = document.createElement("p");
+          sub.className = "doc-sub";
+          sub.textContent = `${doc.chunk_count} chunks | ${doc.parser_used}`;
+
+          meta.append(title, sub);
+
+          const delBtn = document.createElement("button");
+          delBtn.type = "button";
+          delBtn.className = "btn-danger-ghost";
+          delBtn.textContent = "Hapus";
+          delBtn.setAttribute("aria-label", `Hapus dokumen ${doc.filename}`);
+          delBtn.addEventListener("click", () => handleDeleteDoc(doc.doc_id, doc.filename));
+
+          li.append(meta, delBtn);
+          el.docList.appendChild(li);
+        }
+      } catch (err) {
+        setBanner(el.docState, err.message, true);
+      }
+    }
+
+    function renderMessage(role, content, sources = []) {
+      const card = document.createElement("article");
+      card.className = `message-card ${role}`;
+
+      const roleLabel = document.createElement("div");
+      roleLabel.className = "message-role";
+      roleLabel.textContent = role === "user" ? "Anda" : "InSight";
+
+      const body = document.createElement("p");
+      body.className = "message-body";
+      body.textContent = content;
+
+      card.append(roleLabel, body);
+
+      if (sources && sources.length > 0) {
+        const srcWrap = document.createElement("div");
+        srcWrap.className = "sources-list";
+        for (const src of sources) {
+          const chip = document.createElement("div");
+          chip.className = "source-chip";
+          chip.textContent = `Sumber: ${src.filename} | Bagian: ${src.section} (skor ${src.score})`;
+          srcWrap.appendChild(chip);
+        }
+        card.appendChild(srcWrap);
+      }
+
+      el.chatFeed.appendChild(card);
+      el.chatFeed.scrollTop = el.chatFeed.scrollHeight;
+    }
+
+    async function loadHistory() {
+      el.chatFeed.innerHTML = "";
+      el.chatFeed.appendChild(el.chatState);
+      setBanner(el.chatState, "Memuat riwayat percakapan...");
+      try {
+        const data = await apiFetch(`/history?session_id=${encodeURIComponent(SESSION_ID)}`);
+        const msgs = data.messages || [];
+        if (msgs.length === 0) {
+          setBanner(el.chatState, "Riwayat kosong. Unggah dokumen lalu ajukan pertanyaan Anda.");
+          return;
+        }
+        el.chatState.hidden = true;
+        for (const msg of msgs) {
+          renderMessage(msg.role, msg.content, msg.sources);
+        }
+      } catch (err) {
+        setBanner(el.chatState, err.message, true);
+      }
+    }
+
+    async function handleDeleteDoc(docId, filename) {
+      setBanner(el.uploadStatus, `Menghapus ${filename} dari SQLite dan Qdrant...`);
+      try {
+        await apiFetch(`/documents/${encodeURIComponent(docId)}`, { method: "DELETE" });
+        setBanner(el.uploadStatus, `${filename} berhasil dihapus.`);
+        await Promise.all([loadDocuments(), loadHealth()]);
+      } catch (err) {
+        setBanner(el.uploadStatus, err.message, true);
+      }
+    }
+
+    el.fileUpload.addEventListener("change", async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      setBanner(el.uploadStatus, `Memproses ${file.name}...`);
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        await apiFetch("/documents/upload", {
+          method: "POST",
+          body: formData,
+        });
+        setBanner(el.uploadStatus, `${file.name} berhasil diindeks.`);
+        await Promise.all([loadDocuments(), loadHealth()]);
+      } catch (err) {
+        setBanner(el.uploadStatus, err.message, true);
+      } finally {
+        el.fileUpload.value = "";
+      }
+    });
+
+    async function submitQuestion() {
+      const text = el.questionInput.value.trim();
+      if (!text || state.busy) return;
+
+      state.busy = true;
+      el.sendBtn.disabled = true;
+      el.questionInput.disabled = true;
+      el.chatState.hidden = true;
+
+      renderMessage("user", text);
+      el.questionInput.value = "";
+
+      const pending = document.createElement("div");
+      pending.className = "state-banner";
+      pending.textContent = "Mencari konteks dokumen dan menyusun jawaban...";
+      el.chatFeed.appendChild(pending);
+      el.chatFeed.scrollTop = el.chatFeed.scrollHeight;
+
+      try {
+        const res = await apiFetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: text, session_id: SESSION_ID }),
+        });
+        pending.remove();
+        renderMessage("assistant", res.answer, res.sources);
+      } catch (err) {
+        pending.classList.add("error");
+        pending.textContent = `Gagal memproses pertanyaan: ${err.message}`;
+      } finally {
+        state.busy = false;
+        el.sendBtn.disabled = false;
+        el.questionInput.disabled = false;
+        el.questionInput.focus();
+      }
+    }
+
+    el.chatForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      submitQuestion();
+    });
+
+    el.questionInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        submitQuestion();
+      }
+    });
+
+    el.clearHistoryBtn.addEventListener("click", async () => {
+      try {
+        await apiFetch(`/history?session_id=${encodeURIComponent(SESSION_ID)}`, { method: "DELETE" });
+        await loadHistory();
+      } catch (err) {
+        setBanner(el.chatState, err.message, true);
+      }
+    });
+
+    el.authForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      el.authError.hidden = true;
+      try {
+        const res = await fetch("/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: el.authPassword.value }),
+        });
+        if (!res.ok) {
+          throw new Error("Kata sandi salah.");
+        }
+        const data = await res.json();
+        state.token = data.token || "";
+        sessionStorage.setItem(TOKEN_KEY, state.token);
+        closeAuthModal();
+        await refreshAll();
+      } catch (err) {
+        setBanner(el.authError, err.message, true);
+      }
+    });
+
+    el.drawerToggle.addEventListener("click", () => {
+      const open = el.sidebar.classList.toggle("open");
+      el.drawerToggle.setAttribute("aria-expanded", String(open));
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        if (el.sidebar.classList.contains("open")) {
+          el.sidebar.classList.remove("open");
+          el.drawerToggle.setAttribute("aria-expanded", "false");
+        }
+        if (el.authModal.classList.contains("open")) {
+          closeAuthModal();
+        }
+      }
+    });
+
+    async function refreshAll() {
+      await loadHealth();
+      if (!el.authModal.classList.contains("open")) {
+        await Promise.all([loadDocuments(), loadHistory()]);
+      }
+    }
+
+    refreshAll();
+  </script>
+</body>
+</html>
