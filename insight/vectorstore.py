@@ -3,17 +3,20 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 import os
 import re
 import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 from insight.parser import TextChunk
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
+TOC_DOTS_RE = re.compile(r"(?:\.{4,}|(?:\.\s){4,})")
+TOC_LINE_RE = re.compile(r"(?:\.{3,}|(?:\.\s){3,})\s*(?:[ivxlcdm]+|\d+)\s*$", re.IGNORECASE)
 STOPWORDS = {
     # Indonesian common stopwords
     "apa",
@@ -178,13 +181,27 @@ def build_embedder(model_name: str, strict: bool = False) -> Embedder:
         return HashingEmbedder()
 
 
+def _toc_noise_ratio(text: str) -> float:
+    """Return fraction of lines in text that look like table-of-contents dot leaders."""
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return 0.0
+    toc_lines = sum(1 for line in lines if TOC_LINE_RE.search(line) or TOC_DOTS_RE.search(line))
+    return toc_lines / len(lines)
+
+
+def _strip_toc_noise(text: str) -> str:
+    """Remove dot-leader sequences so TOC formatting does not distort lexical scoring."""
+    return TOC_DOTS_RE.sub(" ", text)
+
+
 def _lexical_overlap(query: str, text: str) -> float:
     raw_q_tokens = set(TOKEN_RE.findall(query.lower()))
     if not raw_q_tokens:
         return 0.0
     filtered_q_tokens = {tok for tok in raw_q_tokens if len(tok) >= 2 and tok not in STOPWORDS}
     q_tokens = filtered_q_tokens or raw_q_tokens
-    t_tokens = set(TOKEN_RE.findall(text.lower()))
+    t_tokens = set(TOKEN_RE.findall(_strip_toc_noise(text).lower()))
     return len(q_tokens & t_tokens) / len(q_tokens)
 
 
@@ -224,7 +241,7 @@ def _bm25_scores(
 
     from collections import Counter
 
-    doc_tokens_list = [_tokenize_bm25(t) for t in texts]
+    doc_tokens_list = [_tokenize_bm25(_strip_toc_noise(t)) for t in texts]
     doc_tfs = [Counter(tokens) for tokens in doc_tokens_list]
     doc_lens = [len(tokens) for tokens in doc_tokens_list]
     avg_dl = (sum(doc_lens) / len(doc_lens)) if doc_lens else 1.0
@@ -259,7 +276,7 @@ class LocalVectorStore:
     def __init__(
         self,
         qdrant_path: Path,
-        embed_model: str = "BAAI/bge-small-en-v1.5",
+        embed_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
         use_reranker: bool = False,
         rerank_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2",
         strict_embedder: bool = False,
@@ -278,6 +295,8 @@ class LocalVectorStore:
                 "Install 'fastembed' or 'sentence-transformers' to continue."
             )
         qdrant_path.mkdir(parents=True, exist_ok=True)
+        self._meta_path = qdrant_path / ".insight_embedder.json"
+        self.migrated_points = 0
         self.client = QdrantClient(path=str(qdrant_path))
         self.use_reranker = use_reranker
         self.rerank_model = rerank_model
@@ -297,13 +316,74 @@ class LocalVectorStore:
             "Kualitas pencarian semantik berkurang; install fastembed untuk embedding neural."
         )
 
+    def _read_recorded_embedder(self) -> str | None:
+        if not self._meta_path.is_file():
+            return None
+        try:
+            data = json.loads(self._meta_path.read_text(encoding="utf-8"))
+            name = data.get("embedder")
+            return str(name) if name else None
+        except Exception:
+            return None
+
+    def _write_recorded_embedder(self) -> None:
+        self._meta_path.write_text(
+            json.dumps({"embedder": self.embedder.name, "dimension": self.embedder.dimension}, indent=2),
+            encoding="utf-8",
+        )
+
+    def _scroll_all_points(self) -> list[tuple[Any, dict[str, Any]]]:
+        items: list[tuple[Any, dict[str, Any]]] = []
+        offset = None
+        while True:
+            records, next_offset = self.client.scroll(
+                collection_name=self.COLLECTION_NAME,
+                limit=128,
+                offset=offset,
+                with_payload=True,
+                with_vectors=False,
+            )
+            for rec in records:
+                items.append((rec.id, dict(rec.payload or {})))
+            if next_offset is None or not records:
+                break
+            offset = next_offset
+        return items
+
+    def _reembed_points(self, stored: list[tuple[Any, dict[str, Any]]]) -> int:
+        if not stored:
+            return 0
+        total = 0
+        batch_size = 64
+        for start in range(0, len(stored), batch_size):
+            batch = stored[start : start + batch_size]
+            texts = [str(payload.get("text", "")) for _, payload in batch]
+            vectors = self.embedder.embed(texts)
+            points = [
+                self._models.PointStruct(id=pt_id, vector=vec, payload=payload)
+                for (pt_id, payload), vec in zip(batch, vectors)
+            ]
+            self.client.upsert(collection_name=self.COLLECTION_NAME, points=points)
+            total += len(points)
+        return total
+
     def _ensure_collection(self) -> None:
         with self._lock:
+            saved_points: list[tuple[Any, dict[str, Any]]] = []
             if self.client.collection_exists(self.COLLECTION_NAME):
                 info = self.client.get_collection(self.COLLECTION_NAME)
                 existing_size = getattr(info.config.params.vectors, "size", None)
-                if existing_size == self.embedder.dimension:
+                point_count = int(getattr(info, "points_count", 0) or 0)
+                recorded_name = self._read_recorded_embedder()
+                same_size = existing_size == self.embedder.dimension
+                same_embedder = (recorded_name == self.embedder.name) or (
+                    recorded_name is None and point_count == 0
+                )
+                if same_size and same_embedder:
+                    self._write_recorded_embedder()
                     return
+                if point_count > 0:
+                    saved_points = self._scroll_all_points()
                 self.client.delete_collection(self.COLLECTION_NAME)
 
             self.client.create_collection(
@@ -313,6 +393,9 @@ class LocalVectorStore:
                     distance=self._models.Distance.COSINE,
                 ),
             )
+            if saved_points:
+                self.migrated_points = self._reembed_points(saved_points)
+            self._write_recorded_embedder()
 
     def _get_reranker(self):
         if not self.use_reranker:
@@ -442,10 +525,12 @@ class LocalVectorStore:
                 page_label=str(payload.get("page_label", "")),
             )
 
-        scored: list[RetrievedChunk] = [
-            _make_chunk(payload, text, (dw * d_score) + (sw * s_score))
-            for payload, text, d_score, s_score in zip(payloads, texts, dense_scores, sparse_scores)
-        ]
+        scored: list[RetrievedChunk] = []
+        for payload, text, d_score, s_score in zip(payloads, texts, dense_scores, sparse_scores):
+            raw_score = (dw * d_score) + (sw * s_score)
+            if _toc_noise_ratio(text) >= 0.30:
+                raw_score *= 0.45
+            scored.append(_make_chunk(payload, text, raw_score))
 
         reranker = self._get_reranker()
         if reranker is not None:
@@ -479,6 +564,45 @@ class LocalVectorStore:
             return self._dedupe_chunks(combined, effective_top_k)
 
         return self._dedupe_chunks(scored, effective_top_k)
+
+    def get_front_matter_chunks(self, max_chunk_index: int = 3, limit: int = 2) -> list[RetrievedChunk]:
+        """Return earliest document chunks (cover/title/authors), prioritizing non-TOC content."""
+        with self._lock:
+            records, _ = self.client.scroll(
+                collection_name=self.COLLECTION_NAME,
+                scroll_filter=self._models.Filter(
+                    must=[
+                        self._models.FieldCondition(
+                            key="chunk_index",
+                            range=self._models.Range(lte=max_chunk_index),
+                        )
+                    ]
+                ),
+                limit=max(12, limit * 4),
+                with_payload=True,
+                with_vectors=False,
+            )
+        candidates: list[tuple[int, str, int, RetrievedChunk]] = []
+        for rec in records:
+            payload = rec.payload or {}
+            text = str(payload.get("text", ""))
+            if not text.strip():
+                continue
+            toc_flag = 1 if _toc_noise_ratio(text) >= 0.45 else 0
+            c_idx = int(payload.get("chunk_index", 0))
+            fname = str(payload.get("filename", ""))
+            chunk = RetrievedChunk(
+                doc_id=str(payload.get("doc_id", "")),
+                filename=fname,
+                chunk_index=c_idx,
+                section=str(payload.get("section", "General")),
+                text=text,
+                score=0.85 if toc_flag == 0 else 0.30,
+                page_label=str(payload.get("page_label", "")),
+            )
+            candidates.append((toc_flag, fname, c_idx, chunk))
+        candidates.sort(key=lambda item: (item[0], item[1], item[2]))
+        return [item[3] for item in candidates[:limit]]
 
     def close(self) -> None:
         with self._lock:

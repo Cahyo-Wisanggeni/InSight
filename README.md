@@ -110,7 +110,7 @@ Salin `.env.example` jika ingin mengatur konfigurasi secara persisten:
 | `INSIGHT_LLM_MODEL` | `qwen2.5:0.5b` | Nama model lokal (Ollama / GGUF `resources/gguf` / Hugging Face) |
 | `INSIGHT_PRECISION` | `4bit` | Presisi model: `4bit`, `8bit`, atau `full` |
 | `INSIGHT_RAG_MODE` | `hybrid` | Pilihan metode RAG (hanya 2 opsi): `hybrid` (`HybridRAG`) atau `adaptive` (`AdaptiveRAG`) |
-| `INSIGHT_EMBED_MODEL` | `BAAI/bge-small-en-v1.5` | Model embedding Step 1 |
+| `INSIGHT_EMBED_MODEL` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | Model embedding multibahasa (Indonesia/Inggris) Step 1 |
 | `INSIGHT_STRICT_EMBEDDER` | `false` | Set `true` agar server menolak startup jika hanya `HashingEmbedder` fallback yang tersedia |
 | `INSIGHT_MAX_UPLOAD_MB` | `50` | Batas maksimal ukuran file unggahan dalam MB |
 | `INSIGHT_USE_RERANKER` | `false` | Aktifkan Cross-Encoder reranker (`true` / `false`) |

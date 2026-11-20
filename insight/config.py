@@ -187,7 +187,10 @@ class Settings:
             max_seq_length=int(os.getenv("INSIGHT_MAX_SEQ_LENGTH", "4096")),
             max_new_tokens=int(os.getenv("INSIGHT_MAX_NEW_TOKENS", "512")),
             ollama_url=os.getenv("INSIGHT_OLLAMA_URL", "http://localhost:11434").rstrip("/"),
-            embed_model=os.getenv("INSIGHT_EMBED_MODEL", "BAAI/bge-small-en-v1.5"),
+            embed_model=os.getenv(
+                "INSIGHT_EMBED_MODEL",
+                "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+            ),
             use_reranker=_env_bool("INSIGHT_USE_RERANKER", False),
             rerank_model=os.getenv("INSIGHT_RERANK_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2"),
             top_k_candidates=int(os.getenv("INSIGHT_TOP_K_CANDIDATES", "12")),

@@ -73,7 +73,29 @@ def _format_chunk_loc(chunk: RetrievedChunk) -> str:
     return f"{chunk.section}{page_part}"
 
 
-def build_prompt(question: str, contexts: list[RetrievedChunk]) -> str:
+def _trim_chat_history(
+    history: list[dict[str, str]] | None,
+    max_messages: int = 4,
+    max_chars: int = 220,
+) -> list[dict[str, str]]:
+    """Keep the most recent user/assistant turns within a compact character budget."""
+    if not history:
+        return []
+    cleaned: list[dict[str, str]] = []
+    for item in history[-max_messages:]:
+        role = str(item.get("role", "")).strip().lower()
+        content = str(item.get("content", "")).strip()
+        if role not in {"user", "assistant"} or not content:
+            continue
+        cleaned.append({"role": role, "content": content[:max_chars]})
+    return cleaned
+
+
+def build_prompt(
+    question: str,
+    contexts: list[RetrievedChunk],
+    history: list[dict[str, str]] | None = None,
+) -> str:
     formatted_chunks = []
     for idx, chunk in enumerate(contexts, start=1):
         page_part = f" | Page: {chunk.page_label}" if chunk.page_label else ""
@@ -81,8 +103,14 @@ def build_prompt(question: str, contexts: list[RetrievedChunk]) -> str:
             f"[{idx}] File: {chunk.filename} | Section: {chunk.section}{page_part}\n{chunk.text}"
         )
     context_block = "\n\n---\n\n".join(formatted_chunks)
+    trimmed = _trim_chat_history(history)
+    history_block = ""
+    if trimmed:
+        lines = [f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content']}" for m in trimmed]
+        history_block = "Recent conversation:\n" + "\n".join(lines) + "\n\n"
     return (
         f"Document excerpts:\n\n{context_block}\n\n"
+        f"{history_block}"
         f"Question: {question}\n\n"
         "Answer clearly based strictly on the excerpts above:"
     )
@@ -172,10 +200,15 @@ class OllamaRunner:
         self.base_url = base_url
         self.label = f"ollama:{model}"
 
-    def generate(self, question: str, contexts: list[RetrievedChunk]) -> str:
+    def generate(
+        self,
+        question: str,
+        contexts: list[RetrievedChunk],
+        history: list[dict[str, str]] | None = None,
+    ) -> str:
         import httpx
 
-        user_prompt = build_prompt(question, contexts)
+        user_prompt = build_prompt(question, contexts, history=history)
         try:
             response = httpx.post(
                 f"{self.base_url}/api/chat",
@@ -324,8 +357,13 @@ class LlamaCppRunner:
         self.model_path = model_path
         self.label = f"llamacpp:{model_path.name}"
 
-    def generate(self, question: str, contexts: list[RetrievedChunk]) -> str:
-        user_prompt = build_prompt(question, contexts)
+    def generate(
+        self,
+        question: str,
+        contexts: list[RetrievedChunk],
+        history: list[dict[str, str]] | None = None,
+    ) -> str:
+        user_prompt = build_prompt(question, contexts, history=history)
         try:
             response = self._model.create_chat_completion(
                 messages=[
@@ -366,12 +404,17 @@ class AutoRunner:
                 pass
         return SmartLocalRunner()
 
-    def generate(self, question: str, contexts: list[RetrievedChunk]) -> str:
+    def generate(
+        self,
+        question: str,
+        contexts: list[RetrievedChunk],
+        history: list[dict[str, str]] | None = None,
+    ) -> str:
         if isinstance(self._delegate, SmartLocalRunner):
             refreshed = self._resolve(self.settings)
             self._delegate = refreshed
             self.label = refreshed.label
-        return self._delegate.generate(question, contexts)
+        return _call_runner_generate(self._delegate, question, contexts, history=history)
 
 
 class UnslothRunner:
@@ -474,6 +517,20 @@ class HuggingFaceRunner:
         return self._tokenizer.decode(generated, skip_special_tokens=True).strip()
 
 
+def _call_runner_generate(
+    runner: LLMRunner,
+    question: str,
+    contexts: list[RetrievedChunk],
+    history: list[dict[str, str]] | None = None,
+) -> str:
+    if history is not None:
+        try:
+            return runner.generate(question, contexts, history=history)  # type: ignore[call-arg]
+        except TypeError:
+            pass
+    return runner.generate(question, contexts)
+
+
 @dataclass
 class LazyLLM:
     """Defers heavyweight model loading until the first chat request."""
@@ -539,5 +596,10 @@ class LazyLLM:
             self._runner = RetrievalOnlyRunner()
         return self._runner
 
-    def generate(self, question: str, contexts: list[RetrievedChunk]) -> str:
-        return self._get_runner().generate(question, contexts)
+    def generate(
+        self,
+        question: str,
+        contexts: list[RetrievedChunk],
+        history: list[dict[str, str]] | None = None,
+    ) -> str:
+        return _call_runner_generate(self._get_runner(), question, contexts, history=history)

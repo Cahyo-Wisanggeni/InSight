@@ -949,3 +949,85 @@ def test_auto_runner_selects_local_gguf_when_ollama_unavailable(tmp_path: Path, 
     assert runner.label == "llamacpp:qwen2.5-0.5b-instruct-q4_k_m.gguf"
     assert captured["model_path"] == str(gguf_file)
     assert runner.generate("Apa isi dokumen?", []) == "GGUF-OK: Apa isi dokumen?"
+
+
+def test_qdrant_migrates_when_embedder_name_changes_same_dimension(tmp_path: Path, monkeypatch) -> None:
+    from insight.parser import TextChunk
+    from insight.vectorstore import HashingEmbedder, LocalVectorStore
+
+    class _NamedEmbedderV1(HashingEmbedder):
+        name = "embedder-v1-384d"
+
+    class _NamedEmbedderV2(HashingEmbedder):
+        name = "embedder-v2-384d"
+
+    q_path = tmp_path / "qdrant_db"
+    monkeypatch.setattr("insight.vectorstore.build_embedder", lambda _name: _NamedEmbedderV1())
+    store1 = LocalVectorStore(qdrant_path=q_path, embed_model="v1")
+    store1.upsert_chunks(
+        doc_id="doc1",
+        filename="paper.pdf",
+        chunks=[
+            TextChunk(
+                chunk_index=0,
+                text="Disusun oleh Budi Santoso dan Siti Aminah.",
+                section="Halaman 1",
+                page_label="1",
+            )
+        ],
+    )
+    assert store1.migrated_points == 0
+    store1.close()
+
+    monkeypatch.setattr("insight.vectorstore.build_embedder", lambda _name: _NamedEmbedderV2())
+    store2 = LocalVectorStore(qdrant_path=q_path, embed_model="v2")
+    assert store2.migrated_points == 1
+    hits = store2.search("siapa penyusun paper", top_k_candidates=4, top_k_final=2)
+    assert hits and "Budi Santoso" in hits[0].text
+    store2.close()
+
+
+def test_conversation_memory_front_matter_and_toc_penalty(tmp_path: Path, monkeypatch) -> None:
+    from insight.vectorstore import _toc_noise_ratio
+
+    monkeypatch.setattr(
+        "insight.vectorstore.build_embedder",
+        lambda _name: __import__("insight.vectorstore", fromlist=["HashingEmbedder"]).HashingEmbedder(),
+    )
+    toc_sample = (
+        "DAFTAR ISI ......................................................... i\n"
+        "BAB I PENDAHULUAN ................................................. 1\n"
+        "BAB II METODOLOGI .................................................. 4\n"
+        "ABSTRAK ............................................................ vii"
+    )
+    assert _toc_noise_ratio(toc_sample) >= 0.7
+
+    doc_path = tmp_path / "laporan.md"
+    doc_path.write_text(
+        "# Halaman 1\n\nMINI PROJECT KELOMPOK 9\nDisusun oleh: Andi Pratama, Dewi Lestari\n\n"
+        "# Daftar Isi\n\n"
+        + toc_sample
+        + "\n\n# Metodologi\n\nProyek ini membandingkan Random Forest dan XGBoost pada data pertanian.",
+        encoding="utf-8",
+    )
+
+    engine = InSightEngine(_make_settings(tmp_path))
+    captured_histories: list[list[dict[str, str]] | None] = []
+
+    def _capture_generate(question: str, contexts, history=None) -> str:
+        captured_histories.append(history)
+        return " | ".join(c.text[:40] for c in contexts)
+
+    monkeypatch.setattr(engine.llm, "generate", _capture_generate)
+    engine.ingest_file(doc_path)
+
+    res1 = engine.ask("pada bagian cover siapa penulisnya?", session_id="s-mem", rag_mode="hybrid")
+    assert any("Andi Pratama" in s["excerpt"] for s in res1.sources)
+    assert captured_histories[-1] == []
+
+    res2 = engine.ask("siapa saja?", session_id="s-mem", rag_mode="hybrid")
+    assert any("Andi Pratama" in s["excerpt"] for s in res2.sources)
+    assert captured_histories[-1] is not None
+    assert len(captured_histories[-1]) >= 2
+    assert captured_histories[-1][0]["content"] == "pada bagian cover siapa penulisnya?"
+    engine.close()

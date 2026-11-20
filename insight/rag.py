@@ -188,6 +188,76 @@ class InSightEngine:
         deduped = list(dict.fromkeys(keywords))
         return " ".join(deduped) if deduped else query.strip()
 
+    @staticmethod
+    def _is_front_matter_query(query: str) -> bool:
+        q_lower = query.lower()
+        front_keywords = (
+            "cover",
+            "sampul",
+            "judul",
+            "penulis",
+            "kelompok",
+            "penyusun",
+            "mahasiswa",
+            "berkontribusi",
+            "disusun",
+            "anggota",
+            "pengarang",
+            "author",
+            "authors",
+            "title",
+            "contributor",
+        )
+        return any(re.search(rf"\b{re.escape(kw)}\b", q_lower) for kw in front_keywords)
+
+    @staticmethod
+    def _contextualize_query(question: str, prior_messages: list[MessageRecord]) -> str:
+        """Expand short or anaphoric follow-ups using the most recent non-greeting user turn."""
+        if not prior_messages:
+            return question
+        q_lower = question.lower().strip()
+        words = q_lower.split()
+        is_explicit_standalone = q_lower.startswith(("apa itu ", "what is ", "define "))
+        has_followup_cue = bool(
+            re.search(
+                r"\b(siapa saja|tersebut|sebelumnya|tadi|maksudnya|detailnya|selain itu|apakah hanya|bagaimana dengan|lalu|terus)\b",
+                q_lower,
+            )
+        )
+        short_fragment = len(words) <= 3 and not is_explicit_standalone
+        if not (has_followup_cue or short_fragment):
+            return question
+
+        prev_users = [
+            m.content.strip()
+            for m in prior_messages
+            if m.role == "user" and m.content.strip() and not is_greeting(m.content)
+        ]
+        if not prev_users:
+            return question
+        last_topic = prev_users[-1]
+        if last_topic.lower() == q_lower:
+            return question
+        return f"{last_topic} — {question}"
+
+    def _merge_front_matter(self, query: str, chunks: list[RetrievedChunk]) -> list[RetrievedChunk]:
+        if not self._is_front_matter_query(query):
+            return chunks
+        front_chunks = self.vectors.get_front_matter_chunks(max_chunk_index=3, limit=2)
+        if not front_chunks:
+            return chunks
+        merged: list[RetrievedChunk] = []
+        seen: set[tuple[str, int]] = set()
+        for item in [*front_chunks, *chunks]:
+            key = (item.doc_id, item.chunk_index)
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(item)
+            if len(merged) >= max(self.settings.top_k_final, len(chunks)):
+                break
+        return merged
+
     def _retrieve_hybrid(self, query: str) -> tuple[list[RetrievedChunk], str]:
         chunks = self.vectors.search(
             query=query,
@@ -317,6 +387,14 @@ class InSightEngine:
             self.query_analyzer.analyze_query(cleaned) if selected_mode == "adaptive" else None
         )
 
+        prior_messages = self.store.list_messages(session_id=session_id)
+        chat_history = [
+            {"role": m.role, "content": m.content}
+            for m in prior_messages[-6:]
+            if m.role in {"user", "assistant"} and not is_greeting(m.content)
+        ]
+        retrieval_query = self._contextualize_query(cleaned, prior_messages)
+
         self.store.add_message(session_id=session_id, role="user", content=cleaned)
 
         docs = self.store.list_documents()
@@ -362,9 +440,13 @@ class InSightEngine:
             )
 
         if selected_mode == "adaptive":
-            retrieved, retrieval_strategy, query_analysis = self._retrieve_adaptive(cleaned)
+            retrieved, retrieval_strategy, search_analysis = self._retrieve_adaptive(retrieval_query)
+            if query_analysis is None:
+                query_analysis = search_analysis
         else:
-            retrieved, retrieval_strategy = self._retrieve_hybrid(cleaned)
+            retrieved, retrieval_strategy = self._retrieve_hybrid(retrieval_query)
+
+        retrieved = self._merge_front_matter(retrieval_query, retrieved)
 
         sources = [
             {
@@ -379,7 +461,7 @@ class InSightEngine:
             for item in retrieved
         ]
 
-        answer = self.llm.generate(question=cleaned, contexts=retrieved)
+        answer = self.llm.generate(question=cleaned, contexts=retrieved, history=chat_history)
         self.store.add_message(
             session_id=session_id,
             role="assistant",
