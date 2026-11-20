@@ -55,8 +55,9 @@ def is_greeting(text: str) -> bool:
 
 SYSTEM_PROMPT = (
     "You are InSight, a private document assistant. "
-    "Answer the user's question using ONLY the provided document excerpts. "
+    "Answer the user's question concisely using ONLY the provided document excerpts. "
     "Cite filenames when referencing information. "
+    "Never invent file paths or details not present in the excerpts, and never repeat sentences. "
     "If the excerpts do not contain the answer, say so clearly in the same language as the question."
 )
 
@@ -331,8 +332,10 @@ class LlamaCppRunner:
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_prompt},
                 ],
-                max_tokens=min(self.settings.max_new_tokens, 512),
+                max_tokens=min(self.settings.max_new_tokens, 320),
                 temperature=0.2,
+                top_p=0.9,
+                repeat_penalty=1.18,
             )
             content = str(response["choices"][0]["message"]["content"] or "").strip()
             if content:
