@@ -3,30 +3,63 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>InSight</title>
+  <title>InSight A.I+</title>
   <style>
     :root {
-      --bg-canvas: #262624;
-      --bg-sidebar: #1E1E1C;
-      --bg-surface: #30302E;
-      --bg-hover: #2B2B28;
-      --bg-active: #363632;
-      --border-subtle: #343430;
-      --border-strong: #464641;
-      --ink-primary: #ECECE8;
-      --ink-muted: #B0AFA8;
-      --ink-dark: #141413;
-      --accent-warm: #D97757;
-      --accent-warm-hover: #E08567;
-      --danger-ink: #FCA5A5;
-      --danger-bg: #36181B;
-      --danger-border: #6B282E;
-      --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      --font-serif: Georgia, "Times New Roman", Cambria, serif;
+      color-scheme: light;
+      --bg-canvas: #eff2f9;
+      --bg-canvas-alt: #e7ecf7;
+      --bg-sidebar: #ffffff;
+      --bg-surface: #ffffff;
+      --bg-subtle: #f5f7fc;
+      --bg-hover: #f2f4fb;
+      --bg-active: #eef0ff;
+      --border-subtle: #eceef5;
+      --border-strong: #d9dfee;
+      --ink-primary: #0f1419;
+      --ink-body: #1f2633;
+      --ink-muted: #6e7485;
+      --ink-subtle: #9aa1b2;
+      --ink-on-accent: #ffffff;
+      --accent-indigo: #5661f6;
+      --accent-indigo-hover: #4651e8;
+      --accent-indigo-soft: #eef0ff;
+      --ink-dark-pill: #0b0b0f;
+      --danger-ink: #b91c1c;
+      --danger-bg: #fef2f2;
+      --danger-border: #fecaca;
+      --warn-bg: #fffbeb;
+      --warn-border: #fde68a;
+      --warn-ink: #92400e;
+      --shadow-sidebar: 0 12px 36px rgba(15, 23, 42, 0.06);
+      --shadow-card: 0 8px 24px rgba(15, 23, 42, 0.04);
+      --shadow-composer: 0 16px 40px rgba(15, 23, 42, 0.09);
+      --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
       --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      --radius-sm: 8px;
-      --radius-md: 12px;
-      --radius-lg: 16px;
+      --radius-sm: 10px;
+      --radius-md: 16px;
+      --radius-lg: 24px;
+      --radius-pill: 999px;
+    }
+
+    [data-canvas-theme="blush"] {
+      --bg-canvas: #f8eae6;
+      --bg-canvas-alt: #f4e1dc;
+    }
+
+    [data-canvas-theme="cream"] {
+      --bg-canvas: #f2e8c9;
+      --bg-canvas-alt: #ece0ba;
+    }
+
+    [data-canvas-theme="mint"] {
+      --bg-canvas: #e8f2e2;
+      --bg-canvas-alt: #dfecd8;
+    }
+
+    [data-canvas-theme="neutral"] {
+      --bg-canvas: #efeff2;
+      --bg-canvas-alt: #e6e7ec;
     }
 
     *, *::before, *::after {
@@ -41,10 +74,29 @@
       margin: 0;
       padding: 0;
       height: 100%;
-      background-color: var(--bg-canvas);
+      background: linear-gradient(180deg, var(--bg-canvas) 0%, var(--bg-canvas-alt) 100%);
       color: var(--ink-primary);
       font-family: var(--font-sans);
       line-height: 1.5;
+    }
+
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-strong) transparent;
+    }
+
+    *::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    *::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    *::-webkit-scrollbar-thumb {
+      background-color: var(--border-strong);
+      border-radius: 999px;
     }
 
     button, input, textarea, select, summary, a[href], label[for] {
@@ -57,7 +109,7 @@
     }
 
     :focus-visible {
-      outline: 2px solid var(--accent-warm);
+      outline: 2px solid var(--accent-indigo);
       outline-offset: 2px;
     }
 
@@ -78,41 +130,58 @@
       height: 100dvh;
       width: 100%;
       overflow: hidden;
-      background-color: var(--bg-canvas);
+      padding: 14px;
+      gap: 14px;
     }
 
-    /* Sidebar */
+    /* Floating Sidebar matching Figma CHAT A.I+ */
     .sidebar {
-      width: 268px;
+      width: 288px;
       flex-shrink: 0;
       background-color: var(--bg-sidebar);
-      border-right: 1px solid var(--border-subtle);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sidebar);
       display: flex;
       flex-direction: column;
       min-height: 0;
-      transition: width 150ms ease;
+      overflow: hidden;
+      transition: width 160ms ease, opacity 160ms ease, margin 160ms ease;
     }
 
     .app-layout.sidebar-collapsed .sidebar {
       width: 0;
-      border-right: none;
-      overflow: hidden;
+      border-width: 0;
+      box-shadow: none;
+      margin-left: -14px;
+      opacity: 0;
+      pointer-events: none;
     }
 
     .sidebar-top {
-      padding: 12px 12px 6px;
+      padding: 20px 18px 14px;
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 8px;
     }
 
+    .sidebar-brand {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--ink-primary);
+      text-decoration: none;
+    }
+
     .sidebar-toggle-btn {
-      width: 36px;
-      height: 36px;
-      min-width: 36px;
-      border-radius: var(--radius-sm);
-      border: none;
-      background: transparent;
+      width: 34px;
+      height: 34px;
+      min-width: 34px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-subtle);
       color: var(--ink-muted);
       display: inline-flex;
       align-items: center;
@@ -120,128 +189,199 @@
     }
 
     .sidebar-toggle-btn:hover {
-      background-color: var(--bg-hover);
-      color: var(--ink-primary);
+      background-color: var(--bg-active);
+      color: var(--accent-indigo);
     }
 
-    .sidebar-brand {
-      font-size: 1.05rem;
-      font-weight: 600;
-      color: var(--ink-primary);
-      text-decoration: none;
-      letter-spacing: -0.01em;
-    }
-
-    .sidebar-primary-nav {
-      padding: 6px 10px 8px;
+    .sidebar-primary-actions {
+      padding: 0 16px 12px;
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 8px;
     }
 
-    .nav-btn {
-      width: 100%;
-      min-height: 44px;
-      padding: 0 10px;
-      border: none;
-      border-radius: var(--radius-sm);
-      background: transparent;
-      color: var(--ink-primary);
-      font-family: var(--font-sans);
-      font-size: 0.87rem;
+    .sidebar-cta-row {
       display: flex;
       align-items: center;
-      justify-content: space-between;
       gap: 10px;
-      text-align: left;
-      text-decoration: none;
     }
 
-    .nav-btn:hover:not(:disabled) {
-      background-color: var(--bg-hover);
-    }
-
-    .nav-btn.featured {
-      background-color: var(--bg-hover);
-      font-weight: 600;
-    }
-
-    .nav-btn.featured:hover:not(:disabled) {
-      background-color: var(--bg-active);
-    }
-
-    .nav-btn-left {
+    .new-chat-pill {
+      flex: 1;
+      height: 46px;
+      padding: 0 18px;
+      border: none;
+      border-radius: 69px;
+      background-color: var(--accent-indigo);
+      color: var(--ink-on-accent);
+      font-family: var(--font-sans);
+      font-size: 0.92rem;
+      font-weight: 500;
       display: inline-flex;
       align-items: center;
-      gap: 10px;
-      min-width: 0;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 8px 18px rgba(86, 97, 246, 0.28);
+      transition: background-color 140ms ease, transform 120ms ease;
     }
 
-    .nav-hint {
-      font-size: 0.74rem;
-      color: var(--ink-muted);
+    .new-chat-pill:hover {
+      background-color: var(--accent-indigo-hover);
+      transform: translateY(-1px);
     }
 
+    .search-circle-btn {
+      width: 46px;
+      height: 46px;
+      flex-shrink: 0;
+      border: none;
+      border-radius: 69px;
+      background-color: var(--ink-dark-pill);
+      color: #ffffff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 140ms ease, transform 120ms ease;
+    }
+
+    .search-circle-btn:hover {
+      opacity: 0.88;
+      transform: translateY(-1px);
+    }
+
+    /* Dark pill search bar matching Figma component variant 1:885 */
     .sidebar-search-wrap {
-      padding: 0 10px 8px;
+      padding: 0 16px 12px;
+    }
+
+    .sidebar-search-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 44px;
+      padding: 0 14px;
+      border-radius: 69px;
+      background-color: var(--ink-dark-pill);
+      color: #ffffff;
     }
 
     .sidebar-search {
       width: 100%;
-      min-height: 44px;
-      padding: 8px 10px;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border-strong);
-      background-color: var(--bg-canvas);
-      color: var(--ink-primary);
-      font-size: 0.84rem;
+      border: none;
+      background: transparent;
+      color: #ffffff;
+      font-family: var(--font-sans);
+      font-size: 0.82rem;
+    }
+
+    .sidebar-search::placeholder {
+      color: rgba(255, 255, 255, 0.64);
+    }
+
+    .sidebar-search:focus-visible {
+      outline: none;
+    }
+
+    .upload-nav-btn {
+      width: 100%;
+      min-height: 38px;
+      padding: 0 14px;
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--radius-pill);
+      background-color: var(--bg-subtle);
+      color: var(--ink-body);
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .upload-nav-btn:hover {
+      border-color: var(--accent-indigo);
+      background-color: var(--accent-indigo-soft);
+      color: var(--accent-indigo);
     }
 
     .sidebar-scroll {
       flex: 1;
       overflow-y: auto;
-      padding: 4px 10px 12px;
+      padding: 4px 12px 12px;
       display: flex;
       flex-direction: column;
       gap: 14px;
     }
 
-    .group-toggle {
-      width: 100%;
-      min-height: 36px;
-      padding: 0 8px;
-      border: none;
-      border-radius: var(--radius-sm);
-      background: transparent;
-      color: var(--ink-muted);
-      font-family: var(--font-sans);
-      font-size: 0.78rem;
-      font-weight: 600;
+    .section-header-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      text-align: left;
+      padding: 8px 6px 6px;
+      border-top: 1px solid var(--border-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 6px;
+    }
+
+    .group-toggle {
+      border: none;
+      padding: 2px 4px;
+      background: transparent;
+      color: var(--ink-muted);
+      font-family: var(--font-sans);
+      font-size: 0.76rem;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .group-toggle:hover {
       color: var(--ink-primary);
     }
 
+    .group-count-pill {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--ink-muted);
+      background: var(--bg-subtle);
+      padding: 1px 6px;
+      border-radius: var(--radius-pill);
+    }
+
+    .clear-all-btn {
+      border: none;
+      background: transparent;
+      color: var(--accent-indigo);
+      font-family: var(--font-sans);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+
+    .clear-all-btn:hover {
+      background-color: var(--accent-indigo-soft);
+    }
+
     .item-list {
       list-style: none;
-      margin: 2px 0 0;
+      margin: 0;
       padding: 0;
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 3px;
     }
 
     .item-row {
+      position: relative;
       display: flex;
       align-items: center;
       gap: 4px;
-      border-radius: var(--radius-sm);
-      padding-right: 4px;
+      border-radius: 69px;
+      padding-right: 6px;
+      transition: background-color 120ms ease;
     }
 
     .item-row:hover {
@@ -249,27 +389,55 @@
     }
 
     .item-row.active {
-      background-color: var(--bg-active);
+      background-color: var(--accent-indigo-soft);
+    }
+
+    /* Figma 1:894 active conversation right-edge indicator */
+    .item-row.active::after {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--accent-indigo);
+      box-shadow: 0 0 0 3px rgba(86, 97, 246, 0.18);
+      margin-right: 4px;
+      flex-shrink: 0;
     }
 
     .item-main-btn {
       flex: 1;
       min-width: 0;
-      min-height: 44px;
-      padding: 6px 8px;
+      min-height: 40px;
+      padding: 6px 10px;
       border: none;
       background: transparent;
-      color: var(--ink-primary);
+      color: var(--ink-body);
       font-family: var(--font-sans);
-      font-size: 0.84rem;
+      font-size: 0.82rem;
+      font-weight: 500;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 8px;
+      gap: 9px;
       text-align: left;
     }
 
+    .item-row.active .item-main-btn {
+      color: var(--accent-indigo);
+      font-weight: 600;
+    }
+
+    .item-icon {
+      flex-shrink: 0;
+      color: var(--ink-muted);
+      display: inline-flex;
+    }
+
+    .item-row.active .item-icon {
+      color: var(--accent-indigo);
+    }
+
     .item-title {
+      flex: 1;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -277,21 +445,29 @@
 
     .item-count {
       font-family: var(--font-mono);
-      font-size: 0.72rem;
-      color: var(--ink-muted);
+      font-size: 0.69rem;
+      color: var(--ink-subtle);
       flex-shrink: 0;
     }
 
     .item-del-btn {
-      min-width: 36px;
-      min-height: 36px;
+      min-width: 28px;
+      min-height: 28px;
       border: none;
-      border-radius: var(--radius-sm);
+      border-radius: var(--radius-pill);
       background: transparent;
       color: var(--ink-muted);
-      font-size: 0.78rem;
+      font-size: 0.85rem;
       font-weight: 600;
       flex-shrink: 0;
+      opacity: 0;
+      transition: opacity 120ms ease, background-color 120ms ease;
+    }
+
+    .item-row:hover .item-del-btn,
+    .item-row.active .item-del-btn,
+    .item-del-btn:focus-visible {
+      opacity: 1;
     }
 
     .item-del-btn:hover {
@@ -301,18 +477,23 @@
 
     .sidebar-footer {
       border-top: 1px solid var(--border-subtle);
-      padding: 8px 10px;
+      padding: 12px 14px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
 
-    .profile-btn {
+    .footer-pill-btn {
       width: 100%;
       min-height: 44px;
-      padding: 4px 6px;
-      border: none;
-      border-radius: var(--radius-sm);
-      background: transparent;
+      padding: 6px 12px;
+      border: 1px solid var(--border-subtle);
+      border-radius: 69px;
+      background-color: var(--bg-surface);
       color: var(--ink-primary);
       font-family: var(--font-sans);
+      font-size: 0.83rem;
+      font-weight: 500;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -320,25 +501,38 @@
       text-align: left;
     }
 
-    .profile-btn:hover {
-      background-color: var(--bg-hover);
+    .footer-pill-btn:hover {
+      border-color: var(--border-strong);
+      background-color: var(--bg-subtle);
     }
 
-    .profile-left {
+    .footer-pill-left {
       display: flex;
       align-items: center;
       gap: 10px;
       min-width: 0;
     }
 
+    .icon-circle-badge {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background-color: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      color: var(--ink-body);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
     .avatar-circle {
       width: 30px;
       height: 30px;
-      border-radius: 999px;
-      background-color: var(--bg-active);
-      border: 1px solid var(--border-strong);
-      color: var(--ink-primary);
-      font-size: 0.76rem;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #5661f6 0%, #8b5cf6 100%);
+      color: #ffffff;
+      font-size: 0.72rem;
       font-weight: 700;
       display: inline-flex;
       align-items: center;
@@ -352,8 +546,9 @@
 
     .profile-name {
       display: block;
-      font-size: 0.83rem;
+      font-size: 0.82rem;
       font-weight: 600;
+      color: var(--ink-primary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -361,8 +556,21 @@
 
     .profile-sub {
       display: block;
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       color: var(--ink-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .nav-hint {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--accent-indigo);
+      background: var(--accent-indigo-soft);
+      padding: 2px 8px;
+      border-radius: var(--radius-pill);
+      flex-shrink: 0;
     }
 
     /* Main Workspace */
@@ -373,21 +581,21 @@
       display: flex;
       flex-direction: column;
       position: relative;
-      background-color: var(--bg-canvas);
     }
 
     .floating-open-btn {
       position: absolute;
-      top: 12px;
-      left: 12px;
+      top: 4px;
+      left: 4px;
       z-index: 20;
       display: none;
-      width: 44px;
-      height: 44px;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border-subtle);
-      background-color: var(--bg-sidebar);
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--border-strong);
+      background-color: var(--bg-surface);
       color: var(--ink-primary);
+      box-shadow: var(--shadow-card);
       align-items: center;
       justify-content: center;
     }
@@ -396,108 +604,719 @@
       display: inline-flex;
     }
 
-    .top-pill-wrap {
-      padding: 12px 16px 4px;
+    .top-bar-row {
       display: flex;
+      align-items: center;
       justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 2px 16px 6px;
       flex-shrink: 0;
     }
 
-    .top-pill-btn {
-      min-height: 36px;
-      padding: 4px 12px;
-      border-radius: var(--radius-sm);
+    .canvas-theme-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 8px;
+      min-height: 34px;
+      border-radius: var(--radius-pill);
       border: 1px solid var(--border-subtle);
-      background-color: var(--bg-sidebar);
+      background-color: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.03);
+    }
+
+    .theme-dot-btn {
+      width: 16px;
+      height: 16px;
+      padding: 0;
+      border-radius: 50%;
+      border: 1.5px solid rgba(15, 20, 25, 0.16);
+      transition: transform 120ms ease, box-shadow 120ms ease;
+    }
+
+    .theme-dot-btn:hover {
+      transform: scale(1.12);
+    }
+
+    .theme-dot-btn.active {
+      border-color: var(--accent-indigo);
+      box-shadow: 0 0 0 2px rgba(86, 97, 246, 0.28);
+    }
+
+    .top-pill-btn {
+      min-height: 34px;
+      padding: 4px 14px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--border-subtle);
+      background-color: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
       color: var(--ink-muted);
       font-family: var(--font-sans);
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       display: inline-flex;
       align-items: center;
       gap: 8px;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.03);
     }
 
     .top-pill-btn:hover {
       color: var(--ink-primary);
       border-color: var(--border-strong);
+      background-color: #ffffff;
     }
 
     .top-pill-accent {
-      color: var(--accent-warm);
+      color: var(--accent-indigo);
       font-weight: 600;
     }
 
-    /* Stage: Centered when empty, full-height chat when messages exist */
+    .banner-stack {
+      width: 100%;
+      max-width: 820px;
+      margin: 0 auto 6px;
+      padding: 0 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .embedder-banner {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 14px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--warn-border);
+      background-color: var(--warn-bg);
+      color: var(--warn-ink);
+      font-size: 0.8rem;
+      line-height: 1.45;
+    }
+
+    .embedder-banner-body {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .embedder-badge {
+      flex-shrink: 0;
+      padding: 1px 7px;
+      border-radius: var(--radius-pill);
+      background-color: rgba(217, 119, 6, 0.14);
+      color: #92400e;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+
+    .banner-dismiss-btn {
+      flex-shrink: 0;
+      width: 24px;
+      height: 24px;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      color: inherit;
+      font-size: 0.95rem;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .banner-dismiss-btn:hover {
+      background-color: rgba(0, 0, 0, 0.06);
+    }
+
+    .drop-overlay {
+      position: absolute;
+      inset: 8px;
+      z-index: 40;
+      border-radius: var(--radius-lg);
+      border: 2px dashed var(--accent-indigo);
+      background-color: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(4px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      pointer-events: none;
+      color: var(--ink-primary);
+      text-align: center;
+    }
+
+    .drop-overlay strong {
+      font-size: 1.05rem;
+    }
+
+    .drop-overlay span {
+      font-size: 0.84rem;
+      color: var(--ink-muted);
+    }
+
+    /* Stage Body */
     .stage-body {
       flex: 1;
       min-height: 0;
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      padding: 0 20px;
-    }
-
-    .workspace-main.has-messages .stage-body {
-      justify-content: flex-start;
-      padding: 0;
+      overflow: hidden;
+      position: relative;
     }
 
     .chat-scroll {
       display: none;
       flex: 1;
       overflow-y: auto;
-      padding: 18px 20px 12px;
+      padding: 12px 24px 16px;
     }
 
-    .workspace-main.has-messages .chat-scroll {
+    .workspace-main.has-messages:not(.docs-view) .chat-scroll {
       display: block;
     }
 
-    .chat-feed {
-      max-width: 720px;
+    /* Welcome / Empty Screen matching Figma 19:914 ("new chat") */
+    .welcome-stage {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 14px 24px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+    }
+
+    .workspace-main.has-messages .welcome-stage,
+    .workspace-main.docs-view .welcome-stage {
+      display: none;
+    }
+
+    .welcome-brand-pill {
+      padding: 10px 26px;
+      border-radius: var(--radius-pill);
+      background-color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.95);
+      box-shadow: var(--shadow-card);
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--ink-primary);
+    }
+
+    .welcome-title {
+      margin: 0;
+      font-size: clamp(1.45rem, 2.6vw, 2.05rem);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--ink-primary);
+      text-align: center;
+    }
+
+    .welcome-grid {
+      width: 100%;
+      max-width: 780px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .welcome-row-grid {
+      display: grid;
+      grid-template-columns: 168px 20px 1fr 1fr;
+      align-items: stretch;
+      gap: 12px;
+    }
+
+    .cat-card {
+      background-color: #111217;
+      color: #ffffff;
+      border-radius: 18px;
+      padding: 14px 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      box-shadow: 0 10px 24px rgba(17, 18, 23, 0.14);
+    }
+
+    .cat-card-icon {
+      width: 24px;
+      height: 24px;
+      color: #ffffff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cat-card-title {
+      font-size: 0.96rem;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .cat-card-desc {
+      margin: 0;
+      font-size: 0.7rem;
+      line-height: 1.35;
+      color: rgba(255, 255, 255, 0.65);
+    }
+
+    .triple-bars {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+    }
+
+    .triple-bars span {
+      width: 2.5px;
+      height: 44px;
+      border-radius: 999px;
+      background-color: #d6dbea;
+    }
+
+    .prompt-card {
+      text-align: left;
+      border: 1px solid rgba(255, 255, 255, 0.95);
+      border-radius: 18px;
+      background-color: #ffffff;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
+      box-shadow: var(--shadow-card);
+      transition: transform 130ms ease, border-color 130ms ease, box-shadow 130ms ease;
+      font-family: var(--font-sans);
+    }
+
+    .prompt-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent-indigo);
+      box-shadow: 0 12px 28px rgba(86, 97, 246, 0.12);
+    }
+
+    .prompt-orb {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+
+    .orb-purple { background: radial-gradient(circle at 30% 30%, #eef0ff, #c7ceff); color: #3944d6; }
+    .orb-slate { background: radial-gradient(circle at 30% 30%, #e5ecf6, #b7c8e6); color: #1e293b; }
+    .orb-amber { background: radial-gradient(circle at 30% 30%, #fff3db, #fcd38d); color: #92400e; }
+    .orb-blue { background: radial-gradient(circle at 30% 30%, #e0f2fe, #93c5fd); color: #1d4ed8; }
+    .orb-rose { background: radial-gradient(circle at 30% 30%, #fee2e2, #fca5a5); color: #b91c1c; }
+    .orb-teal { background: radial-gradient(circle at 30% 30%, #ccfbf1, #99f6e4); color: #0f766e; }
+
+    .prompt-card-title {
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: var(--ink-primary);
+      margin-bottom: 2px;
+    }
+
+    .prompt-card-bottom {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .prompt-card-sub {
+      font-size: 0.74rem;
+      color: var(--ink-muted);
+      line-height: 1.35;
+    }
+
+    .prompt-arrow {
+      color: var(--ink-primary);
+      font-size: 0.95rem;
+      flex-shrink: 0;
+    }
+
+    /* Inline Documents Stage Panel */
+    .docs-stage-panel {
+      display: none;
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 14px 24px 16px;
+    }
+
+    .workspace-main.docs-view .docs-stage-panel {
+      display: block;
+    }
+
+    .docs-stage-inner {
+      max-width: 780px;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 12px;
     }
 
-    .msg-item {
-      padding: 14px 16px;
+    .docs-stage-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .docs-stage-title {
+      margin: 0;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--ink-primary);
+    }
+
+    .docs-stage-sub {
+      font-size: 0.8rem;
+      color: var(--ink-muted);
+    }
+
+    .docs-card-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .doc-stage-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 16px;
       border-radius: var(--radius-md);
-      font-size: 0.95rem;
+      border: 1px solid var(--border-subtle);
+      background-color: var(--bg-surface);
+      box-shadow: var(--shadow-card);
+    }
+
+    .doc-stage-card:hover {
+      border-color: var(--border-strong);
+    }
+
+    .doc-stage-info {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .doc-stage-name {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--ink-primary);
+      word-break: break-word;
+    }
+
+    .doc-stage-meta {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.73rem;
+      color: var(--ink-muted);
+    }
+
+    .doc-stage-badge {
+      padding: 1px 8px;
+      border-radius: var(--radius-pill);
+      background-color: var(--accent-indigo-soft);
+      color: var(--accent-indigo);
+      font-weight: 600;
+    }
+
+    .doc-stage-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .doc-stage-btn {
+      min-height: 34px;
+      padding: 0 12px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--border-strong);
+      background-color: var(--bg-surface);
+      color: var(--ink-primary);
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .doc-stage-btn:hover:not(:disabled) {
+      background-color: var(--bg-subtle);
+      border-color: var(--accent-indigo);
+      color: var(--accent-indigo);
+    }
+
+    .doc-stage-btn.danger {
+      border-color: var(--danger-border);
+      background-color: var(--danger-bg);
+      color: var(--danger-ink);
+    }
+
+    .docs-empty-box {
+      padding: 28px 20px;
+      border-radius: var(--radius-md);
+      border: 1px dashed var(--border-strong);
+      background-color: var(--bg-surface);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      color: var(--ink-muted);
+      font-size: 0.88rem;
+    }
+
+    /* Chat Feed matching Figma 1:1702 & 19:913 */
+    .chat-feed {
+      max-width: 780px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      padding-bottom: 12px;
     }
 
     .msg-item.user {
-      align-self: flex-end;
-      max-width: 82%;
-      background-color: var(--bg-surface);
-      border: 1px solid var(--border-strong);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 4px;
+      border-bottom: 1px solid rgba(217, 223, 238, 0.7);
     }
 
-    .msg-item.assistant {
-      align-self: stretch;
-      background-color: transparent;
-      padding-left: 4px;
-      padding-right: 4px;
+    .user-msg-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      flex: 1;
     }
 
-    .msg-role {
-      font-family: var(--font-mono);
-      font-size: 0.74rem;
-      color: var(--ink-muted);
-      margin-bottom: 4px;
+    .user-msg-avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+      color: #ffffff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
     }
 
-    .msg-body {
+    .user-msg-text {
       margin: 0;
+      font-size: 0.94rem;
+      font-weight: 500;
+      color: var(--ink-primary);
       white-space: pre-wrap;
       word-break: break-word;
     }
 
+    .user-edit-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+      background-color: var(--bg-surface);
+      color: var(--ink-muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .user-edit-btn:hover {
+      border-color: var(--accent-indigo);
+      color: var(--accent-indigo);
+    }
+
+    .msg-item.assistant {
+      padding: 2px 4px 18px;
+      border-bottom: 1px solid rgba(217, 223, 238, 0.55);
+    }
+
+    .msg-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .msg-role-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .msg-role {
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-indigo);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .rag-meta-badge {
+      padding: 2px 9px;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(86, 97, 246, 0.22);
+      background-color: var(--accent-indigo-soft);
+      color: var(--accent-indigo);
+      font-family: var(--font-mono);
+      font-size: 0.69rem;
+      font-weight: 600;
+    }
+
+    .msg-body {
+      margin: 0;
+      color: var(--ink-body);
+      font-size: 0.94rem;
+      line-height: 1.65;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .msg-body.md-content {
+      white-space: normal;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .msg-body.md-content p {
+      margin: 0;
+    }
+
+    .msg-body.md-content h3,
+    .msg-body.md-content h4 {
+      margin: 6px 0 0;
+      font-size: 0.98rem;
+      font-weight: 600;
+      color: var(--ink-primary);
+    }
+
+    .msg-body.md-content ul,
+    .msg-body.md-content ol {
+      margin: 0;
+      padding-left: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .msg-body.md-content code {
+      font-family: var(--font-mono);
+      font-size: 0.84em;
+      background-color: #ffffff;
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 1px 6px;
+      color: #3730a3;
+    }
+
+    .msg-body.md-content pre {
+      margin: 0;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      background-color: #ffffff;
+      border: 1px solid var(--border-subtle);
+      overflow-x: auto;
+    }
+
+    .msg-body.md-content pre code {
+      background: transparent;
+      border: none;
+      padding: 0;
+      font-size: 0.82rem;
+      color: var(--ink-primary);
+      line-height: 1.45;
+    }
+
+    .msg-body.md-content blockquote {
+      margin: 0;
+      padding: 8px 14px;
+      border-left: 3px solid var(--accent-indigo);
+      background-color: rgba(255, 255, 255, 0.78);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      color: var(--ink-muted);
+    }
+
+    .msg-body.md-content hr {
+      border: none;
+      border-top: 1px solid var(--border-subtle);
+      margin: 6px 0;
+    }
+
+    .md-table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      background-color: #ffffff;
+    }
+
+    .md-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    .md-table th,
+    .md-table td {
+      padding: 7px 11px;
+      border-bottom: 1px solid var(--border-subtle);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .md-table th {
+      background-color: var(--bg-subtle);
+      font-weight: 600;
+      color: var(--ink-primary);
+    }
+
+    .md-table tr:last-child td {
+      border-bottom: none;
+    }
+
     .sources-wrap {
       margin-top: 12px;
-      padding-top: 10px;
-      border-top: 1px solid var(--border-subtle);
       display: flex;
       flex-direction: column;
       gap: 6px;
@@ -505,96 +1324,49 @@
 
     .source-chip {
       font-family: var(--font-mono);
-      font-size: 0.76rem;
+      font-size: 0.75rem;
       color: var(--ink-muted);
-      background-color: var(--bg-sidebar);
+      background-color: rgba(255, 255, 255, 0.9);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-sm);
-      padding: 6px 10px;
+      padding: 7px 11px;
     }
 
-    /* Centered Greeting */
-    .welcome-row {
-      max-width: 680px;
-      width: 100%;
-      margin: 0 auto 22px;
+    .source-chip summary {
+      list-style: none;
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 12px;
-      text-align: center;
+      flex-wrap: wrap;
+      gap: 6px;
     }
 
-    .workspace-main.has-messages .welcome-row {
+    .source-chip summary::-webkit-details-marker {
       display: none;
     }
 
-    .spark-mark {
-      width: 30px;
-      height: 30px;
-      color: var(--accent-warm);
-      flex-shrink: 0;
+    .source-page-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 7px;
+      border-radius: var(--radius-pill);
+      background-color: var(--accent-indigo-soft);
+      color: var(--accent-indigo-hover);
+      font-weight: 700;
     }
 
-    .welcome-title {
-      margin: 0;
-      font-family: var(--font-serif);
-      font-weight: 400;
-      font-size: clamp(1.55rem, 3.2vw, 2.2rem);
-      letter-spacing: -0.015em;
-      color: var(--ink-primary);
-    }
-
-    /* Composer Card */
-    .composer-wrap {
-      width: 100%;
-      max-width: 680px;
-      margin: 0 auto;
-    }
-
-    .workspace-main.has-messages .composer-wrap {
-      max-width: 740px;
-      padding: 8px 20px 20px;
-    }
-
-    .composer-card {
-      background-color: var(--bg-surface);
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius-lg);
-      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
-      padding: 12px 14px 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .composer-card:focus-within {
-      border-color: #63635C;
-    }
-
-    .composer-input {
-      width: 100%;
-      min-height: 46px;
-      max-height: 180px;
-      border: none;
-      resize: none;
-      background: transparent;
-      color: var(--ink-primary);
+    .source-excerpt {
+      margin: 7px 0 0;
+      padding-top: 7px;
+      border-top: 1px dashed var(--border-subtle);
       font-family: var(--font-sans);
-      font-size: 0.96rem;
-      line-height: 1.5;
-      padding: 2px 2px;
+      font-size: 0.8rem;
+      color: var(--ink-body);
+      white-space: pre-wrap;
     }
 
-    .composer-input::placeholder {
-      color: var(--ink-muted);
-    }
-
-    .composer-input:focus-visible {
-      outline: none;
-    }
-
-    .composer-toolbar {
+    /* Figma 1:1702 Assistant Bottom Action Bar */
+    .msg-actions-bar {
+      margin-top: 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -602,99 +1374,313 @@
       flex-wrap: wrap;
     }
 
+    .msg-feedback-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 3px 6px;
+      border-radius: var(--radius-pill);
+      background-color: #ffffff;
+      border: 1px solid var(--border-subtle);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+    }
+
+    .msg-icon-btn {
+      min-height: 30px;
+      padding: 0 9px;
+      border: none;
+      border-radius: var(--radius-pill);
+      background: transparent;
+      color: var(--ink-muted);
+      font-family: var(--font-sans);
+      font-size: 0.75rem;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .msg-icon-btn:hover {
+      background-color: var(--bg-subtle);
+      color: var(--ink-primary);
+    }
+
+    .msg-icon-btn.is-active {
+      background-color: var(--accent-indigo-soft);
+      color: var(--accent-indigo);
+      font-weight: 600;
+    }
+
+    .msg-divider-v {
+      width: 1px;
+      height: 16px;
+      background-color: var(--border-subtle);
+      margin: 0 2px;
+    }
+
+    .regenerate-pill-btn {
+      min-height: 34px;
+      padding: 0 14px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--border-subtle);
+      background-color: #ffffff;
+      color: var(--ink-body);
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+    }
+
+    .regenerate-pill-btn:hover {
+      border-color: var(--accent-indigo);
+      color: var(--accent-indigo);
+    }
+
+    .thinking-note {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background-color: #ffffff;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-pill);
+      padding: 10px 16px;
+      box-shadow: var(--shadow-card);
+    }
+
+    .thinking-dots {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .thinking-dots span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--accent-indigo);
+      opacity: 0.35;
+      animation: insightPulse 1.2s infinite ease-in-out;
+    }
+
+    .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes insightPulse {
+      0%, 80%, 100% { opacity: 0.3; transform: scale(0.85); }
+      40% { opacity: 1; transform: scale(1.1); }
+    }
+
+    /* Bottom Floating Capsule Composer matching Figma 1:905 */
+    .composer-wrap {
+      width: 100%;
+      max-width: 810px;
+      margin: 0 auto;
+      padding: 6px 20px 10px;
+      flex-shrink: 0;
+    }
+
+    .composer-card {
+      background-color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.98);
+      border-radius: 26px;
+      box-shadow: var(--shadow-composer);
+      padding: 10px 12px 10px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .composer-card:focus-within {
+      border-color: rgba(86, 97, 246, 0.45);
+    }
+
+    .composer-main-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brain-badge {
+      position: relative;
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 1.25rem;
+      user-select: none;
+    }
+
+    .brain-badge::before {
+      content: "";
+      position: absolute;
+      inset: 4px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(244, 114, 182, 0.45), rgba(86, 97, 246, 0.25));
+      filter: blur(5px);
+      z-index: 0;
+    }
+
+    .brain-badge span {
+      position: relative;
+      z-index: 1;
+    }
+
+    .composer-input {
+      flex: 1;
+      min-height: 28px;
+      max-height: 140px;
+      border: none;
+      resize: none;
+      background: transparent;
+      color: var(--ink-primary);
+      font-family: var(--font-sans);
+      font-size: 0.92rem;
+      line-height: 1.45;
+      padding: 4px 0;
+    }
+
+    .composer-input::placeholder {
+      color: rgba(15, 20, 25, 0.4);
+    }
+
+    .composer-input:focus-visible {
+      outline: none;
+    }
+
+    .send-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: none;
+      background-color: var(--accent-indigo);
+      color: #ffffff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 6px 16px rgba(86, 97, 246, 0.34);
+      transition: background-color 130ms ease, transform 120ms ease;
+    }
+
+    .send-btn:hover:not(:disabled) {
+      background-color: var(--accent-indigo-hover);
+      transform: scale(1.03);
+    }
+
+    .composer-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding-top: 6px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
     .toolbar-left,
     .toolbar-right {
       display: flex;
       align-items: center;
       gap: 6px;
+      flex-wrap: wrap;
     }
 
     .plus-btn {
-      width: 44px;
-      height: 44px;
-      border-radius: var(--radius-sm);
-      border: none;
-      background: transparent;
-      color: var(--ink-muted);
-      font-size: 1.25rem;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-subtle);
+      color: var(--ink-body);
+      font-size: 1.1rem;
       display: inline-flex;
       align-items: center;
       justify-content: center;
     }
 
     .plus-btn:hover {
-      background-color: var(--bg-active);
-      color: var(--ink-primary);
+      background-color: var(--accent-indigo-soft);
+      border-color: var(--accent-indigo);
+      color: var(--accent-indigo);
     }
 
     .mode-pill-group {
       display: inline-flex;
-      background-color: var(--bg-canvas);
+      background-color: var(--bg-subtle);
       border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-sm);
+      border-radius: var(--radius-pill);
       padding: 2px;
     }
 
     .mode-pill-btn {
-      min-height: 36px;
+      min-height: 30px;
       padding: 0 12px;
       border: none;
-      border-radius: 6px;
+      border-radius: var(--radius-pill);
       background: transparent;
       color: var(--ink-muted);
       font-family: var(--font-sans);
-      font-size: 0.82rem;
+      font-size: 0.77rem;
       font-weight: 500;
+      white-space: nowrap;
     }
 
     .mode-pill-btn.active {
-      background-color: var(--bg-surface);
+      background-color: #ffffff;
+      color: var(--accent-indigo);
+      font-weight: 600;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+    }
+
+    .rag-select {
+      min-height: 32px;
+      padding: 0 10px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--border-strong);
+      background-color: #ffffff;
       color: var(--ink-primary);
+      font-family: var(--font-sans);
+      font-size: 0.77rem;
+      font-weight: 600;
+    }
+
+    .rag-select:hover {
+      border-color: var(--accent-indigo);
     }
 
     .model-trigger-btn {
-      min-height: 44px;
+      min-height: 32px;
       padding: 0 10px;
-      border: none;
-      border-radius: var(--radius-sm);
-      background: transparent;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-pill);
+      background: var(--bg-subtle);
       color: var(--ink-muted);
       font-family: var(--font-sans);
-      font-size: 0.82rem;
+      font-size: 0.75rem;
       display: inline-flex;
       align-items: center;
       gap: 6px;
+      white-space: nowrap;
     }
 
     .model-trigger-btn:hover {
-      background-color: var(--bg-active);
+      background-color: #ffffff;
+      border-color: var(--border-strong);
       color: var(--ink-primary);
     }
 
-    .send-btn {
-      width: 44px;
-      height: 44px;
-      border-radius: 999px;
-      border: none;
-      background-color: var(--accent-warm);
-      color: var(--ink-dark);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .send-btn:hover:not(:disabled) {
-      background-color: var(--accent-warm-hover);
-    }
-
     .status-note {
-      padding: 8px 10px;
+      padding: 8px 12px;
       border-radius: var(--radius-sm);
       border: 1px solid var(--border-subtle);
-      background-color: var(--bg-canvas);
+      background-color: var(--bg-subtle);
       color: var(--ink-muted);
-      font-size: 0.8rem;
+      font-size: 0.79rem;
     }
 
     .status-note.error {
@@ -715,7 +1701,8 @@
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background-color: rgba(15, 15, 14, 0.72);
+      background-color: rgba(15, 20, 32, 0.42);
+      backdrop-filter: blur(4px);
       display: none;
       align-items: center;
       justify-content: center;
@@ -729,11 +1716,14 @@
 
     .modal-card {
       width: 100%;
-      max-width: 440px;
-      background-color: var(--bg-sidebar);
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius-md);
-      padding: 20px;
+      max-width: 470px;
+      max-height: calc(100dvh - 32px);
+      overflow-y: auto;
+      background-color: #ffffff;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 24px 64px rgba(15, 23, 42, 0.18);
+      padding: 22px;
       display: flex;
       flex-direction: column;
       gap: 14px;
@@ -741,14 +1731,87 @@
 
     .modal-title {
       margin: 0;
-      font-size: 1rem;
+      font-size: 1.05rem;
       font-weight: 600;
+      color: var(--ink-primary);
+    }
+
+    /* Split-Screen Auth Modal matching Figma Screen 1 */
+    .auth-modal-card {
+      width: 100%;
+      max-width: 780px;
+      max-height: calc(100dvh - 32px);
+      overflow: hidden;
+      background-color: #ffffff;
+      border-radius: var(--radius-lg);
+      box-shadow: 0 24px 64px rgba(15, 23, 42, 0.22);
+      display: grid;
+      grid-template-columns: 1.05fr 1fr;
+    }
+
+    .auth-hero-pane {
+      background: linear-gradient(145deg, #4338ca 0%, #5661f6 52%, #f4a28c 100%);
+      color: #ffffff;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .auth-hero-brand {
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .auth-hero-title {
+      margin: 0;
+      font-size: 1.55rem;
+      font-weight: 600;
+      line-height: 1.25;
+      letter-spacing: -0.02em;
+    }
+
+    .auth-hero-preview {
+      padding: 12px 14px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.14);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      font-size: 0.78rem;
+      line-height: 1.45;
+      color: rgba(255, 255, 255, 0.94);
+    }
+
+    .auth-form-pane {
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 14px;
+      overflow-y: auto;
+    }
+
+    @media (max-width: 720px) {
+      .auth-modal-card {
+        grid-template-columns: 1fr;
+      }
+
+      .auth-hero-pane {
+        padding: 20px;
+      }
+
+      .auth-form-pane {
+        padding: 22px;
+      }
     }
 
     .modal-kv {
       margin: 0;
       display: grid;
-      grid-template-columns: 120px 1fr;
+      grid-template-columns: 124px 1fr;
       gap: 8px 12px;
       font-size: 0.84rem;
     }
@@ -760,70 +1823,143 @@
     .modal-kv dd {
       margin: 0;
       font-family: var(--font-mono);
+      color: var(--ink-primary);
       word-break: break-word;
     }
 
     .modal-actions {
       display: flex;
       justify-content: flex-end;
+      align-items: center;
       gap: 8px;
       flex-wrap: wrap;
     }
 
+    .modal-actions-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .modal-actions-grid > * {
+      justify-content: center;
+      text-align: center;
+    }
+
+    .modal-actions-grid .span-full {
+      grid-column: 1 / -1;
+    }
+
     .btn-primary-warm {
-      min-height: 44px;
-      padding: 0 16px;
+      min-height: 42px;
+      padding: 0 18px;
       border: none;
-      border-radius: var(--radius-sm);
-      background-color: var(--accent-warm);
-      color: var(--ink-dark);
+      border-radius: var(--radius-pill);
+      background-color: var(--accent-indigo);
+      color: #ffffff;
       font-family: var(--font-sans);
-      font-size: 0.86rem;
+      font-size: 0.85rem;
       font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .btn-primary-warm:hover {
-      background-color: var(--accent-warm-hover);
+      background-color: var(--accent-indigo-hover);
     }
 
     .btn-secondary-warm {
-      min-height: 44px;
+      min-height: 42px;
       padding: 0 14px;
       border: 1px solid var(--border-strong);
-      border-radius: var(--radius-sm);
+      border-radius: var(--radius-pill);
       background-color: var(--bg-surface);
       color: var(--ink-primary);
       font-family: var(--font-sans);
-      font-size: 0.86rem;
+      font-size: 0.84rem;
       font-weight: 500;
       text-decoration: none;
       display: inline-flex;
       align-items: center;
+      justify-content: center;
+    }
+
+    .btn-secondary-warm:hover {
+      background-color: var(--bg-subtle);
+    }
+
+    .btn-danger-warm {
+      min-height: 42px;
+      padding: 0 14px;
+      border: 1px solid var(--danger-border);
+      border-radius: var(--radius-pill);
+      background-color: var(--danger-bg);
+      color: var(--danger-ink);
+      font-family: var(--font-sans);
+      font-size: 0.84rem;
+      font-weight: 500;
     }
 
     .text-input {
       width: 100%;
-      min-height: 44px;
-      padding: 8px 12px;
+      min-height: 42px;
+      padding: 8px 14px;
       border-radius: var(--radius-sm);
       border: 1px solid var(--border-strong);
-      background-color: var(--bg-canvas);
+      background-color: var(--bg-subtle);
       color: var(--ink-primary);
-      font-size: 0.92rem;
+      font-size: 0.9rem;
+    }
+
+    .field-label {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--ink-muted);
+      margin-bottom: -8px;
+    }
+
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 45;
+      background-color: rgba(15, 20, 32, 0.35);
+      backdrop-filter: blur(2px);
+    }
+
+    @media (max-width: 960px) {
+      .welcome-row-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .triple-bars {
+        display: none;
+      }
     }
 
     @media (max-width: 768px) {
+      .app-layout {
+        padding: 8px;
+        gap: 0;
+      }
+
       .sidebar {
         position: fixed;
-        top: 0;
-        bottom: 0;
-        left: 0;
+        top: 8px;
+        bottom: 8px;
+        left: 8px;
         z-index: 50;
-        width: min(84vw, 290px);
+        width: min(86vw, 300px);
+        box-shadow: 8px 0 32px rgba(15, 23, 42, 0.2);
       }
 
       .sidebar:not(.mobile-open) {
         display: none;
+      }
+
+      .sidebar-backdrop:not([hidden]) {
+        display: block;
       }
 
       .floating-open-btn {
@@ -831,15 +1967,34 @@
       }
 
       .app-layout.sidebar-collapsed .sidebar {
-        width: min(84vw, 290px);
+        width: min(86vw, 300px);
+        margin-left: 0;
+        opacity: 1;
+        pointer-events: auto;
       }
 
-      .stage-body {
-        padding: 0 12px;
+      .chat-scroll,
+      .docs-stage-panel,
+      .welcome-stage {
+        padding: 10px 10px 12px;
       }
 
-      .workspace-main.has-messages .composer-wrap {
-        padding: 8px 12px 14px;
+      .composer-wrap {
+        padding: 4px 6px 6px;
+      }
+
+      .doc-stage-card {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .doc-stage-actions {
+        width: 100%;
+        justify-content: flex-end;
+      }
+
+      #model-trigger-btn {
+        display: none;
       }
     }
   </style>
@@ -848,116 +2003,127 @@
   <div id="app-layout" class="app-layout">
     <aside id="sidebar" class="sidebar" aria-label="Menu utama dan daftar dokumen">
       <div class="sidebar-top">
+        <a href="/" class="sidebar-brand">INSIGHT A.I+</a>
         <button
           type="button"
           id="sidebar-collapse-btn"
           class="sidebar-toggle-btn"
           aria-label="Tutup panel samping"
+          title="Tutup panel samping"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
             <rect x="3" y="4" width="18" height="16" rx="2" />
             <path d="M9 4v16" />
           </svg>
         </button>
-        <a href="/" class="sidebar-brand">InSight</a>
       </div>
 
-      <nav class="sidebar-primary-nav" aria-label="Aksi utama">
-        <button type="button" id="new-chat-btn" class="nav-btn featured">
-          <span class="nav-btn-left">
+      <div class="sidebar-primary-actions">
+        <div class="sidebar-cta-row">
+          <button type="button" id="new-chat-btn" class="new-chat-pill">
             <span aria-hidden="true">+</span>
-            <span>Buat baru</span>
-          </span>
-        </button>
-
-        <button type="button" id="toggle-search-btn" class="nav-btn">
-          <span class="nav-btn-left">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <span>New chat</span>
+          </button>
+          <button type="button" id="toggle-search-btn" class="search-circle-btn" aria-label="Cari percakapan atau dokumen" title="Cari (Ctrl+K)">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <circle cx="11" cy="11" r="7" />
               <path d="m20 20-3.5-3.5" />
             </svg>
-            <span>Cari</span>
-          </span>
-        </button>
+          </button>
+        </div>
 
-        <label for="file-upload" class="nav-btn">
-          <span class="nav-btn-left">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-              <path d="M12 16V4" />
-              <path d="m7 9 5-5 5 5" />
-              <path d="M4 20h16" />
-            </svg>
-            <span>Unggah Dokumen</span>
-          </span>
-        </label>
-
-        <button type="button" id="open-settings-nav" class="nav-btn">
-          <span class="nav-btn-left">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-              <path d="M4 6h16M4 12h10M4 18h14" />
-            </svg>
-            <span>Kustomisasi</span>
-          </span>
-          <span id="precision-nav-hint" class="nav-hint">4bit</span>
+        <button type="button" id="upload-nav-btn" class="upload-nav-btn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M12 16V4" />
+            <path d="m7 9 5-5 5 5" />
+            <path d="M4 20h16" />
+          </svg>
+          <span>Unggah Dokumen</span>
         </button>
-      </nav>
+      </div>
 
       <div id="search-box-wrap" class="sidebar-search-wrap" hidden>
-        <label for="sidebar-search" class="sr-only">Cari dokumen atau percakapan</label>
-        <input
-          id="sidebar-search"
-          class="sidebar-search"
-          type="search"
-          placeholder="Filter dokumen atau riwayat..."
-        />
+        <div class="sidebar-search-pill">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+          <label for="sidebar-search" class="sr-only">Search Conversation or Documents</label>
+          <input
+            id="sidebar-search"
+            class="sidebar-search"
+            type="search"
+            placeholder="Search Conversation..."
+          />
+        </div>
       </div>
 
       <input
         id="file-upload"
         class="file-input-hidden"
         type="file"
-        accept=".pdf,.docx,.doc,.pptx,.ppt,.xlsx,.xls,.html,.htm,.txt,.md,.csv,.json,.py,.png,.jpg,.jpeg,.webp"
+        multiple
+        accept=".pdf,.docx,.doc,.pptx,.ppt,.xlsx,.xls,.html,.htm,.xhtml,.txt,.md,.markdown,.csv,.json,.py,.tex,.yaml,.yml,.png,.jpg,.jpeg,.webp,.bmp,.tiff,.gif,.asciidoc,.adoc"
       />
 
-      <div id="upload-status" class="status-note" style="margin: 0 10px 8px;" hidden></div>
+      <div id="upload-status" class="status-note" style="margin: 0 14px 8px;" hidden></div>
 
       <div class="sidebar-scroll">
-        <section aria-labelledby="docs-toggle">
-          <button type="button" id="docs-toggle" class="group-toggle" aria-expanded="true">
-            <span>Dokumen</span>
-            <span id="docs-count-badge">0</span>
-          </button>
-          <div id="docs-panel">
-            <div id="doc-state" class="status-note">Memuat dokumen...</div>
-            <ul id="doc-list" class="item-list"></ul>
-          </div>
-        </section>
-
         <section aria-labelledby="sessions-toggle">
-          <button type="button" id="sessions-toggle" class="group-toggle" aria-expanded="true">
-            <span>Riwayat chat</span>
-            <span id="sessions-count-badge">0</span>
-          </button>
+          <div class="section-header-row">
+            <button type="button" id="sessions-toggle" class="group-toggle" aria-expanded="true">
+              <span>Your conversations</span>
+              <span id="sessions-count-badge" class="group-count-pill">0</span>
+            </button>
+            <button type="button" id="clear-all-sessions-btn" class="clear-all-btn">Clear All</button>
+          </div>
           <div id="sessions-panel">
             <div id="session-state" class="status-note">Memuat riwayat...</div>
             <ul id="session-list" class="item-list"></ul>
           </div>
         </section>
+
+        <section aria-labelledby="docs-toggle">
+          <div class="section-header-row">
+            <button type="button" id="docs-toggle" class="group-toggle" aria-expanded="true">
+              <span>Documents</span>
+              <span id="docs-count-badge" class="group-count-pill">0</span>
+            </button>
+          </div>
+          <div id="docs-panel">
+            <div id="doc-state" class="status-note">Memuat dokumen...</div>
+            <ul id="doc-list" class="item-list"></ul>
+          </div>
+        </section>
       </div>
 
       <div class="sidebar-footer">
-        <button type="button" id="footer-settings-btn" class="profile-btn">
-          <span class="profile-left">
+        <button type="button" id="open-settings-nav" class="footer-pill-btn">
+          <span class="footer-pill-left">
+            <span class="icon-circle-badge" aria-hidden="true">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+              </svg>
+            </span>
+            <span class="profile-name">Settings</span>
+          </span>
+          <span id="precision-nav-hint" class="nav-hint">4bit</span>
+        </button>
+
+        <button type="button" id="footer-settings-btn" class="footer-pill-btn">
+          <span class="footer-pill-left">
             <span class="avatar-circle" aria-hidden="true">IS</span>
             <span class="profile-meta">
-              <span class="profile-name">InSight RAG</span>
+              <span class="profile-name">InSight Workspace</span>
               <span id="footer-mode-sub" class="profile-sub">Memuat status...</span>
             </span>
           </span>
-          <span class="nav-hint">Info</span>
         </button>
       </div>
     </aside>
+
+    <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
 
     <main id="workspace-main" class="workspace-main">
       <button
@@ -966,17 +2132,45 @@
         class="floating-open-btn"
         aria-label="Buka panel samping"
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
           <rect x="3" y="4" width="18" height="16" rx="2" />
           <path d="M9 4v16" />
         </svg>
       </button>
 
-      <div class="top-pill-wrap">
+      <div class="top-bar-row">
         <button type="button" id="top-pill-btn" class="top-pill-btn">
           <span id="top-pill-text">Memuat runtime...</span>
           <span class="top-pill-accent">Pengaturan</span>
         </button>
+        <div id="canvas-theme-group" class="canvas-theme-group" role="group" aria-label="Pilih tema warna kanvas">
+          <button type="button" class="theme-dot-btn active" data-theme="lavender" style="background:#eff2f9;" title="Lavender" aria-label="Tema Lavender"></button>
+          <button type="button" class="theme-dot-btn" data-theme="blush" style="background:#f8eae6;" title="Blush" aria-label="Tema Blush"></button>
+          <button type="button" class="theme-dot-btn" data-theme="cream" style="background:#f2e8c9;" title="Cream" aria-label="Tema Cream"></button>
+          <button type="button" class="theme-dot-btn" data-theme="mint" style="background:#e8f2e2;" title="Mint" aria-label="Tema Mint"></button>
+          <button type="button" class="theme-dot-btn" data-theme="neutral" style="background:#efeff2;" title="Neutral" aria-label="Tema Neutral"></button>
+        </div>
+      </div>
+
+      <div class="banner-stack">
+        <div id="embedder-warning-banner" class="embedder-banner" role="status" hidden>
+          <div class="embedder-banner-body">
+            <span class="embedder-badge">Fallback</span>
+            <span id="embedder-warning-text">Mode fallback HashingEmbedder aktif.</span>
+          </div>
+          <button
+            type="button"
+            id="dismiss-embedder-warning"
+            class="banner-dismiss-btn"
+            aria-label="Tutup peringatan embedder"
+          >×</button>
+        </div>
+        <div id="workspace-notice" class="status-note" role="status" hidden></div>
+      </div>
+
+      <div id="drop-overlay" class="drop-overlay" hidden>
+        <strong>Lepaskan dokumen untuk mengunggah ke InSight</strong>
+        <span>Mendukung PDF, DOCX, PPTX, XLSX, HTML, Markdown, TXT, CSV, JSON, dan kode</span>
       </div>
 
       <div class="stage-body">
@@ -985,42 +2179,169 @@
           <div id="chat-feed" class="chat-feed"></div>
         </div>
 
-        <div class="welcome-row">
-          <svg class="spark-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-            <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93 4.93 19.07" />
-          </svg>
-          <h1 class="welcome-title">Halo, siap telusuri dokumen Anda</h1>
-        </div>
+        <section id="docs-stage-panel" class="docs-stage-panel" aria-label="Daftar dokumen terindeks">
+          <div class="docs-stage-inner">
+            <div class="docs-stage-header">
+              <div>
+                <h2 class="docs-stage-title">Dokumen Terindeks</h2>
+                <div id="docs-stage-sub" class="docs-stage-sub">Kelola dokumen yang dipakai InSight untuk menjawab pertanyaan Anda.</div>
+              </div>
+              <button type="button" id="docs-stage-upload-btn" class="btn-primary-warm">+ Unggah Dokumen</button>
+            </div>
+            <div id="docs-stage-empty" class="docs-empty-box" hidden>
+              <span>Belum ada dokumen di ruang kerja.</span>
+              <span style="font-size: 0.78rem;">Seret file ke sini atau klik "Unggah Dokumen" (PDF, DOCX, PPTX, XLSX, HTML, MD, TXT, CSV, JSON).</span>
+            </div>
+            <ul id="docs-stage-list" class="docs-card-list"></ul>
+          </div>
+        </section>
+
+        <!-- Welcome / New Chat Screen matching Figma 19:914 -->
+        <section class="welcome-stage" aria-label="Ringkasan kemampuan InSight">
+          <div class="welcome-brand-pill">INSIGHT A.I+</div>
+          <h1 class="welcome-title">Good day! How may I assist you today?</h1>
+
+          <div class="welcome-grid">
+            <div class="welcome-row-grid">
+              <div class="cat-card">
+                <span class="cat-card-icon" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M3.6 9h16.8M3.6 15h16.8M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+                  </svg>
+                </span>
+                <h2 class="cat-card-title">Explore</h2>
+                <p class="cat-card-desc">Telusuri isi dokumen privat dengan cepat dan terstruktur</p>
+              </div>
+              <div class="triple-bars" aria-hidden="true"><span></span><span></span><span></span></div>
+              <button type="button" class="prompt-card" data-prompt="Jelaskan ringkasan utama dan poin penting dari dokumen yang telah diunggah">
+                <span class="prompt-orb orb-purple" aria-hidden="true">✦</span>
+                <div>
+                  <div class="prompt-card-title">"Explain"</div>
+                  <div class="prompt-card-bottom">
+                    <span class="prompt-card-sub">Ringkas poin utama dan temuan kunci dari dokumen terpilih</span>
+                    <span class="prompt-arrow" aria-hidden="true">→</span>
+                  </div>
+                </div>
+              </button>
+              <button type="button" class="prompt-card" data-prompt="Bandingkan perbedaan atau metrik antar bagian dalam dokumen">
+                <span class="prompt-orb orb-slate" aria-hidden="true">⇄</span>
+                <div>
+                  <div class="prompt-card-title">"How to"</div>
+                  <div class="prompt-card-bottom">
+                    <span class="prompt-card-sub">Bandingkan data dan tabel lintas halaman secara otomatis</span>
+                    <span class="prompt-arrow" aria-hidden="true">→</span>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            <div class="welcome-row-grid">
+              <div class="cat-card">
+                <span class="cat-card-icon" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M13 2 4 14h7l-1 8 10-12h-7l0-8Z" />
+                  </svg>
+                </span>
+                <h2 class="cat-card-title">Capabilities</h2>
+                <p class="cat-card-desc">HybridRAG &amp; AdaptiveRAG di atas Qdrant Local &amp; BM25</p>
+              </div>
+              <div class="triple-bars" aria-hidden="true"><span></span><span></span><span></span></div>
+              <button type="button" class="prompt-card" data-prompt="Sebutkan fakta spesifik beserta nomor halaman sumbernya">
+                <span class="prompt-orb orb-amber" aria-hidden="true">¶</span>
+                <div>
+                  <div class="prompt-card-title">"Remember"</div>
+                  <div class="prompt-card-bottom">
+                    <span class="prompt-card-sub">Lacak sitasi halaman spesifik dan bagian dokumen asal</span>
+                    <span class="prompt-arrow" aria-hidden="true">→</span>
+                  </div>
+                </div>
+              </button>
+              <button type="button" class="prompt-card" data-prompt="Tampilkan rincian tabel dan angka penting dari dokumen">
+                <span class="prompt-orb orb-blue" aria-hidden="true">⊞</span>
+                <div>
+                  <div class="prompt-card-title">"Allows"</div>
+                  <div class="prompt-card-bottom">
+                    <span class="prompt-card-sub">Gabungkan tabel panjang yang terpotong batas halaman PDF</span>
+                    <span class="prompt-arrow" aria-hidden="true">→</span>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            <div class="welcome-row-grid">
+              <div class="cat-card">
+                <span class="cat-card-icon" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M12 3 2.5 20h19L12 3Z" />
+                    <path d="M12 9v5M12 17h.01" />
+                  </svg>
+                </span>
+                <h2 class="cat-card-title">Limitation</h2>
+                <p class="cat-card-desc">Fokus ketat pada korpus lokal demi privasi penuh</p>
+              </div>
+              <div class="triple-bars" aria-hidden="true"><span></span><span></span><span></span></div>
+              <button type="button" class="prompt-card" data-prompt="Apa saja batasan informasi yang tidak dijelaskan di dalam dokumen?">
+                <span class="prompt-orb orb-rose" aria-hidden="true">✕</span>
+                <div>
+                  <div class="prompt-card-title">"May"</div>
+                  <div class="prompt-card-bottom">
+                    <span class="prompt-card-sub">Menolak klaim jika informasi tidak ada di dokumen unggahan</span>
+                    <span class="prompt-arrow" aria-hidden="true">→</span>
+                  </div>
+                </div>
+              </button>
+              <button type="button" class="prompt-card" data-prompt="Apa metode RAG dan backend LLM yang sedang aktif?">
+                <span class="prompt-orb orb-teal" aria-hidden="true">🔒</span>
+                <div>
+                  <div class="prompt-card-title">"Limited"</div>
+                  <div class="prompt-card-bottom">
+                    <span class="prompt-card-sub">Zero external LLM API: berjalan 100% lokal &amp; privat</span>
+                    <span class="prompt-arrow" aria-hidden="true">→</span>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </section>
 
         <div class="composer-wrap">
           <form id="chat-form" class="composer-card">
-            <label for="question-input" class="sr-only">Pertanyaan untuk dokumen</label>
-            <textarea
-              id="question-input"
-              class="composer-input"
-              rows="2"
-              placeholder="Apa yang bisa saya bantu dari dokumen Anda?"
-              required
-            ></textarea>
+            <div class="composer-main-row">
+              <span class="brain-badge" aria-hidden="true"><span>🧠</span></span>
+              <label for="question-input" class="sr-only">Pertanyaan untuk dokumen</label>
+              <textarea
+                id="question-input"
+                class="composer-input"
+                rows="1"
+                placeholder="What's in your mind?..."
+                required
+              ></textarea>
+              <button type="submit" id="send-btn" class="send-btn" aria-label="Kirim pertanyaan">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M22 2 11 13" />
+                  <path d="m22 2-7 20-4-9-9-4 20-7Z" />
+                </svg>
+              </button>
+            </div>
 
             <div class="composer-toolbar">
               <div class="toolbar-left">
                 <label for="file-upload" class="plus-btn" title="Unggah dokumen" aria-label="Unggah dokumen">+</label>
-                <div class="mode-pill-group" role="group" aria-label="Tampilan cepat">
-                  <button type="button" id="mode-chat-btn" class="mode-pill-btn active">Chat</button>
-                  <button type="button" id="mode-docs-btn" class="mode-pill-btn">Dokumen (<span id="pill-doc-count">0</span>)</button>
+                <div class="mode-pill-group" role="tablist" aria-label="Tampilan cepat">
+                  <button type="button" id="mode-chat-btn" class="mode-pill-btn active" role="tab" aria-selected="true">Chat</button>
+                  <button type="button" id="mode-docs-btn" class="mode-pill-btn" role="tab" aria-selected="false">Dokumen (<span id="pill-doc-count">0</span>)</button>
                 </div>
+                <label for="rag-mode-select" class="sr-only">Pilih Metode RAG</label>
+                <select id="rag-mode-select" class="rag-select" aria-label="Pilih Metode RAG" title="Pilih metode RAG (HybridRAG atau AdaptiveRAG)">
+                  <option value="hybrid">HybridRAG</option>
+                  <option value="adaptive">AdaptiveRAG</option>
+                </select>
               </div>
 
               <div class="toolbar-right">
                 <button type="button" id="model-trigger-btn" class="model-trigger-btn">
                   <span id="model-label">retrieval_only · 4bit</span>
-                </button>
-                <button type="submit" id="send-btn" class="send-btn" aria-label="Kirim pertanyaan">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M12 19V5" />
-                    <path d="m5 12 7-7 7 7" />
-                  </svg>
                 </button>
               </div>
             </div>
@@ -1033,12 +2354,14 @@
   <!-- Settings Modal -->
   <div id="settings-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="settings-title">
     <div class="modal-card">
-      <h2 id="settings-title" class="modal-title">Pengaturan & Status Runtime</h2>
+      <h2 id="settings-title" class="modal-title">Pengaturan &amp; Status Runtime</h2>
       <dl class="modal-kv">
         <dt>LLM Backend</dt>
         <dd id="set-backend">-</dd>
         <dt>LLM Model</dt>
         <dd id="set-model">-</dd>
+        <dt>Metode RAG</dt>
+        <dd id="set-rag-mode">-</dd>
         <dt>Presisi</dt>
         <dd id="set-precision">-</dd>
         <dt>Embedder</dt>
@@ -1047,53 +2370,100 @@
         <dd id="set-reranker">-</dd>
         <dt>Dokumen</dt>
         <dd id="set-docs">-</dd>
+        <dt>Resources</dt>
+        <dd id="set-resources">-</dd>
         <dt>Auto-Shutdown</dt>
         <dd id="set-autoshutdown">-</dd>
       </dl>
-      <div class="modal-actions">
+      <div class="modal-actions-grid">
         <a href="/docs" target="_blank" rel="noopener" class="btn-secondary-warm">Buka API Docs</a>
         <button type="button" id="clear-active-modal-btn" class="btn-secondary-warm">Bersihkan Chat Aktif</button>
-        <button type="button" id="close-settings-btn" class="btn-primary-warm">Tutup</button>
+        <button type="button" id="shutdown-server-btn" class="btn-danger-warm span-full">Matikan Server Lokal</button>
+        <button type="button" id="close-settings-btn" class="btn-primary-warm span-full">Tutup</button>
       </div>
     </div>
   </div>
 
-  <!-- Auth Modal -->
+  <!-- Auth Modal matching Figma Screen 1 Split Layout -->
   <div id="auth-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="auth-title">
-    <form id="auth-form" class="modal-card">
-      <h2 id="auth-title" class="modal-title">Masuk ke InSight</h2>
-      <p style="margin: 0; font-size: 0.86rem; color: var(--ink-muted);">
-        Server dilindungi kata sandi sesi (`INSIGHT_PASSWORD`).
-      </p>
-      <label for="auth-password" class="sr-only">Kata sandi sesi</label>
-      <input id="auth-password" class="text-input" type="password" placeholder="Masukkan kata sandi..." required />
-      <div id="auth-error" class="status-note error" hidden></div>
-      <div class="modal-actions">
-        <button type="submit" class="btn-primary-warm">Buka Sesi</button>
+    <div class="auth-modal-card">
+      <div class="auth-hero-pane">
+        <div class="auth-hero-brand">INSIGHT A.I+</div>
+        <h2 class="auth-hero-title">Learn, Discover &amp; Automate in One Place.</h2>
+        <div class="auth-hero-preview">
+          Tanya-jawab dokumen privat dengan <strong>HybridRAG</strong> dan <strong>AdaptiveRAG</strong> di atas Qdrant Local, pelacakan nomor halaman, serta model lokal.
+        </div>
       </div>
-    </form>
+      <form id="auth-form" class="auth-form-pane">
+        <h2 id="auth-title" class="modal-title">Masuk ke InSight</h2>
+        <p style="margin: 0; font-size: 0.85rem; color: var(--ink-muted);">
+          Server dilindungi kata sandi sesi (`INSIGHT_PASSWORD`).
+        </p>
+        <label for="auth-password" class="sr-only">Kata sandi sesi</label>
+        <input id="auth-password" class="text-input" type="password" placeholder="Masukkan kata sandi..." required />
+        <div id="auth-error" class="status-note error" hidden></div>
+        <div class="modal-actions">
+          <button type="submit" class="btn-primary-warm">Buka Sesi</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <script>
     const TOKEN_KEY = "insight_session_token";
     const SESSION_KEY = "insight_active_session";
+    const RAG_MODE_KEY = "insight_rag_mode";
+    const CANVAS_THEME_KEY = "insight_canvas_theme";
+    const VALID_CANVAS_THEMES = new Set(["lavender", "blush", "cream", "mint", "neutral"]);
 
+    function applyCanvasTheme(themeName) {
+      const theme = VALID_CANVAS_THEMES.has(themeName) ? themeName : "lavender";
+      document.documentElement.setAttribute("data-canvas-theme", theme);
+      localStorage.setItem(CANVAS_THEME_KEY, theme);
+      document.querySelectorAll(".theme-dot-btn").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.theme === theme);
+      });
+    }
+
+    document.querySelectorAll(".theme-dot-btn").forEach((btn) => {
+      btn.addEventListener("click", () => applyCanvasTheme(btn.dataset.theme));
+    });
+    applyCanvasTheme(localStorage.getItem(CANVAS_THEME_KEY) || "lavender");
+
+    function normalizeRagMode(raw) {
+      return raw === "adaptive" ? "adaptive" : "hybrid";
+    }
+
+    function formatRagLabel(mode) {
+      return mode === "adaptive" ? "AdaptiveRAG" : "HybridRAG";
+    }
+
+    const savedRagMode = localStorage.getItem(RAG_MODE_KEY);
     const state = {
       token: sessionStorage.getItem(TOKEN_KEY) || "",
       sessionId: localStorage.getItem(SESSION_KEY) || "default",
+      ragMode: normalizeRagMode(savedRagMode),
       busy: false,
       docs: [],
       sessions: [],
       filterQuery: "",
+      health: null,
+      embedderWarningDismissed: false,
+      serverStopped: false,
+      serverOffline: false,
+      workspaceView: "chat",
+      lastQuestion: "",
     };
 
     const el = {
       appLayout: document.getElementById("app-layout"),
       sidebar: document.getElementById("sidebar"),
+      sidebarBackdrop: document.getElementById("sidebar-backdrop"),
       sidebarCollapseBtn: document.getElementById("sidebar-collapse-btn"),
       sidebarOpenBtn: document.getElementById("sidebar-open-btn"),
       newChatBtn: document.getElementById("new-chat-btn"),
       toggleSearchBtn: document.getElementById("toggle-search-btn"),
+      uploadNavBtn: document.getElementById("upload-nav-btn"),
       searchBoxWrap: document.getElementById("search-box-wrap"),
       sidebarSearch: document.getElementById("sidebar-search"),
       openSettingsNav: document.getElementById("open-settings-nav"),
@@ -1108,6 +2478,7 @@
       sessionsToggle: document.getElementById("sessions-toggle"),
       sessionsPanel: document.getElementById("sessions-panel"),
       sessionsCountBadge: document.getElementById("sessions-count-badge"),
+      clearAllSessionsBtn: document.getElementById("clear-all-sessions-btn"),
       sessionState: document.getElementById("session-state"),
       sessionList: document.getElementById("session-list"),
       footerSettingsBtn: document.getElementById("footer-settings-btn"),
@@ -1115,13 +2486,24 @@
       workspaceMain: document.getElementById("workspace-main"),
       topPillBtn: document.getElementById("top-pill-btn"),
       topPillText: document.getElementById("top-pill-text"),
+      embedderWarningBanner: document.getElementById("embedder-warning-banner"),
+      embedderWarningText: document.getElementById("embedder-warning-text"),
+      dismissEmbedderWarning: document.getElementById("dismiss-embedder-warning"),
+      workspaceNotice: document.getElementById("workspace-notice"),
+      dropOverlay: document.getElementById("drop-overlay"),
       chatScroll: document.getElementById("chat-scroll"),
       chatState: document.getElementById("chat-state"),
       chatFeed: document.getElementById("chat-feed"),
+      docsStagePanel: document.getElementById("docs-stage-panel"),
+      docsStageSub: document.getElementById("docs-stage-sub"),
+      docsStageEmpty: document.getElementById("docs-stage-empty"),
+      docsStageList: document.getElementById("docs-stage-list"),
+      docsStageUploadBtn: document.getElementById("docs-stage-upload-btn"),
       chatForm: document.getElementById("chat-form"),
       questionInput: document.getElementById("question-input"),
       modeChatBtn: document.getElementById("mode-chat-btn"),
       modeDocsBtn: document.getElementById("mode-docs-btn"),
+      ragModeSelect: document.getElementById("rag-mode-select"),
       pillDocCount: document.getElementById("pill-doc-count"),
       modelTriggerBtn: document.getElementById("model-trigger-btn"),
       modelLabel: document.getElementById("model-label"),
@@ -1129,6 +2511,7 @@
       settingsModal: document.getElementById("settings-modal"),
       closeSettingsBtn: document.getElementById("close-settings-btn"),
       clearActiveModalBtn: document.getElementById("clear-active-modal-btn"),
+      shutdownServerBtn: document.getElementById("shutdown-server-btn"),
       authModal: document.getElementById("auth-modal"),
       authForm: document.getElementById("auth-form"),
       authPassword: document.getElementById("auth-password"),
@@ -1178,8 +2561,27 @@
       el.settingsModal.classList.remove("open");
     }
 
+    function openMobileSidebar() {
+      el.sidebar.classList.add("mobile-open");
+      el.sidebarBackdrop.hidden = false;
+    }
+
     function closeMobileSidebar() {
       el.sidebar.classList.remove("mobile-open");
+      el.sidebarBackdrop.hidden = true;
+    }
+
+    function setWorkspaceView(view) {
+      const isDocs = view === "docs";
+      state.workspaceView = isDocs ? "docs" : "chat";
+      el.workspaceMain.classList.toggle("docs-view", isDocs);
+      el.modeChatBtn.classList.toggle("active", !isDocs);
+      el.modeDocsBtn.classList.toggle("active", isDocs);
+      el.modeChatBtn.setAttribute("aria-selected", String(!isDocs));
+      el.modeDocsBtn.setAttribute("aria-selected", String(isDocs));
+      if (isDocs) {
+        renderDocsStage();
+      }
     }
 
     function setActiveSession(sessionId) {
@@ -1188,6 +2590,7 @@
     }
 
     async function startNewConversation() {
+      setWorkspaceView("chat");
       setActiveSession(`chat-${Date.now().toString(36)}`);
       await Promise.all([loadHistory(), loadSessions()]);
       el.questionInput.focus();
@@ -1196,19 +2599,45 @@
 
     async function loadHealth() {
       try {
-        const info = await fetch("/health").then((r) => r.json());
+        const res = await fetch("/health");
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const info = await res.json();
+        state.health = info;
+        state.serverOffline = false;
+        if (!localStorage.getItem(RAG_MODE_KEY) && info.rag_mode) {
+          state.ragMode = normalizeRagMode(info.rag_mode);
+        }
+        el.ragModeSelect.value = state.ragMode;
         el.topPillText.textContent = `Mode ${info.llm_backend} (${info.precision_mode})`;
         el.modelLabel.textContent = `${info.llm_backend} · ${info.precision_mode}`;
         el.precisionNavHint.textContent = info.precision_mode;
         el.footerModeSub.textContent = `${info.llm_backend} | ${info.precision_mode}`;
         el.pillDocCount.textContent = String(info.document_count);
 
+        const isFallback = Boolean(info.embedder_fallback);
+        if (isFallback && !state.embedderWarningDismissed) {
+          el.embedderWarningText.textContent =
+            info.embedder_warning ||
+            "Mode fallback HashingEmbedder aktif. Kualitas pencarian semantik berkurang; install fastembed untuk hasil optimal.";
+          el.embedderWarningBanner.hidden = false;
+        } else {
+          el.embedderWarningBanner.hidden = true;
+        }
+
         document.getElementById("set-backend").textContent = info.llm_backend;
         document.getElementById("set-model").textContent = info.llm_model;
+        document.getElementById("set-rag-mode").textContent = formatRagLabel(state.ragMode);
         document.getElementById("set-precision").textContent = info.precision_mode;
-        document.getElementById("set-embedder").textContent = info.embedder;
+        document.getElementById("set-embedder").textContent = isFallback
+          ? `${info.embedder} (fallback)`
+          : info.embedder;
         document.getElementById("set-reranker").textContent = info.use_reranker ? "enabled" : "disabled";
         document.getElementById("set-docs").textContent = String(info.document_count);
+        document.getElementById("set-resources").textContent = info.resources_dir
+          ? `${info.resources_dir} (${info.resources_mb || 0} MB, ${info.resources_files || 0} file)`
+          : "-";
         document.getElementById("set-autoshutdown").textContent = info.auto_shutdown ? "active (stops on UI close)" : "off";
 
         if (info.auth_required && !state.token) {
@@ -1217,9 +2646,98 @@
           sendHeartbeat();
         }
       } catch {
+        state.serverOffline = true;
         el.topPillText.textContent = "Server offline";
         el.modelLabel.textContent = "Offline";
       }
+    }
+
+    function renderDocsStage() {
+      el.docsStageList.innerHTML = "";
+      const q = state.filterQuery.toLowerCase();
+      const filtered = state.docs.filter((d) => d.filename.toLowerCase().includes(q));
+      el.docsStageSub.textContent = state.docs.length === 0
+        ? "Unggah dokumen untuk mulai menelusuri isinya."
+        : `${state.docs.length} dokumen terindeks lokal di Qdrant & SQLite.`;
+
+      if (filtered.length === 0) {
+        el.docsStageEmpty.hidden = false;
+        return;
+      }
+      el.docsStageEmpty.hidden = true;
+
+      for (const doc of filtered) {
+        const li = document.createElement("li");
+        li.className = "doc-stage-card";
+
+        const info = document.createElement("div");
+        info.className = "doc-stage-info";
+
+        const name = document.createElement("div");
+        name.className = "doc-stage-name";
+        name.textContent = doc.filename;
+
+        const meta = document.createElement("div");
+        meta.className = "doc-stage-meta";
+
+        const parserBadge = document.createElement("span");
+        parserBadge.className = "doc-stage-badge";
+        parserBadge.textContent = doc.parser_used || "parser";
+
+        const chunksSpan = document.createElement("span");
+        chunksSpan.textContent = `${doc.chunk_count} chunks`;
+
+        const charsSpan = document.createElement("span");
+        const kb = Math.max(1, Math.round((doc.char_count || 0) / 1000));
+        charsSpan.textContent = `~${kb}k karakter`;
+
+        meta.append(parserBadge, chunksSpan, charsSpan);
+        info.append(name, meta);
+
+        const actions = document.createElement("div");
+        actions.className = "doc-stage-actions";
+
+        const askBtn = document.createElement("button");
+        askBtn.type = "button";
+        askBtn.className = "doc-stage-btn";
+        askBtn.textContent = "Ringkas";
+        askBtn.addEventListener("click", () => {
+          setWorkspaceView("chat");
+          el.questionInput.value = `Ringkas isi dokumen ${doc.filename}`;
+          autoResizeTextarea();
+          el.questionInput.focus();
+        });
+
+        const delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.className = "doc-stage-btn danger";
+        delBtn.textContent = "Hapus";
+        delBtn.addEventListener("click", async () => {
+          delBtn.disabled = true;
+          await handleDeleteDoc(doc.doc_id, doc.filename);
+          delBtn.disabled = false;
+        });
+
+        actions.append(askBtn, delBtn);
+        li.append(info, actions);
+        el.docsStageList.appendChild(li);
+      }
+    }
+
+    function createDocIcon() {
+      const span = document.createElement("span");
+      span.className = "item-icon";
+      span.setAttribute("aria-hidden", "true");
+      span.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>';
+      return span;
+    }
+
+    function createChatIcon() {
+      const span = document.createElement("span");
+      span.className = "item-icon";
+      span.setAttribute("aria-hidden", "true");
+      span.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>';
+      return span;
     }
 
     function renderDocuments() {
@@ -1227,6 +2745,8 @@
       const q = state.filterQuery.toLowerCase();
       const filtered = state.docs.filter((d) => d.filename.toLowerCase().includes(q));
       el.docsCountBadge.textContent = String(state.docs.length);
+      el.pillDocCount.textContent = String(state.docs.length);
+      renderDocsStage();
 
       if (state.docs.length === 0) {
         setNote(el.docState, "Belum ada dokumen.");
@@ -1247,7 +2767,9 @@
         btn.className = "item-main-btn";
         btn.title = `${doc.filename} (${doc.chunk_count} chunks)`;
         btn.addEventListener("click", () => {
+          setWorkspaceView("chat");
           el.questionInput.value = `Ringkas isi dokumen ${doc.filename}`;
+          autoResizeTextarea();
           el.questionInput.focus();
           closeMobileSidebar();
         });
@@ -1259,15 +2781,20 @@
         const count = document.createElement("span");
         count.className = "item-count";
         count.textContent = `${doc.chunk_count}c`;
+        count.title = `${doc.chunk_count} chunks`;
 
-        btn.append(title, count);
+        btn.append(createDocIcon(), title, count);
 
         const delBtn = document.createElement("button");
         delBtn.type = "button";
         delBtn.className = "item-del-btn";
         delBtn.textContent = "×";
         delBtn.setAttribute("aria-label", `Hapus dokumen ${doc.filename}`);
-        delBtn.addEventListener("click", () => handleDeleteDoc(doc.doc_id, doc.filename));
+        delBtn.addEventListener("click", async () => {
+          delBtn.disabled = true;
+          await handleDeleteDoc(doc.doc_id, doc.filename);
+          delBtn.disabled = false;
+        });
 
         li.append(btn, delBtn);
         el.docList.appendChild(li);
@@ -1309,6 +2836,7 @@
         btn.type = "button";
         btn.className = "item-main-btn";
         btn.addEventListener("click", async () => {
+          setWorkspaceView("chat");
           setActiveSession(sess.session_id);
           await Promise.all([loadHistory(), loadSessions()]);
           closeMobileSidebar();
@@ -1320,9 +2848,10 @@
 
         const count = document.createElement("span");
         count.className = "item-count";
-        count.textContent = `${sess.message_count}m`;
+        count.textContent = `${sess.message_count}`;
+        count.title = `${sess.message_count} pesan dalam sesi ini`;
 
-        btn.append(title, count);
+        btn.append(createChatIcon(), title, count);
 
         const delBtn = document.createElement("button");
         delBtn.type = "button";
@@ -1330,11 +2859,18 @@
         delBtn.textContent = "×";
         delBtn.setAttribute("aria-label", `Hapus riwayat ${sess.title || sess.session_id}`);
         delBtn.addEventListener("click", async () => {
-          await apiFetch(`/history?session_id=${encodeURIComponent(sess.session_id)}`, { method: "DELETE" });
-          if (sess.session_id === state.sessionId) {
-            await loadHistory();
+          delBtn.disabled = true;
+          try {
+            await apiFetch(`/history?session_id=${encodeURIComponent(sess.session_id)}`, { method: "DELETE" });
+            if (sess.session_id === state.sessionId) {
+              await loadHistory();
+            }
+            await loadSessions();
+          } catch (err) {
+            setNote(el.workspaceNotice, err.message, true);
+          } finally {
+            delBtn.disabled = false;
           }
-          await loadSessions();
         });
 
         li.append(btn, delBtn);
@@ -1353,30 +2889,367 @@
       }
     }
 
-    function renderMessage(role, content, sources = []) {
+    function appendInlineMarkdown(parent, text) {
+      const tokenRe = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*\n]+\*)/g;
+      let lastIdx = 0;
+      let match;
+      while ((match = tokenRe.exec(text)) !== null) {
+        if (match.index > lastIdx) {
+          parent.appendChild(document.createTextNode(text.slice(lastIdx, match.index)));
+        }
+        const raw = match[0];
+        if (raw.startsWith("**") && raw.endsWith("**")) {
+          const strong = document.createElement("strong");
+          strong.textContent = raw.slice(2, -2);
+          parent.appendChild(strong);
+        } else if (raw.startsWith("`") && raw.endsWith("`")) {
+          const code = document.createElement("code");
+          code.textContent = raw.slice(1, -1);
+          parent.appendChild(code);
+        } else if (raw.startsWith("*") && raw.endsWith("*")) {
+          const em = document.createElement("em");
+          em.textContent = raw.slice(1, -1);
+          parent.appendChild(em);
+        } else {
+          parent.appendChild(document.createTextNode(raw));
+        }
+        lastIdx = tokenRe.lastIndex;
+      }
+      if (lastIdx < text.length) {
+        parent.appendChild(document.createTextNode(text.slice(lastIdx)));
+      }
+    }
+
+    function splitTableRow(line) {
+      let s = line.trim();
+      if (!s.includes("|")) return null;
+      if (s.startsWith("|")) s = s.slice(1);
+      if (s.endsWith("|")) s = s.slice(0, -1);
+      const cells = s.split("|").map((c) => c.trim());
+      return cells.length >= 2 ? cells : null;
+    }
+
+    function isTableSeparator(line) {
+      return /^\s*\|?(?:\s*:?-{3,}:?\s*\|)+\s*:?-{3,}:?\s*\|?\s*$/.test(line);
+    }
+
+    function renderMarkdownInto(container, markdownText) {
+      const lines = String(markdownText || "").replace(/\r\n/g, "\n").split("\n");
+      let i = 0;
+      while (i < lines.length) {
+        const line = lines[i];
+        const trimmed = line.trim();
+        if (!trimmed) {
+          i += 1;
+          continue;
+        }
+
+        if (trimmed.startsWith("```")) {
+          const codeLines = [];
+          i += 1;
+          while (i < lines.length && !lines[i].trim().startsWith("```")) {
+            codeLines.push(lines[i]);
+            i += 1;
+          }
+          if (i < lines.length) i += 1;
+          const pre = document.createElement("pre");
+          const code = document.createElement("code");
+          code.textContent = codeLines.join("\n");
+          pre.appendChild(code);
+          container.appendChild(pre);
+          continue;
+        }
+
+        if (i + 1 < lines.length && splitTableRow(trimmed) && isTableSeparator(lines[i + 1])) {
+          const headerCells = splitTableRow(trimmed);
+          i += 2;
+          const bodyRows = [];
+          while (i < lines.length && lines[i].trim()) {
+            const cells = splitTableRow(lines[i]);
+            if (!cells) break;
+            bodyRows.push(cells);
+            i += 1;
+          }
+          const wrap = document.createElement("div");
+          wrap.className = "md-table-wrap";
+          const table = document.createElement("table");
+          table.className = "md-table";
+          const thead = document.createElement("thead");
+          const hr = document.createElement("tr");
+          for (const cell of headerCells) {
+            const th = document.createElement("th");
+            appendInlineMarkdown(th, cell);
+            hr.appendChild(th);
+          }
+          thead.appendChild(hr);
+          table.appendChild(thead);
+          if (bodyRows.length > 0) {
+            const tbody = document.createElement("tbody");
+            for (const row of bodyRows) {
+              const tr = document.createElement("tr");
+              for (let c = 0; c < headerCells.length; c += 1) {
+                const td = document.createElement("td");
+                appendInlineMarkdown(td, row[c] || "");
+                tr.appendChild(td);
+              }
+              tbody.appendChild(tr);
+            }
+            table.appendChild(tbody);
+          }
+          wrap.appendChild(table);
+          container.appendChild(wrap);
+          continue;
+        }
+
+        if (/^([-*_])\1{2,}$/.test(trimmed)) {
+          container.appendChild(document.createElement("hr"));
+          i += 1;
+          continue;
+        }
+
+        if (trimmed.startsWith(">")) {
+          const bq = document.createElement("blockquote");
+          const qLines = [];
+          while (i < lines.length && lines[i].trim().startsWith(">")) {
+            qLines.push(lines[i].trim().replace(/^>\s?/, ""));
+            i += 1;
+          }
+          qLines.forEach((ql, idx) => {
+            if (idx > 0) bq.appendChild(document.createElement("br"));
+            appendInlineMarkdown(bq, ql);
+          });
+          container.appendChild(bq);
+          continue;
+        }
+
+        const hMatch = trimmed.match(/^(#{1,4})\s+(.+)$/);
+        if (hMatch) {
+          const h = document.createElement(hMatch[1].length <= 2 ? "h3" : "h4");
+          appendInlineMarkdown(h, hMatch[2]);
+          container.appendChild(h);
+          i += 1;
+          continue;
+        }
+
+        if (/^[-*]\s+/.test(trimmed)) {
+          const ul = document.createElement("ul");
+          while (i < lines.length && /^[-*]\s+/.test(lines[i].trim())) {
+            const li = document.createElement("li");
+            appendInlineMarkdown(li, lines[i].trim().replace(/^[-*]\s+/, ""));
+            ul.appendChild(li);
+            i += 1;
+          }
+          container.appendChild(ul);
+          continue;
+        }
+
+        if (/^\d+\.\s+/.test(trimmed)) {
+          const ol = document.createElement("ol");
+          while (i < lines.length && /^\d+\.\s+/.test(lines[i].trim())) {
+            const li = document.createElement("li");
+            appendInlineMarkdown(li, lines[i].trim().replace(/^\d+\.\s+/, ""));
+            ol.appendChild(li);
+            i += 1;
+          }
+          container.appendChild(ol);
+          continue;
+        }
+
+        const pLines = [];
+        while (
+          i < lines.length &&
+          lines[i].trim() &&
+          !lines[i].trim().startsWith("```") &&
+          !lines[i].trim().startsWith(">") &&
+          !/^([-*_])\1{2,}$/.test(lines[i].trim()) &&
+          !/^(#{1,4})\s+/.test(lines[i].trim()) &&
+          !/^[-*]\s+/.test(lines[i].trim()) &&
+          !/^\d+\.\s+/.test(lines[i].trim()) &&
+          !(i + 1 < lines.length && splitTableRow(lines[i].trim()) && isTableSeparator(lines[i + 1]))
+        ) {
+          pLines.push(lines[i]);
+          i += 1;
+        }
+        const p = document.createElement("p");
+        pLines.forEach((pl, idx) => {
+          if (idx > 0) p.appendChild(document.createElement("br"));
+          appendInlineMarkdown(p, pl);
+        });
+        container.appendChild(p);
+      }
+    }
+
+    function renderMessage(role, content, sources = [], meta = null) {
       const card = document.createElement("article");
       card.className = `msg-item ${role}`;
 
+      if (role === "user") {
+        state.lastQuestion = content;
+        const left = document.createElement("div");
+        left.className = "user-msg-left";
+
+        const avatar = document.createElement("span");
+        avatar.className = "user-msg-avatar";
+        avatar.setAttribute("aria-hidden", "true");
+        avatar.textContent = "U";
+
+        const body = document.createElement("p");
+        body.className = "user-msg-text";
+        body.textContent = content;
+
+        left.append(avatar, body);
+
+        const editBtn = document.createElement("button");
+        editBtn.type = "button";
+        editBtn.className = "user-edit-btn";
+        editBtn.title = "Edit pertanyaan";
+        editBtn.setAttribute("aria-label", "Edit pertanyaan");
+        editBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+        editBtn.addEventListener("click", () => {
+          el.questionInput.value = content;
+          autoResizeTextarea();
+          el.questionInput.focus();
+        });
+
+        card.append(left, editBtn);
+        el.chatFeed.appendChild(card);
+        el.chatScroll.scrollTop = el.chatScroll.scrollHeight;
+        return;
+      }
+
+      const header = document.createElement("div");
+      header.className = "msg-header";
+
+      const roleGroup = document.createElement("div");
+      roleGroup.className = "msg-role-group";
+
       const roleLabel = document.createElement("div");
       roleLabel.className = "msg-role";
-      roleLabel.textContent = role === "user" ? "Anda" : "InSight";
+      roleLabel.innerHTML = '<span>INSIGHT A.I+</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg>';
+      roleGroup.appendChild(roleLabel);
 
-      const body = document.createElement("p");
-      body.className = "msg-body";
-      body.textContent = content;
+      if (meta && meta.rag_mode) {
+        const ragBadge = document.createElement("span");
+        ragBadge.className = "rag-meta-badge";
+        const modeText = formatRagLabel(meta.rag_mode);
+        const strategy = meta.retrieval_strategy && meta.retrieval_strategy !== "none" && meta.retrieval_strategy !== "greeting"
+          ? ` · ${meta.retrieval_strategy}`
+          : "";
+        ragBadge.textContent = `${modeText}${strategy}`;
+        roleGroup.appendChild(ragBadge);
+      }
 
-      card.append(roleLabel, body);
+      header.appendChild(roleGroup);
+
+      const body = document.createElement("div");
+      body.className = "msg-body md-content";
+      renderMarkdownInto(body, content);
+
+      card.append(header, body);
 
       if (sources && sources.length > 0) {
         const srcWrap = document.createElement("div");
         srcWrap.className = "sources-wrap";
         for (const src of sources) {
-          const chip = document.createElement("div");
+          const hasExcerpt = Boolean(src.excerpt && String(src.excerpt).trim());
+          const chip = document.createElement(hasExcerpt ? "details" : "div");
           chip.className = "source-chip";
-          chip.textContent = `Sumber: ${src.filename} | Bagian: ${src.section} (skor ${src.score})`;
+
+          const line = document.createElement(hasExcerpt ? "summary" : "div");
+          const labelSpan = document.createElement("span");
+          labelSpan.textContent = `Sumber: ${src.filename} | Bagian: ${src.section}`;
+          line.appendChild(labelSpan);
+
+          if (src.page_label) {
+            const pageBadge = document.createElement("span");
+            pageBadge.className = "source-page-badge";
+            pageBadge.textContent = `Hal. ${src.page_label}`;
+            line.appendChild(pageBadge);
+          }
+
+          const scoreSpan = document.createElement("span");
+          scoreSpan.textContent = `(skor ${src.score})`;
+          line.appendChild(scoreSpan);
+
+          chip.appendChild(line);
+
+          if (hasExcerpt) {
+            const excerpt = document.createElement("p");
+            excerpt.className = "source-excerpt";
+            excerpt.textContent = src.excerpt;
+            chip.appendChild(excerpt);
+          }
           srcWrap.appendChild(chip);
         }
         card.appendChild(srcWrap);
+      }
+
+      if (content) {
+        const actionsBar = document.createElement("div");
+        actionsBar.className = "msg-actions-bar";
+
+        const feedbackPill = document.createElement("div");
+        feedbackPill.className = "msg-feedback-pill";
+
+        const likeBtn = document.createElement("button");
+        likeBtn.type = "button";
+        likeBtn.className = "msg-icon-btn";
+        likeBtn.setAttribute("aria-label", "Sukai jawaban");
+        likeBtn.textContent = "👍";
+
+        const dislikeBtn = document.createElement("button");
+        dislikeBtn.type = "button";
+        dislikeBtn.className = "msg-icon-btn";
+        dislikeBtn.setAttribute("aria-label", "Kurang membantu");
+        dislikeBtn.textContent = "👎";
+
+        likeBtn.addEventListener("click", () => {
+          const next = !likeBtn.classList.contains("is-active");
+          likeBtn.classList.toggle("is-active", next);
+          if (next) dislikeBtn.classList.remove("is-active");
+        });
+        dislikeBtn.addEventListener("click", () => {
+          const next = !dislikeBtn.classList.contains("is-active");
+          dislikeBtn.classList.toggle("is-active", next);
+          if (next) likeBtn.classList.remove("is-active");
+        });
+
+        const copyBtn = document.createElement("button");
+        copyBtn.type = "button";
+        copyBtn.className = "msg-icon-btn msg-copy-btn";
+        copyBtn.textContent = "Salin";
+        copyBtn.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(content);
+            copyBtn.textContent = "Disalin";
+            setTimeout(() => { copyBtn.textContent = "Salin"; }, 1400);
+          } catch {
+            copyBtn.textContent = "Gagal";
+            setTimeout(() => { copyBtn.textContent = "Salin"; }, 1400);
+          }
+        });
+
+        const div1 = document.createElement("span");
+        div1.className = "msg-divider-v";
+        const div2 = document.createElement("span");
+        div2.className = "msg-divider-v";
+
+        feedbackPill.append(likeBtn, div1, dislikeBtn, div2, copyBtn);
+
+        const regenBtn = document.createElement("button");
+        regenBtn.type = "button";
+        regenBtn.className = "regenerate-pill-btn";
+        regenBtn.textContent = "↻ Regenerate";
+        const promptForRegen = (meta && meta.question) || state.lastQuestion;
+        regenBtn.addEventListener("click", () => {
+          if (!promptForRegen || state.busy) return;
+          el.questionInput.value = promptForRegen;
+          autoResizeTextarea();
+          submitQuestion();
+        });
+
+        actionsBar.append(feedbackPill, regenBtn);
+        card.appendChild(actionsBar);
       }
 
       el.chatFeed.appendChild(card);
@@ -1386,12 +3259,19 @@
     async function loadHistory() {
       el.chatFeed.innerHTML = "";
       el.chatState.hidden = true;
+      state.lastQuestion = "";
       try {
         const data = await apiFetch(`/history?session_id=${encodeURIComponent(state.sessionId)}`);
         const msgs = data.messages || [];
         el.workspaceMain.classList.toggle("has-messages", msgs.length > 0);
+        let prevUserQ = "";
         for (const msg of msgs) {
-          renderMessage(msg.role, msg.content, msg.sources);
+          if (msg.role === "user") {
+            prevUserQ = msg.content;
+            renderMessage(msg.role, msg.content, msg.sources);
+          } else {
+            renderMessage(msg.role, msg.content, msg.sources, { question: prevUserQ });
+          }
         }
       } catch (err) {
         el.workspaceMain.classList.add("has-messages");
@@ -1399,50 +3279,118 @@
       }
     }
 
-    async function handleDeleteDoc(docId, filename) {
-      setNote(el.uploadStatus, `Menghapus ${filename}...`);
-      try {
-        await apiFetch(`/documents/${encodeURIComponent(docId)}`, { method: "DELETE" });
-        setNote(el.uploadStatus, `${filename} dihapus.`);
-        await Promise.all([loadDocuments(), loadHealth()]);
-      } catch (err) {
-        setNote(el.uploadStatus, err.message, true);
+    function showUploadFeedback(text, isError = false) {
+      setNote(el.uploadStatus, text, isError);
+      const sidebarHidden =
+        el.appLayout.classList.contains("sidebar-collapsed") ||
+        (window.innerWidth <= 768 && !el.sidebar.classList.contains("mobile-open"));
+      if (sidebarHidden || isError) {
+        setNote(el.workspaceNotice, text, isError);
+      } else {
+        el.workspaceNotice.hidden = true;
       }
     }
 
-    el.fileUpload.addEventListener("change", async (event) => {
-      const file = event.target.files?.[0];
-      if (!file) return;
-
-      setNote(el.uploadStatus, `Mengindeks ${file.name}...`);
-      const formData = new FormData();
-      formData.append("file", file);
-
+    async function handleDeleteDoc(docId, filename) {
+      showUploadFeedback(`Menghapus ${filename}...`);
       try {
-        await apiFetch("/documents/upload", {
-          method: "POST",
-          body: formData,
-        });
-        setNote(el.uploadStatus, `${file.name} siap ditanya.`);
+        await apiFetch(`/documents/${encodeURIComponent(docId)}`, { method: "DELETE" });
+        showUploadFeedback(`${filename} dihapus.`);
         await Promise.all([loadDocuments(), loadHealth()]);
       } catch (err) {
-        setNote(el.uploadStatus, err.message, true);
+        showUploadFeedback(err.message, true);
+      }
+    }
+
+    async function uploadFiles(fileList) {
+      const files = Array.from(fileList || []);
+      if (files.length === 0) return;
+
+      let okCount = 0;
+      const errors = [];
+      for (let idx = 0; idx < files.length; idx += 1) {
+        const file = files[idx];
+        const prefix = files.length > 1 ? `[${idx + 1}/${files.length}] ` : "";
+        showUploadFeedback(`${prefix}Mengindeks ${file.name}...`);
+        const formData = new FormData();
+        formData.append("file", file);
+        try {
+          await apiFetch("/documents/upload", {
+            method: "POST",
+            body: formData,
+          });
+          okCount += 1;
+        } catch (err) {
+          errors.push(`${file.name}: ${err.message}`);
+        }
+      }
+
+      if (errors.length === 0) {
+        const msg = okCount === 1
+          ? `${files[0].name} siap ditanya.`
+          : `${okCount} dokumen siap ditanya.`;
+        showUploadFeedback(msg);
+      } else {
+        const okPart = okCount > 0 ? `${okCount} berhasil. ` : "";
+        showUploadFeedback(`${okPart}Gagal: ${errors.join("; ")}`, true);
+      }
+      await Promise.all([loadDocuments(), loadHealth()]);
+    }
+
+    el.fileUpload.addEventListener("change", async (event) => {
+      try {
+        await uploadFiles(event.target.files);
       } finally {
         el.fileUpload.value = "";
       }
     });
 
+    let dragDepth = 0;
+    el.workspaceMain.addEventListener("dragenter", (event) => {
+      if (!event.dataTransfer || !Array.from(event.dataTransfer.types || []).includes("Files")) return;
+      event.preventDefault();
+      dragDepth += 1;
+      el.dropOverlay.hidden = false;
+    });
+    el.workspaceMain.addEventListener("dragover", (event) => {
+      if (!event.dataTransfer || !Array.from(event.dataTransfer.types || []).includes("Files")) return;
+      event.preventDefault();
+    });
+    el.workspaceMain.addEventListener("dragleave", () => {
+      dragDepth = Math.max(0, dragDepth - 1);
+      if (dragDepth === 0) {
+        el.dropOverlay.hidden = true;
+      }
+    });
+    el.workspaceMain.addEventListener("drop", async (event) => {
+      event.preventDefault();
+      dragDepth = 0;
+      el.dropOverlay.hidden = true;
+      if (event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+        await uploadFiles(event.dataTransfer.files);
+      }
+    });
+
     function autoResizeTextarea() {
       el.questionInput.style.height = "auto";
-      el.questionInput.style.height = `${Math.min(el.questionInput.scrollHeight, 180)}px`;
+      el.questionInput.style.height = `${Math.min(el.questionInput.scrollHeight, 140)}px`;
     }
 
     el.questionInput.addEventListener("input", autoResizeTextarea);
+
+    document.querySelectorAll(".prompt-card[data-prompt]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        el.questionInput.value = btn.getAttribute("data-prompt") || "";
+        autoResizeTextarea();
+        el.questionInput.focus();
+      });
+    });
 
     async function submitQuestion() {
       const text = el.questionInput.value.trim();
       if (!text || state.busy) return;
 
+      setWorkspaceView("chat");
       state.busy = true;
       el.sendBtn.disabled = true;
       el.questionInput.disabled = true;
@@ -1454,8 +3402,14 @@
       autoResizeTextarea();
 
       const pending = document.createElement("div");
-      pending.className = "status-note";
-      pending.textContent = "Menelusuri dokumen dan menyusun jawaban...";
+      pending.className = "status-note thinking-note";
+      const dots = document.createElement("span");
+      dots.className = "thinking-dots";
+      dots.setAttribute("aria-hidden", "true");
+      dots.append(document.createElement("span"), document.createElement("span"), document.createElement("span"));
+      const pendingText = document.createElement("span");
+      pendingText.textContent = "Menelusuri dokumen dan menyusun jawaban...";
+      pending.append(dots, pendingText);
       el.chatFeed.appendChild(pending);
       el.chatScroll.scrollTop = el.chatScroll.scrollHeight;
 
@@ -1463,13 +3417,21 @@
         const res = await apiFetch("/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question: text, session_id: state.sessionId }),
+          body: JSON.stringify({
+            question: text,
+            session_id: state.sessionId,
+            rag_mode: state.ragMode,
+          }),
         });
         pending.remove();
-        renderMessage("assistant", res.answer, res.sources);
-        await loadSessions();
+        renderMessage("assistant", res.answer, res.sources, {
+          rag_mode: res.rag_mode,
+          retrieval_strategy: res.retrieval_strategy,
+          question: text,
+        });
+        await Promise.all([loadSessions(), loadHealth()]);
       } catch (err) {
-        pending.classList.add("error");
+        pending.className = "status-note error";
         pending.textContent = `Gagal memproses: ${err.message}`;
       } finally {
         state.busy = false;
@@ -1485,13 +3447,27 @@
     });
 
     el.questionInput.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" && !event.shiftKey) {
+      if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
         event.preventDefault();
         submitQuestion();
       }
     });
 
+    el.dismissEmbedderWarning.addEventListener("click", () => {
+      state.embedderWarningDismissed = true;
+      el.embedderWarningBanner.hidden = true;
+    });
+
     el.newChatBtn.addEventListener("click", startNewConversation);
+
+    el.clearAllSessionsBtn.addEventListener("click", async () => {
+      try {
+        await apiFetch(`/history?session_id=${encodeURIComponent(state.sessionId)}`, { method: "DELETE" });
+        await Promise.all([loadHistory(), loadSessions()]);
+      } catch (err) {
+        setNote(el.workspaceNotice, err.message, true);
+      }
+    });
 
     el.sidebarCollapseBtn.addEventListener("click", () => {
       if (window.innerWidth <= 768) {
@@ -1503,10 +3479,20 @@
 
     el.sidebarOpenBtn.addEventListener("click", () => {
       if (window.innerWidth <= 768) {
-        el.sidebar.classList.add("mobile-open");
+        openMobileSidebar();
       } else {
         el.appLayout.classList.remove("sidebar-collapsed");
       }
+    });
+
+    el.sidebarBackdrop.addEventListener("click", closeMobileSidebar);
+
+    el.uploadNavBtn.addEventListener("click", () => {
+      el.fileUpload.click();
+    });
+
+    el.docsStageUploadBtn.addEventListener("click", () => {
+      el.fileUpload.click();
     });
 
     el.toggleSearchBtn.addEventListener("click", () => {
@@ -1540,21 +3526,28 @@
     });
 
     el.modeChatBtn.addEventListener("click", () => {
-      el.modeChatBtn.classList.add("active");
-      el.modeDocsBtn.classList.remove("active");
+      setWorkspaceView("chat");
       el.questionInput.focus();
     });
 
     el.modeDocsBtn.addEventListener("click", () => {
-      el.modeDocsBtn.classList.add("active");
-      el.modeChatBtn.classList.remove("active");
-      if (window.innerWidth <= 768) {
-        el.sidebar.classList.add("mobile-open");
-      } else {
-        el.appLayout.classList.remove("sidebar-collapsed");
+      setWorkspaceView("docs");
+      closeMobileSidebar();
+    });
+
+    el.ragModeSelect.value = state.ragMode;
+    el.ragModeSelect.addEventListener("change", () => {
+      state.ragMode = normalizeRagMode(el.ragModeSelect.value);
+      localStorage.setItem(RAG_MODE_KEY, state.ragMode);
+      const modalRag = document.getElementById("set-rag-mode");
+      if (modalRag) {
+        modalRag.textContent = formatRagLabel(state.ragMode);
       }
-      if (state.docs.length === 0) {
-        el.fileUpload.click();
+    });
+
+    el.questionInput.addEventListener("focus", () => {
+      if (state.workspaceView === "docs") {
+        setWorkspaceView("chat");
       }
     });
 
@@ -1570,6 +3563,33 @@
       await Promise.all([loadHistory(), loadSessions()]);
     });
 
+    el.shutdownServerBtn.addEventListener("click", async () => {
+      if (!confirm("Matikan server lokal InSight? Untuk menyalakan lagi, jalankan InSight.bat / run.py.")) {
+        return;
+      }
+      el.shutdownServerBtn.disabled = true;
+      try {
+        await apiFetch("/runtime/shutdown", { method: "POST" });
+        state.serverStopped = true;
+        if (heartbeatTimer) {
+          clearInterval(heartbeatTimer);
+          heartbeatTimer = null;
+        }
+        closeSettingsModal();
+        el.topPillText.textContent = "Server dimatikan";
+        el.modelLabel.textContent = "Offline";
+        setNote(el.workspaceNotice, "Server lokal telah dimatikan. Jalankan InSight.bat atau run.py untuk menyalakannya kembali.");
+      } catch (err) {
+        setNote(el.workspaceNotice, err.message, true);
+      } finally {
+        el.shutdownServerBtn.disabled = false;
+      }
+    });
+
+    el.settingsModal.addEventListener("click", (event) => {
+      if (event.target === el.settingsModal) closeSettingsModal();
+    });
+
     el.authForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       el.authError.hidden = true;
@@ -1580,7 +3600,8 @@
           body: JSON.stringify({ password: el.authPassword.value }),
         });
         if (!res.ok) {
-          throw new Error("Kata sandi salah.");
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || "Kata sandi salah.");
         }
         const data = await res.json();
         state.token = data.token || "";
@@ -1593,6 +3614,18 @@
     });
 
     document.addEventListener("keydown", (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        if (window.innerWidth <= 768) {
+          openMobileSidebar();
+        } else {
+          el.appLayout.classList.remove("sidebar-collapsed");
+        }
+        el.searchBoxWrap.hidden = false;
+        el.sidebarSearch.focus();
+        el.sidebarSearch.select();
+        return;
+      }
       if (event.key === "Escape") {
         closeMobileSidebar();
         if (el.settingsModal.classList.contains("open")) {
@@ -1605,18 +3638,22 @@
     });
 
     async function sendHeartbeat() {
-      if (el.authModal.classList.contains("open")) return;
+      if (state.serverStopped || el.authModal.classList.contains("open")) return;
       try {
-        await fetch("/runtime/heartbeat", {
+        const res = await fetch("/runtime/heartbeat", {
           method: "POST",
           headers: authHeaders(),
         });
+        if (res.ok && state.serverOffline) {
+          await refreshAll();
+        }
       } catch {
         // Ignore transient network errors while checking runtime status.
       }
     }
 
     function sendDisconnectBeacon() {
+      if (state.serverStopped) return;
       const qs = state.token ? `?token=${encodeURIComponent(state.token)}` : "";
       if (navigator.sendBeacon) {
         navigator.sendBeacon(`/runtime/disconnect${qs}`);
@@ -1624,7 +3661,12 @@
     }
 
     window.addEventListener("pagehide", sendDisconnectBeacon);
-    setInterval(sendHeartbeat, 5000);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        sendHeartbeat();
+      }
+    });
+    let heartbeatTimer = setInterval(sendHeartbeat, 5000);
 
     async function refreshAll() {
       await loadHealth();

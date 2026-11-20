@@ -47,6 +47,9 @@ def _open_ui(url: str) -> None:
 
 
 def main() -> None:
+    from insight.config import load_env_file
+
+    load_env_file()
     os.environ.setdefault("INSIGHT_AUTO_SHUTDOWN", "1")
     host = os.getenv("INSIGHT_HOST", "127.0.0.1")
     preferred_port = int(os.getenv("INSIGHT_PORT", "8000"))
@@ -60,15 +63,20 @@ def main() -> None:
     server_thread = threading.Thread(target=serve, args=(host, port), daemon=False)
     server_thread.start()
 
-    for _ in range(60):
+    ready = False
+    for _ in range(240):
+        if not server_thread.is_alive():
+            break
         try:
             with urllib.request.urlopen(f"{url}/health", timeout=1) as resp:
                 if resp.status == 200:
+                    ready = True
                     break
         except Exception:
             time.sleep(0.25)
 
-    _open_ui(url)
+    if ready:
+        _open_ui(url)
     try:
         server_thread.join()
     except KeyboardInterrupt:

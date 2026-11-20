@@ -7,16 +7,19 @@ import secrets
 import tempfile
 import threading
 import time
+from collections import defaultdict, deque
+from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from insight import __version__
-from insight.config import Settings
-from insight.rag import InSightEngine
+from insight.config import DEFAULT_RESOURCES_DIR, Settings, load_env_file, summarize_resources
+from insight.rag import VALID_RAG_MODES, InSightEngine
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -28,6 +31,40 @@ class LoginRequest(BaseModel):
 class ChatRequest(BaseModel):
     question: str
     session_id: str = "default"
+    rag_mode: str | None = None
+
+
+class LoginRateLimiter:
+    """In-memory sliding-window rate limiter for failed login attempts."""
+
+    def __init__(self, max_attempts: int = 5, window_seconds: int = 60) -> None:
+        self.max_attempts = max_attempts
+        self.window_seconds = window_seconds
+        self._failures: dict[str, deque[float]] = defaultdict(deque)
+        self._lock = threading.Lock()
+
+    def _prune(self, bucket: deque[float], now: float) -> None:
+        cutoff = now - self.window_seconds
+        while bucket and bucket[0] <= cutoff:
+            bucket.popleft()
+
+    def is_blocked(self, key: str, now: float | None = None) -> bool:
+        with self._lock:
+            t = time.monotonic() if now is None else now
+            bucket = self._failures[key]
+            self._prune(bucket, t)
+            return len(bucket) >= self.max_attempts
+
+    def record_failure(self, key: str, now: float | None = None) -> None:
+        with self._lock:
+            t = time.monotonic() if now is None else now
+            bucket = self._failures[key]
+            self._prune(bucket, t)
+            bucket.append(t)
+
+    def reset(self, key: str) -> None:
+        with self._lock:
+            self._failures.pop(key, None)
 
 
 class RuntimeTracker:
@@ -46,6 +83,22 @@ class RuntimeTracker:
         self.has_client = False
         self.last_seen: float | None = None
         self.disconnect_deadline: float | None = None
+        self.manual_shutdown = False
+        self.active_requests = 0
+
+    def begin_request(self) -> None:
+        with self._lock:
+            self.active_requests += 1
+
+    def end_request(self, now: float | None = None) -> None:
+        with self._lock:
+            self.active_requests = max(0, self.active_requests - 1)
+            if self.has_client:
+                self.last_seen = time.monotonic() if now is None else now
+
+    def request_shutdown(self) -> None:
+        with self._lock:
+            self.manual_shutdown = True
 
     def record_heartbeat(self, now: float | None = None) -> None:
         with self._lock:
@@ -63,7 +116,11 @@ class RuntimeTracker:
 
     def should_shutdown(self, now: float | None = None) -> bool:
         with self._lock:
+            if self.manual_shutdown:
+                return True
             if not self.enabled or not self.has_client:
+                return False
+            if self.active_requests > 0:
                 return False
             t = time.monotonic() if now is None else now
             if self.disconnect_deadline is not None and t >= self.disconnect_deadline:
@@ -73,42 +130,105 @@ class RuntimeTracker:
             return False
 
 
-def create_app(engine: InSightEngine | None = None) -> FastAPI:
-    app = FastAPI(title="InSight", version=__version__)
-    rag = engine or InSightEngine(Settings.from_env())
-    active_tokens: set[str] = set()
+def create_app(engine: InSightEngine | None = None, settings: Settings | None = None) -> FastAPI:
+    if engine is not None:
+        rag = engine
+        app_settings = engine.settings
+        llm = engine.llm
+        owns_engine = False
+    else:
+        if settings is None:
+            load_env_file()
+        app_settings = settings or Settings.from_env()
+        owns_engine = True
+        rag = InSightEngine(app_settings)
+        llm = rag.llm
+
+    @asynccontextmanager
+    async def _lifespan(_app: FastAPI):
+        try:
+            yield
+        finally:
+            if owns_engine:
+                rag.close()
+
+    app = FastAPI(title="InSight", version=__version__, lifespan=_lifespan)
+
+    active_tokens: dict[str, float] = {}
+    token_lock = threading.Lock()
+    rate_limiter = LoginRateLimiter(
+        max_attempts=app_settings.login_max_attempts,
+        window_seconds=app_settings.login_window_seconds,
+    )
     tracker = RuntimeTracker(
-        enabled=rag.settings.auto_shutdown,
-        grace_seconds=rag.settings.shutdown_grace_seconds,
-        idle_timeout_seconds=rag.settings.heartbeat_timeout_seconds,
+        enabled=app_settings.auto_shutdown,
+        grace_seconds=app_settings.shutdown_grace_seconds,
+        idle_timeout_seconds=app_settings.heartbeat_timeout_seconds,
     )
     app.state.tracker = tracker
 
+    def _is_valid_token(token: str | None) -> bool:
+        if not token:
+            return False
+        now = time.monotonic()
+        with token_lock:
+            expires_at = active_tokens.get(token)
+            if expires_at is None:
+                return False
+            if now > expires_at:
+                active_tokens.pop(token, None)
+                return False
+            return True
+
+    def _issue_token() -> str:
+        now = time.monotonic()
+        token = secrets.token_urlsafe(24)
+        with token_lock:
+            expired = [k for k, exp in active_tokens.items() if now > exp]
+            for k in expired:
+                active_tokens.pop(k, None)
+            active_tokens[token] = now + app_settings.token_ttl_seconds
+        return token
+
     def require_auth(x_insight_token: str | None = Header(default=None)) -> None:
-        if not rag.settings.password:
+        if not app_settings.password:
             return
-        if not x_insight_token or x_insight_token not in active_tokens:
+        if not _is_valid_token(x_insight_token):
             raise HTTPException(status_code=401, detail="Authentication required.")
 
     @app.get("/", include_in_schema=False)
     def index() -> FileResponse:
-        return FileResponse(STATIC_DIR / "index.html")
+        return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
 
     @app.get("/health")
     def health() -> dict:
         docs = rag.list_documents()
+        res_summary = summarize_resources(app_settings.resources_dir or DEFAULT_RESOURCES_DIR)
         return {
             "status": "ok",
             "version": __version__,
-            "auth_required": bool(rag.settings.password),
-            "llm_backend": rag.settings.llm_backend,
-            "llm_model": rag.settings.llm_model,
-            "precision_mode": rag.settings.precision_mode,
+            "role": "local",
+            "auth_required": bool(app_settings.password),
+            "llm_backend": llm.active_backend,
+            "llm_model": llm.active_model,
+            "llm_runtime": llm.active_runtime,
+            "precision_mode": llm.active_precision,
             "embedder": rag.vectors.embedder.name,
-            "use_reranker": rag.settings.use_reranker,
+            "embedder_fallback": rag.vectors.is_fallback_embedder,
+            "embedder_warning": rag.vectors.embedder_warning,
+            "use_reranker": app_settings.use_reranker,
+            "rag_mode": app_settings.rag_mode,
+            "available_rag_modes": list(VALID_RAG_MODES),
             "document_count": len(docs),
-            "auto_shutdown": rag.settings.auto_shutdown,
+            "resources_dir": res_summary["resources_dir"],
+            "resources_mb": res_summary["total_mb"],
+            "resources_files": res_summary["file_count"],
+            "auto_shutdown": app_settings.auto_shutdown,
         }
+
+    @app.get("/resources", dependencies=[Depends(require_auth)])
+    def list_resources() -> dict:
+        return summarize_resources(app_settings.resources_dir or DEFAULT_RESOURCES_DIR)
 
     @app.post("/runtime/heartbeat", dependencies=[Depends(require_auth)])
     def runtime_heartbeat() -> dict:
@@ -120,22 +240,32 @@ def create_app(engine: InSightEngine | None = None) -> FastAPI:
         x_insight_token: str | None = Header(default=None),
         token: str | None = Query(default=None),
     ) -> dict:
-        if rag.settings.password:
-            supplied = x_insight_token or token
-            if not supplied or supplied not in active_tokens:
-                raise HTTPException(status_code=401, detail="Authentication required.")
+        if app_settings.password and not _is_valid_token(x_insight_token or token):
+            raise HTTPException(status_code=401, detail="Authentication required.")
         tracker.record_disconnect()
         return {"ok": True, "auto_shutdown": tracker.enabled}
 
+    @app.post("/runtime/shutdown", dependencies=[Depends(require_auth)])
+    def runtime_shutdown() -> dict:
+        tracker.request_shutdown()
+        return {"ok": True, "shutting_down": True}
+
     @app.post("/auth/login")
-    def login(payload: LoginRequest) -> dict:
-        if not rag.settings.password:
+    def login(payload: LoginRequest, request: Request) -> dict:
+        if not app_settings.password:
             return {"auth_required": False, "token": ""}
-        if not hmac.compare_digest(payload.password, rag.settings.password):
+        client_ip = request.client.host if request.client else "unknown"
+        if rate_limiter.is_blocked(client_ip):
+            raise HTTPException(
+                status_code=429,
+                detail="Too many failed login attempts. Try again later.",
+            )
+        if not hmac.compare_digest(payload.password, app_settings.password):
+            rate_limiter.record_failure(client_ip)
             raise HTTPException(status_code=401, detail="Invalid password.")
-        token = secrets.token_urlsafe(24)
-        active_tokens.add(token)
-        return {"auth_required": True, "token": token}
+        rate_limiter.reset(client_ip)
+        token = _issue_token()
+        return {"auth_required": True, "token": token, "expires_in": app_settings.token_ttl_seconds}
 
     @app.get("/documents", dependencies=[Depends(require_auth)])
     def list_documents() -> dict:
@@ -145,11 +275,18 @@ def create_app(engine: InSightEngine | None = None) -> FastAPI:
     async def upload_document(file: UploadFile = File(...)) -> dict:
         filename = Path(file.filename or "document.txt").name
         suffix = Path(filename).suffix.lower()
-        data = await file.read()
+        max_bytes = rag.settings.max_upload_mb * 1024 * 1024
+        data = await file.read(max_bytes + 1)
         if not data:
             raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+        if len(data) > max_bytes:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File terlalu besar (batas {rag.settings.max_upload_mb} MB).",
+            )
 
         tmp_path: Path | None = None
+        tracker.begin_request()
         try:
             with tempfile.NamedTemporaryFile(
                 delete=False,
@@ -159,13 +296,14 @@ def create_app(engine: InSightEngine | None = None) -> FastAPI:
                 tmp.write(data)
                 tmp_path = Path(tmp.name)
 
-            record = rag.ingest_file(tmp_path, display_name=filename)
+            record = await run_in_threadpool(rag.ingest_file, tmp_path, filename)
             return {"document": asdict(record)}
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         except RuntimeError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         finally:
+            tracker.end_request()
             if tmp_path is not None and tmp_path.exists():
                 tmp_path.unlink(missing_ok=True)
 
@@ -178,14 +316,24 @@ def create_app(engine: InSightEngine | None = None) -> FastAPI:
 
     @app.post("/chat", dependencies=[Depends(require_auth)])
     def chat(payload: ChatRequest) -> dict:
+        tracker.begin_request()
         try:
-            result = rag.ask(question=payload.question, session_id=payload.session_id)
+            result = rag.ask(
+                question=payload.question,
+                session_id=payload.session_id,
+                rag_mode=payload.rag_mode,
+            )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+        finally:
+            tracker.end_request()
         return {
             "answer": result.answer,
             "sources": result.sources,
             "session_id": result.session_id,
+            "rag_mode": result.rag_mode,
+            "retrieval_strategy": result.retrieval_strategy,
+            "query_analysis": result.query_analysis,
         }
 
     @app.get("/history", dependencies=[Depends(require_auth)])

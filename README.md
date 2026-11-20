@@ -14,10 +14,8 @@
 
 **InSight** adalah prototype sistem Retrieval-Augmented Generation (RAG) untuk berinteraksi dengan dokumen Anda (PDF, DOCX, PPTX, XLSX, HTML, gambar, Markdown, TXT, CSV, JSON, dan kode) tanpa mengirim dokumen ke API LLM pihak ketiga.
 
-### Model Privasi (Penting Diketahui)
-InSight mendukung dua cara menjalankan backend:
-1. **Mode Lokal 100% Offline (Laptop / Server Pribadi):** FastAPI, Docling, Qdrant Local, SQLite, dan **Ollama** berjalan penuh di mesin Anda. Dokumen tidak pernah keluar dari perangkat.
-2. **Mode Google Colab (GPU Cloud Sementara):** Cocok jika perangkat lokal tidak memiliki GPU. Dokumen diproses langsung di runtime sesi Colab milik Anda (tidak dikirim ke OpenAI/Anthropic/API eksternal), dan dapat dilindungi kata sandi (`INSIGHT_PASSWORD`) serta dihapus saat sesi berakhir. *(Catatan: secara teknis file tetap melintasi server Google Colab karena runtime berada di cloud Google.)*
+### Model Privasi (100% Lokal & Offline)
+FastAPI, Docling / fallback parser, Qdrant Local, SQLite, folder `resources/`, dan LLM lokal (**Ollama** / **Hugging Face** / `local_smart`) berjalan penuh di perangkat Anda. Dokumen dan pertanyaan tidak pernah keluar dari PC Anda.
 
 ---
 
@@ -25,21 +23,23 @@ InSight mendukung dua cara menjalankan backend:
 
 ```mermaid
 flowchart LR
-    UI["Web Chatbot UI (index.html)"] -->|"HTTP / JSON"| API["FastAPI Server (run.py)"]
-    API -->|"Parse ke Markdown"| Parser["Docling / Native Text"]
-    Parser -->|"Chunks"| Qdrant["Qdrant Local (Hybrid Dense + Lexical)"]
+    UI["Web Chatbot UI (index.html)"] -->|"HTTP / JSON + rag_mode"| API["FastAPI Server (run.py)"]
+    API -->|"Parse ke Markdown + Halaman"| Parser["Docling / Fallback Parsers"]
+    Parser -->|"Chunks + Gabung Tabel"| Qdrant["Qdrant Local (Dense + BM25 Sparse)"]
     API -->|"Metadata & Riwayat"| SQLite["SQLite (insight.sqlite)"]
-    Qdrant -->|"Step 1: Top-K + Optional Reranker"| LLM["Step 2: LLM (Ollama / Unsloth / HF)"]
-    API --> LLM
+    Qdrant -->|"HybridRAG atau AdaptiveRAG + Optional Reranker"| LLM["LLM Lokal (Ollama qwen2.5:0.5b / HF / local_smart)"]
 ```
 
-### Fitur Utama Prototype
-- **Docling Document Parsing:** Mengubah PDF, DOCX, PPTX, XLSX, HTML, dan gambar menjadi Markdown terstruktur sebelum diindeks.
-- **Qdrant Local Mode:** Penyimpanan vektor langsung di folder lokal tanpa container Docker atau server eksternal, lengkap dengan penghapusan vektor otomatis saat dokumen dihapus dari daftar.
-- **Penyaringan 2-Tahap Ringan:** Pencarian hybrid (dense vector + lexical overlap) dan opsi Cross-Encoder Reranker (~22M hingga 278M parameter) agar konteks yang dikirim ke LLM lebih ringkas dan hemat VRAM.
-- **Opsi Presisi Model (`4bit` / `8bit` / `full`):** Memudahkan penyesuaian dengan paket GPU Colab (T4 15GB, L4 24GB, hingga A100) atau PC lokal.
-- **Riwayat & Daftar Dokumen di SQLite:** Ringan, portabel dalam satu file `.sqlite`, dan mendukung reset riwayat per sesi.
-- **Proteksi Kata Sandi Opsional:** Mengamankan akses endpoint saat server dijalankan di balik tunnel Colab.
+### Fitur Utama
+- **Hanya 2 Opsi Metode RAG (`HybridRAG` & `AdaptiveRAG`):**
+  - **HybridRAG (`hybrid`):** Menggabungkan pencarian vektor dense + sparse BM25/lexical (`0.70 dense + 0.30 sparse`) dengan evaluasi relevansi dan *query rewriting* otomatis 1x jika hasil awal kurang relevan.
+  - **AdaptiveRAG (`adaptive`):** Menggunakan `QueryAnalyzer` untuk menganalisis kompleksitas (`simple`, `medium`, `complex`), faktualitas, dan kebutuhan multi-sumber, lalu merutekan ke strategi `direct_llm`, `simple_vector`, `hybrid_search` (bobot dinamis `0.8/0.2` atau `0.6/0.4`), atau `comprehensive` dengan eskalasi otomatis bila relevan rendah.
+- **Docling Document Parsing & Sitasi Halaman:** Mengubah PDF, DOCX, PPTX, XLSX, HTML, dan gambar menjadi Markdown terstruktur, melacak `page_label` per chunk, serta menggabungkan tabel Markdown yang terpecah lintas halaman.
+- **Qdrant Local Mode + Transparansi Embedder:** Penyimpanan vektor langsung di folder lokal tanpa Docker, dengan status fallback `HashingEmbedder` yang diekspos di `/health` dan banner UI (serta opsi `INSIGHT_STRICT_EMBEDDER=true`).
+- **Folder `resources/` Terpusat:** Seluruh unduhan model & cache (`HF_HOME`, `FASTEMBED_CACHE_PATH`, `OLLAMA_MODELS`, `TORCH_HOME`, `XDG_CACHE_HOME`) diarahkan ke `INSIGHT_RESOURCES_DIR` (default `C:\Open Source\InSight\resources`) dan dapat dipantau lewat `GET /resources` serta modal Settings.
+- **Opsi Presisi Model (`4bit` / `8bit` / `full`):** Memudahkan penyesuaian dengan spesifikasi RAM/GPU lokal.
+- **Riwayat & Daftar Dokumen di SQLite:** Ringan, portabel dalam satu file `.sqlite`, dengan penghapusan vektor Qdrant otomatis saat dokumen dihapus.
+- **Proteksi Kata Sandi Opsional:** Mengamankan akses endpoint lewat `INSIGHT_PASSWORD` dengan rate-limiting login (`HTTP 429`) dan masa berlaku token (`INSIGHT_TOKEN_TTL_SECONDS`).
 
 ---
 
@@ -92,33 +92,27 @@ Buka browser ke `http://127.0.0.1:8000`, unggah dokumen dari panel kiri, lalu ke
 
 ---
 
-### Opsi B: Menjalankan di Google Colab (GPU + Tunnel)
-
-1. Buka notebook [`notebooks/InSight_Colab.ipynb`](notebooks/InSight_Colab.ipynb) di Google Colab dan pilih Runtime dengan GPU (misalnya T4, L4, atau A100).
-2. Jalankan sel instalasi untuk clone repo dan memasang `requirements.txt` + `requirements-colab.txt`.
-3. Pada sel konfigurasi, sesuaikan variabel berikut dengan kapasitas GPU Anda:
-   - **Colab Free (T4 15GB):** `INSIGHT_PRECISION="4bit"` dan `INSIGHT_LLM_BACKEND="unsloth"`
-   - **Colab Pro (L4 24GB):** `INSIGHT_PRECISION="8bit"`
-   - **Colab Pro+ (A100 40GB+):** `INSIGHT_PRECISION="full"`
-   - Isi `INSIGHT_PASSWORD` untuk mencegah akses asing pada URL tunnel publik.
-4. Jalankan sel terakhir untuk menyalakan FastAPI dan tunnel Cloudflare, lalu buka URL `https://....trycloudflare.com` yang tercetak di output sel.
-
----
-
 ## Konfigurasi Environment (`.env`)
 
 Salin `.env.example` jika ingin mengatur konfigurasi secara persisten:
 
 | Variabel | Default | Keterangan |
 |---|---|---|
-| `INSIGHT_HOST` | `127.0.0.1` | Host server FastAPI (`0.0.0.0` untuk Colab) |
+| `INSIGHT_HOST` | `127.0.0.1` | Host server FastAPI |
 | `INSIGHT_PORT` | `8000` | Port server |
 | `INSIGHT_DATA_DIR` | `./data` | Direktori penyimpanan SQLite dan Qdrant lokal |
+| `INSIGHT_RESOURCES_DIR` | `C:\Open Source\InSight\resources` | Direktori terpusat untuk semua model/cache terunduh |
 | `INSIGHT_PASSWORD` | `""` (kosong) | Kata sandi sesi opsional untuk login |
-| `INSIGHT_LLM_BACKEND` | `auto` | Pilihan: `auto`, `local_smart`, `retrieval_only`, `ollama`, `unsloth`, `hf` |
-| `INSIGHT_LLM_MODEL` | `unsloth/Qwen2.5-7B-Instruct-bnb-4bit` | Nama model Hugging Face / Unsloth / Ollama |
+| `INSIGHT_TOKEN_TTL_SECONDS` | `43200` | Masa berlaku token sesi login dalam detik (default 12 jam) |
+| `INSIGHT_LOGIN_MAX_ATTEMPTS` | `5` | Batas percobaan login gagal per IP sebelum diblokir `HTTP 429` |
+| `INSIGHT_LOGIN_WINDOW_SECONDS` | `60` | Jendela waktu rate-limit login dalam detik |
+| `INSIGHT_LLM_BACKEND` | `auto` | Pilihan: `auto`, `llamacpp`, `local_smart`, `retrieval_only`, `ollama`, `unsloth`, `hf` |
+| `INSIGHT_LLM_MODEL` | `qwen2.5:0.5b` | Nama model lokal (Ollama / GGUF `resources/gguf` / Hugging Face) |
 | `INSIGHT_PRECISION` | `4bit` | Presisi model: `4bit`, `8bit`, atau `full` |
+| `INSIGHT_RAG_MODE` | `hybrid` | Pilihan metode RAG (hanya 2 opsi): `hybrid` (`HybridRAG`) atau `adaptive` (`AdaptiveRAG`) |
 | `INSIGHT_EMBED_MODEL` | `BAAI/bge-small-en-v1.5` | Model embedding Step 1 |
+| `INSIGHT_STRICT_EMBEDDER` | `false` | Set `true` agar server menolak startup jika hanya `HashingEmbedder` fallback yang tersedia |
+| `INSIGHT_MAX_UPLOAD_MB` | `50` | Batas maksimal ukuran file unggahan dalam MB |
 | `INSIGHT_USE_RERANKER` | `false` | Aktifkan Cross-Encoder reranker (`true` / `false`) |
 | `INSIGHT_RERANK_MODEL` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | Model reranker ringan Step 1 |
 | `INSIGHT_AUTO_SHUTDOWN` | `0` (`1` di `launch.py`) | Matikan server otomatis saat tab/jendela UI ditutup |
@@ -131,12 +125,13 @@ FastAPI juga menyediakan dokumentasi interaktif otomatis di `http://127.0.0.1:80
 
 | Method & Path | Fungsi |
 |---|---|
-| `GET /health` | Cek status server, backend LLM, presisi, dan jumlah dokumen |
-| `POST /auth/login` | Tukar `INSIGHT_PASSWORD` menjadi token sesi `X-InSight-Token` |
+| `GET /health` | Cek status server, backend LLM, metode RAG aktif (`rag_mode` & `available_rag_modes`), status embedder, folder `resources`, dan jumlah dokumen |
+| `GET /resources` | Pantau daftar file dan ukuran cache/model terunduh di `INSIGHT_RESOURCES_DIR` |
+| `POST /auth/login` | Tukar `INSIGHT_PASSWORD` menjadi token sesi `X-InSight-Token` (rate-limited + TTL) |
 | `POST /documents/upload` | Unggah dan indeks dokumen ke Qdrant + SQLite |
 | `GET /documents` | Ambil daftar dokumen terindeks |
 | `DELETE /documents/{doc_id}` | Hapus dokumen dari SQLite dan vektornya dari Qdrant |
-| `POST /chat` | Ajukan pertanyaan RAG dan simpan ke riwayat SQLite |
+| `POST /chat` | Ajukan pertanyaan dengan `rag_mode` (`hybrid` atau `adaptive`) dan simpan ke riwayat SQLite |
 | `GET /history` | Ambil riwayat chat per sesi |
 | `DELETE /history` | Bersihkan riwayat chat per sesi |
 | `GET /sessions` | Ambil daftar sesi percakapan tersimpan |

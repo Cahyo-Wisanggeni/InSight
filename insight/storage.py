@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 
 def _utc_now() -> str:
@@ -51,13 +52,19 @@ class SQLiteStore:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_schema()
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        conn = sqlite3.connect(self.db_path, timeout=30.0)
         conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def _init_schema(self) -> None:
         with self._connect() as conn:
+            conn.execute("PRAGMA journal_mode=WAL;")
             conn.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS documents (
@@ -135,6 +142,19 @@ class SQLiteStore:
             ).fetchone()
         return DocumentRecord(**dict(row)) if row else None
 
+    def find_documents_by_filename(self, filename: str) -> list[DocumentRecord]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT doc_id, filename, file_ext, chunk_count, char_count, parser_used, created_at
+                FROM documents
+                WHERE filename = ?
+                ORDER BY created_at DESC
+                """,
+                (filename,),
+            ).fetchall()
+        return [DocumentRecord(**dict(row)) for row in rows]
+
     def delete_document(self, doc_id: str) -> bool:
         with self._connect() as conn:
             cur = conn.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
@@ -172,10 +192,14 @@ class SQLiteStore:
             rows = conn.execute(
                 """
                 SELECT id, session_id, role, content, sources_json, created_at
-                FROM messages
-                WHERE session_id = ?
+                FROM (
+                    SELECT id, session_id, role, content, sources_json, created_at
+                    FROM messages
+                    WHERE session_id = ?
+                    ORDER BY id DESC
+                    LIMIT ?
+                )
                 ORDER BY id ASC
-                LIMIT ?
                 """,
                 (session_id, limit),
             ).fetchall()

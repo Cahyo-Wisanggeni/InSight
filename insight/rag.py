@@ -1,17 +1,132 @@
-"""Core RAG engine orchestrating parsing, indexing, retrieval, LLM synthesis, and history."""
+"""Core RAG engine orchestrating parsing, indexing, HybridRAG/AdaptiveRAG retrieval, LLM synthesis, and history."""
 
 from __future__ import annotations
 
+import re
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from insight.config import Settings
+from insight.config import RAGMode, Settings, normalize_rag_mode
 from insight.llm import LazyLLM, is_greeting
 from insight.parser import chunk_markdown, parse_file
 from insight.storage import DocumentRecord, MessageRecord, SessionSummary, SQLiteStore
-from insight.vectorstore import LocalVectorStore, RetrievedChunk
+from insight.vectorstore import STOPWORDS, TOKEN_RE, LocalVectorStore, RetrievedChunk, _lexical_overlap
+
+VALID_RAG_MODES: tuple[RAGMode, ...] = ("hybrid", "adaptive")
+
+
+class QueryAnalyzer:
+    """Analyze query characteristics to route AdaptiveRAG retrieval strategies."""
+
+    temporal_keywords = (
+        "today",
+        "yesterday",
+        "recent",
+        "latest",
+        "current",
+        "now",
+        "this year",
+        "last month",
+        "2024",
+        "2025",
+        "2026",
+        "breaking",
+        "news",
+        "hari ini",
+        "kemarin",
+        "terbaru",
+        "terkini",
+        "sekarang",
+        "tahun ini",
+        "bulan lalu",
+        "berita",
+    )
+    factual_keywords = (
+        "what is",
+        "define",
+        "definition",
+        "explain",
+        "how does",
+        "difference between",
+        "compare",
+        "overview",
+        "summary",
+        "apa itu",
+        "apa yang dimaksud",
+        "definisi",
+        "jelaskan",
+        "bagaimana",
+        "perbedaan",
+        "bandingkan",
+        "ringkasan",
+        "ringkas",
+        "rangkum",
+    )
+    specific_keywords = (
+        "specific",
+        "exact",
+        "precise",
+        "detailed",
+        "comprehensive",
+        "in-depth",
+        "thorough",
+        "complete analysis",
+        "spesifik",
+        "rinci",
+        "detail",
+        "mendalam",
+        "lengkap",
+        "komprehensif",
+        "analisis",
+    )
+    multi_source_keywords = (
+        "compare",
+        "versus",
+        "vs",
+        "different",
+        "bandingkan",
+        "perbedaan",
+        "perbandingan",
+        "dibanding",
+    )
+
+    @staticmethod
+    def _contains_term(query_lower: str, term: str) -> bool:
+        return bool(re.search(rf"\b{re.escape(term)}\b", query_lower))
+
+    def analyze_query(self, query: str) -> dict[str, Any]:
+        """Classify complexity, factuality, temporality, and multi-source intent."""
+        query_lower = query.lower().strip()
+        is_temporal = any(self._contains_term(query_lower, kw) for kw in self.temporal_keywords)
+        is_factual = any(self._contains_term(query_lower, kw) for kw in self.factual_keywords)
+        needs_multiple_sources = any(
+            self._contains_term(query_lower, kw) for kw in self.multi_source_keywords
+        )
+
+        word_count = len(query.split())
+        is_complex = (
+            word_count > 10
+            or any(self._contains_term(query_lower, kw) for kw in self.specific_keywords)
+            or query.count("?") >= 2
+        )
+
+        if word_count <= 5 and is_factual and not is_complex and not needs_multiple_sources:
+            complexity = "simple"
+        elif word_count <= 10 and not is_complex:
+            complexity = "medium"
+        else:
+            complexity = "complex"
+
+        return {
+            "complexity": complexity,
+            "is_temporal": is_temporal,
+            "is_factual": is_factual,
+            "needs_multiple_sources": needs_multiple_sources,
+            "word_count": word_count,
+            "original_query": query,
+        }
 
 
 @dataclass(frozen=True)
@@ -19,10 +134,13 @@ class ChatResult:
     answer: str
     sources: list[dict[str, Any]]
     session_id: str
+    rag_mode: str = "hybrid"
+    retrieval_strategy: str = "hybrid_search"
+    query_analysis: dict[str, Any] | None = None
 
 
 class InSightEngine:
-    """Stateful workspace engine combining SQLite, Qdrant Local, Docling, and LLM."""
+    """Stateful workspace engine combining SQLite, Qdrant Local, Docling, and Dual RAG (HybridRAG / AdaptiveRAG)."""
 
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or Settings.from_env()
@@ -33,8 +151,100 @@ class InSightEngine:
             embed_model=self.settings.embed_model,
             use_reranker=self.settings.use_reranker,
             rerank_model=self.settings.rerank_model,
+            strict_embedder=self.settings.strict_embedder,
         )
         self.llm = LazyLLM(self.settings)
+        self.query_analyzer = QueryAnalyzer()
+
+    @staticmethod
+    def select_adaptive_strategy(analysis: dict[str, Any]) -> str:
+        """Select optimal retrieval strategy from QueryAnalyzer output."""
+        if (
+            analysis["complexity"] == "simple"
+            and analysis["is_factual"]
+            and analysis["word_count"] <= 5
+        ):
+            return "direct_llm"
+        if analysis["needs_multiple_sources"] or analysis["complexity"] == "complex":
+            return "comprehensive"
+        if analysis["complexity"] == "medium" or analysis["is_temporal"]:
+            return "hybrid_search"
+        return "simple_vector"
+
+    @staticmethod
+    def _grade_retrieval_relevance(query: str, chunks: list[RetrievedChunk]) -> str:
+        if not chunks:
+            return "not_relevant"
+        max_lex = max(_lexical_overlap(query, item.text) for item in chunks)
+        max_score = max(item.score for item in chunks)
+        if max_lex > 0.0 or max_score >= 0.35:
+            return "relevant"
+        return "not_relevant"
+
+    @staticmethod
+    def _rewrite_query_for_retrieval(query: str) -> str:
+        tokens = TOKEN_RE.findall(query.lower())
+        keywords = [tok for tok in tokens if len(tok) >= 2 and tok not in STOPWORDS]
+        deduped = list(dict.fromkeys(keywords))
+        return " ".join(deduped) if deduped else query.strip()
+
+    def _retrieve_hybrid(self, query: str) -> tuple[list[RetrievedChunk], str]:
+        chunks = self.vectors.search(
+            query=query,
+            top_k_candidates=self.settings.top_k_candidates,
+            top_k_final=self.settings.top_k_final,
+            strategy="hybrid_search",
+            dense_weight=0.70,
+            sparse_weight=0.30,
+        )
+        if self._grade_retrieval_relevance(query, chunks) == "not_relevant":
+            rewritten = self._rewrite_query_for_retrieval(query)
+            if rewritten and rewritten.lower() != query.lower():
+                retry_chunks = self.vectors.search(
+                    query=rewritten,
+                    top_k_candidates=self.settings.top_k_candidates,
+                    top_k_final=self.settings.top_k_final,
+                    strategy="hybrid_search",
+                    dense_weight=0.70,
+                    sparse_weight=0.30,
+                )
+                if retry_chunks and (
+                    not chunks
+                    or max(c.score for c in retry_chunks) >= max(c.score for c in chunks)
+                ):
+                    return retry_chunks, "hybrid_search_rewritten"
+        return chunks, "hybrid_search"
+
+    def _retrieve_adaptive(self, query: str) -> tuple[list[RetrievedChunk], str, dict[str, Any]]:
+        analysis = self.query_analyzer.analyze_query(query)
+        strategy = self.select_adaptive_strategy(analysis)
+        dense_weight = 0.8 if analysis["is_factual"] else 0.6
+        sparse_weight = round(1.0 - dense_weight, 4)
+
+        chunks = self.vectors.search(
+            query=query,
+            top_k_candidates=self.settings.top_k_candidates,
+            top_k_final=self.settings.top_k_final,
+            strategy=strategy,
+            dense_weight=dense_weight,
+            sparse_weight=sparse_weight,
+        )
+        if self._grade_retrieval_relevance(query, chunks) == "not_relevant" and strategy != "comprehensive":
+            rewritten = self._rewrite_query_for_retrieval(query)
+            escalated = self.vectors.search(
+                query=rewritten,
+                top_k_candidates=self.settings.top_k_candidates,
+                top_k_final=self.settings.top_k_final,
+                strategy="comprehensive",
+                dense_weight=0.70,
+                sparse_weight=0.30,
+            )
+            if escalated and (
+                not chunks
+                or max(c.score for c in escalated) >= max(c.score for c in chunks)
+            ):
+                return escalated, "comprehensive", analysis
+        return chunks, strategy, analysis
 
     def ingest_file(self, file_path: Path, display_name: str | None = None) -> DocumentRecord:
         filename = display_name or file_path.name
@@ -50,16 +260,29 @@ class InSightEngine:
         if not chunks:
             raise ValueError(f"Document '{filename}' produced zero text chunks.")
 
+        existing_same_name = self.store.find_documents_by_filename(filename)
+
         doc_id = uuid.uuid4().hex[:12]
         self.vectors.upsert_chunks(doc_id=doc_id, filename=filename, chunks=chunks)
-        return self.store.add_document(
-            doc_id=doc_id,
-            filename=filename,
-            file_ext=file_path.suffix.lower() or ".txt",
-            chunk_count=len(chunks),
-            char_count=len(parsed.markdown),
-            parser_used=parsed.parser_used,
-        )
+        try:
+            record = self.store.add_document(
+                doc_id=doc_id,
+                filename=filename,
+                file_ext=file_path.suffix.lower() or ".txt",
+                chunk_count=len(chunks),
+                char_count=len(parsed.markdown),
+                parser_used=parsed.parser_used,
+            )
+        except Exception:
+            self.vectors.delete_document(doc_id)
+            raise
+
+        for old_doc in existing_same_name:
+            if old_doc.doc_id != doc_id:
+                self.vectors.delete_document(old_doc.doc_id)
+                self.store.delete_document(old_doc.doc_id)
+
+        return record
 
     def list_documents(self) -> list[DocumentRecord]:
         return self.store.list_documents()
@@ -75,10 +298,24 @@ class InSightEngine:
             uploaded.unlink()
         return True
 
-    def ask(self, question: str, session_id: str = "default") -> ChatResult:
+    def ask(
+        self,
+        question: str,
+        session_id: str = "default",
+        rag_mode: str | None = None,
+    ) -> ChatResult:
         cleaned = question.strip()
         if not cleaned:
             raise ValueError("Question cannot be empty.")
+
+        selected_mode = normalize_rag_mode(
+            rag_mode if rag_mode is not None else self.settings.rag_mode,
+            default=self.settings.rag_mode,
+            strict=True,
+        )
+        query_analysis: dict[str, Any] | None = (
+            self.query_analyzer.analyze_query(cleaned) if selected_mode == "adaptive" else None
+        )
 
         self.store.add_message(session_id=session_id, role="user", content=cleaned)
 
@@ -97,28 +334,44 @@ class InSightEngine:
                     "Silakan klik '+' atau 'Unggah Dokumen' di panel kiri untuk menambahkan dokumen terlebih dahulu."
                 )
             self.store.add_message(session_id=session_id, role="assistant", content=answer, sources=[])
-            return ChatResult(answer=answer, sources=[], session_id=session_id)
+            return ChatResult(
+                answer=answer,
+                sources=[],
+                session_id=session_id,
+                rag_mode=selected_mode,
+                retrieval_strategy="greeting" if is_greeting(cleaned) else "none",
+                query_analysis=query_analysis,
+            )
 
         if is_greeting(cleaned):
-            doc_names = ", ".join(doc.filename for doc in docs[:5])
-            extra = f" (dan {len(docs) - 5} lainnya)" if len(docs) > 5 else ""
+            unique_names = list(dict.fromkeys(doc.filename for doc in docs))
+            doc_names = ", ".join(unique_names[:5])
+            extra = f" (dan {len(unique_names) - 5} lainnya)" if len(unique_names) > 5 else ""
             answer = (
                 f"Halo! Saat ini ada {len(docs)} dokumen siap ditelusuri: {doc_names}{extra}. "
                 "Silakan tanyakan bagian yang ingin Anda cari atau minta ringkasannya."
             )
             self.store.add_message(session_id=session_id, role="assistant", content=answer, sources=[])
-            return ChatResult(answer=answer, sources=[], session_id=session_id)
+            return ChatResult(
+                answer=answer,
+                sources=[],
+                session_id=session_id,
+                rag_mode=selected_mode,
+                retrieval_strategy="greeting",
+                query_analysis=query_analysis,
+            )
 
-        retrieved: list[RetrievedChunk] = self.vectors.search(
-            query=cleaned,
-            top_k_candidates=self.settings.top_k_candidates,
-            top_k_final=self.settings.top_k_final,
-        )
+        if selected_mode == "adaptive":
+            retrieved, retrieval_strategy, query_analysis = self._retrieve_adaptive(cleaned)
+        else:
+            retrieved, retrieval_strategy = self._retrieve_hybrid(cleaned)
+
         sources = [
             {
                 "doc_id": item.doc_id,
                 "filename": item.filename,
                 "section": item.section,
+                "page_label": item.page_label,
                 "chunk_index": item.chunk_index,
                 "score": round(item.score, 4),
                 "excerpt": item.text[:220],
@@ -133,7 +386,14 @@ class InSightEngine:
             content=answer,
             sources=sources,
         )
-        return ChatResult(answer=answer, sources=sources, session_id=session_id)
+        return ChatResult(
+            answer=answer,
+            sources=sources,
+            session_id=session_id,
+            rag_mode=selected_mode,
+            retrieval_strategy=retrieval_strategy,
+            query_analysis=query_analysis,
+        )
 
     def get_history(self, session_id: str = "default") -> list[MessageRecord]:
         return self.store.list_messages(session_id=session_id)
@@ -143,3 +403,6 @@ class InSightEngine:
 
     def list_sessions(self) -> list[SessionSummary]:
         return self.store.list_sessions()
+
+    def close(self) -> None:
+        self.vectors.close()

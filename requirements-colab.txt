@@ -1,6 +1,0 @@
-# Extra packages for GPU inference in Google Colab (Unsloth / Hugging Face + Reranker)
-unsloth
-transformers>=4.46.0
-accelerate>=1.0.0
-bitsandbytes>=0.44.0
-sentence-transformers>=3.2.0

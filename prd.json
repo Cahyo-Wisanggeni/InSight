@@ -1,0 +1,132 @@
+{
+  "project": "InSight",
+  "branchName": "ralph/insight-v0-3-dual-rag",
+  "description": "InSight v0.3: kualitas parsing v0.2 (page_label, penggabungan tabel lintas halaman, transparansi embedder, rate-limit & token TTL), arsitektur Dual RAG ketat 2 opsi (HybridRAG & AdaptiveRAG), serta folder resources terpusat.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add page_label metadata to chunks, Qdrant payload, and chat sources",
+      "description": "As a user, I want each chunk to store its source page_label so that chat citations can reference the exact page of the document.",
+      "acceptanceCriteria": [
+        "Add page_label: str = \"\" field to TextChunk in insight/parser.py and RetrievedChunk in insight/vectorstore.py",
+        "Store page_label in Qdrant point payload in LocalVectorStore.upsert_chunks() and return it in LocalVectorStore.search()",
+        "Include page_label in each item of sources returned by InSightEngine.ask() and persisted in SQLite sources_json",
+        "Tests pass"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Implemented page_label on TextChunk, RetrievedChunk, Qdrant payload, InSightEngine.ask(), and SQLite sources_json."
+    },
+    {
+      "id": "US-002",
+      "title": "Extract page numbers during PDF parsing and preserve page_label in chunk_markdown",
+      "description": "As a researcher, I want PDF parsers (Docling and pypdfium2 fallback) to track page numbers so that chunk_markdown populates page_label accurately.",
+      "acceptanceCriteria": [
+        "Emit consistent page boundary markers in pypdfium2 fallback and Docling PDF conversion in insight/parser.py",
+        "Update chunk_markdown() to assign single page (e.g. \"3\") or range (e.g. \"3-4\") to TextChunk.page_label while keeping \"\" for non-paginated formats (.txt, .md, .csv, .py)",
+        "Add unit tests in tests/test_insight.py verifying single-page and cross-page chunk page_label values",
+        "Tests pass"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Consistent <!-- INSIGHT_PAGE:N --> markers emitted for pypdfium2 and Docling PDFs."
+    },
+    {
+      "id": "US-003",
+      "title": "Merge Markdown tables split across PDF page boundaries",
+      "description": "As a user, I want tables split across a page break to be merged into a single Markdown table before chunking so that tabular answers remain complete.",
+      "acceptanceCriteria": [
+        "Detect consecutive Markdown table blocks separated only by a page boundary marker with matching column counts in insight/parser.py",
+        "Merge continuation rows into the preceding table without duplicating a repeated header/separator row and preserve the spanned page_label (e.g. \"2-3\")",
+        "Leave separate tables with different column counts or intervening prose untouched",
+        "Tests pass"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Implemented _merge_split_tables and row-aware _split_large_table with unit tests."
+    },
+    {
+      "id": "US-004",
+      "title": "Expose embedder fallback status in /health and support strict embedder mode",
+      "description": "As a developer or user, I want to know when the system falls back to HashingEmbedder instead of silent degradation.",
+      "acceptanceCriteria": [
+        "Add is_fallback_embedder property to LocalVectorStore and embedder_fallback (bool) + embedder_warning (str | None) fields to GET /health in insight/api.py",
+        "Add strict_embedder: bool (from INSIGHT_STRICT_EMBEDDER, default false) to Settings in insight/config.py and raise RuntimeError if only HashingEmbedder is available when enabled",
+        "Tests pass"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "Added is_fallback_embedder, embedder_warning, GET /health fields, INSIGHT_STRICT_EMBEDDER, and tests."
+    },
+    {
+      "id": "US-005",
+      "title": "Add login rate-limiting and token TTL to Colab authentication",
+      "description": "As a Colab user, I want POST /auth/login to rate-limit failed attempts and expire session tokens after a configurable TTL.",
+      "acceptanceCriteria": [
+        "Add token_ttl_seconds: int (from INSIGHT_TOKEN_TTL_SECONDS, default 43200) to Settings in insight/config.py",
+        "Track failed POST /auth/login attempts per client IP in insight/api.py and return HTTP 429 after 5 consecutive failures within 60 seconds",
+        "Store token expiration timestamps in active_tokens and reject expired tokens with HTTP 401 in require_auth and runtime_disconnect",
+        "Tests pass"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "Verified rate-limiting, thread-safe active_tokens with TTL expiry and pruning, and passing tests."
+    },
+    {
+      "id": "US-006",
+      "title": "Display page citations and embedder fallback warning banner in Web UI",
+      "description": "As a Web UI user, I want to see page_label on source cards and a non-blocking warning banner when HashingEmbedder fallback is active.",
+      "acceptanceCriteria": [
+        "Render source page_label (e.g. \"Hal. 4\") alongside filename and section on chat source cards in insight/static/index.html when non-empty",
+        "Display a non-blocking warning banner in insight/static/index.html when GET /health returns embedder_fallback: true",
+        "Tests pass"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "Verified embedder warning banner and source-page-badge rendering."
+    },
+    {
+      "id": "US-007",
+      "title": "Implement Dual RAG engine restricted strictly to HybridRAG and AdaptiveRAG",
+      "description": "As a user, I want InSight to support exactly two RAG modes (HybridRAG and AdaptiveRAG) derived from the reference notebooks while keeping local privacy.",
+      "acceptanceCriteria": [
+        "Add RAGMode = Literal[\"hybrid\", \"adaptive\"], normalize_rag_mode(), and INSIGHT_RAG_MODE setting in insight/config.py",
+        "Add BM25Okapi scoring, normalized score fusion, and strategy-aware search ('hybrid_search', 'simple_vector', 'direct_llm', 'comprehensive') to LocalVectorStore.search() in insight/vectorstore.py",
+        "Implement QueryAnalyzer, select_adaptive_strategy(), HybridRAG grading + 1x query rewrite, and AdaptiveRAG dynamic weighting + comprehensive escalation in insight/rag.py",
+        "Reject any RAG mode outside ('hybrid', 'adaptive') with ValueError",
+        "Tests pass"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "Implemented in insight/config.py, insight/vectorstore.py, and insight/rag.py."
+    },
+    {
+      "id": "US-008",
+      "title": "Expose Dual RAG options and resources tracking in API",
+      "description": "As a client or UI consumer, I want /health, /resources, and /chat to expose HybridRAG, AdaptiveRAG, and centralized resources usage.",
+      "acceptanceCriteria": [
+        "Expose rag_mode, available_rag_modes: [\"hybrid\", \"adaptive\"], and resources summary in GET /health",
+        "Accept optional rag_mode in POST /chat, return rag_mode, retrieval_strategy, and query_analysis, and return HTTP 400 for invalid modes",
+        "Expose GET /resources for monitoring downloaded models/caches under INSIGHT_RESOURCES_DIR",
+        "Tests pass"
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": "Updated insight/api.py and insight/config.py with resources tracking (100% local)."
+    },
+    {
+      "id": "US-009",
+      "title": "Add HybridRAG vs AdaptiveRAG selector and strategy badge in Web UI",
+      "description": "As a Web UI user, I want to toggle between HybridRAG and AdaptiveRAG in the composer and see which retrieval strategy answered my question.",
+      "acceptanceCriteria": [
+        "Add #rag-mode-select with strictly two options (HybridRAG and AdaptiveRAG) in insight/static/index.html",
+        "Persist selection in localStorage, display in Settings modal (#set-rag-mode), and send rag_mode in POST /chat",
+        "Render .rag-meta-badge on assistant messages when rag_mode metadata is returned",
+        "Tests pass"
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": "Added selector, settings display, and response badge in insight/static/index.html."
+    }
+  ]
+}
