@@ -190,14 +190,10 @@ def _build_minimal_pdf(text: str) -> bytes:
     return bytes(out)
 
 
-def test_fallback_parsers_pdf_docx_pptx_xlsx_html(tmp_path: Path, monkeypatch) -> None:
-    import sys
+def test_fallback_parsers_pdf_docx_pptx_xlsx_html(tmp_path: Path) -> None:
     import docx
     import openpyxl
     from pptx import Presentation
-
-    monkeypatch.setitem(sys.modules, "docling", None)
-    monkeypatch.setitem(sys.modules, "docling.document_converter", None)
 
     pdf_file = tmp_path / "sample.pdf"
     pdf_file.write_bytes(_build_minimal_pdf("Hello InSight PDF"))
@@ -411,14 +407,10 @@ def _build_multipage_pdf(page_texts: list[str]) -> bytes:
 
 
 def test_pdf_page_label_tracking_and_chat_sources(tmp_path: Path, monkeypatch) -> None:
-    import sys
-
     monkeypatch.setattr(
         "insight.vectorstore.build_embedder",
         lambda _name: __import__("insight.vectorstore", fromlist=["HashingEmbedder"]).HashingEmbedder(),
     )
-    monkeypatch.setitem(sys.modules, "docling", None)
-    monkeypatch.setitem(sys.modules, "docling.document_converter", None)
 
     pdf_bytes = _build_multipage_pdf([
         "Alpha halaman pertama tentang arsitektur Qdrant.",
@@ -464,34 +456,6 @@ def test_pdf_page_label_tracking_and_chat_sources(tmp_path: Path, monkeypatch) -
 
     hist = client.get("/history").json()["messages"]
     assert hist[-1]["sources"][0]["page_label"] == sources[0]["page_label"]
-
-
-def test_docling_pdf_page_break_markers(tmp_path: Path, monkeypatch) -> None:
-    import insight.parser as parser_mod
-
-    class FakeDoc:
-        def export_to_markdown(self, page_break_placeholder: str = "") -> str:
-            return f"# Bab 1\n\nTeks halaman satu.{page_break_placeholder}## Bab 2\n\nTeks halaman dua."
-
-    class FakeResult:
-        document = FakeDoc()
-
-    class FakeConverter:
-        def convert(self, _path: str) -> FakeResult:
-            return FakeResult()
-
-    monkeypatch.setattr(parser_mod, "_get_docling_converter", lambda: FakeConverter())
-
-    fake_pdf = tmp_path / "docling.pdf"
-    fake_pdf.write_bytes(b"%PDF-1.4\n")
-    parsed = parse_file(fake_pdf)
-    assert parsed.parser_used == "docling"
-    chunks = chunk_markdown(parsed.markdown, chunk_size=300, chunk_overlap=0)
-    assert len(chunks) == 2
-    assert chunks[0].section == "Bab 1"
-    assert chunks[0].page_label == "1"
-    assert chunks[1].section == "Bab 2"
-    assert chunks[1].page_label == "2"
 
 
 def test_merge_split_markdown_tables_across_pages() -> None:
@@ -1160,24 +1124,20 @@ def test_true_corpus_wide_bm25_hybrid_retrieval(tmp_path: Path) -> None:
     store.close()
 
 
-def test_docling_memory_release_and_chat_stream_sse(tmp_path: Path, monkeypatch) -> None:
+def test_unsupported_image_rejected_and_chat_stream_sse(tmp_path: Path, monkeypatch) -> None:
     import json
-    import insight.parser as parser_mod
+    import pytest
     from insight.llm import _stream_filter_think
 
     # 1. Verify _stream_filter_think strips split <think>...</think> blocks cleanly.
     raw_chunks = iter(["<thi", "nk>rahasia", " internal</thi", "nk>\n\nJawaban ", "bersih."])
     assert "".join(_stream_filter_think(raw_chunks)) == "Jawaban bersih."
 
-    # 2. Verify Docling converter is released after parse_file unless INSIGHT_KEEP_DOCLING_LOADED=true.
-    monkeypatch.delenv("INSIGHT_KEEP_DOCLING_LOADED", raising=False)
-    parser_mod._docling_converter = object()
-    monkeypatch.setattr(parser_mod, "_get_docling_converter", lambda: type("C", (), {"convert": lambda self, _p: type("R", (), {"document": type("D", (), {"export_to_markdown": lambda self, **kw: "Isi"})()})()})())
-    pdf_file = tmp_path / "sample.pdf"
-    pdf_file.write_bytes(b"%PDF-1.4\n")
-    parsed = parser_mod.parse_file(pdf_file)
-    assert parsed.parser_used == "docling"
-    assert parser_mod._docling_converter is None
+    # 2. Verify image/legacy formats are cleanly rejected without Docling.
+    img_file = tmp_path / "scan.png"
+    img_file.write_bytes(b"\x89PNG\r\n\x1a\n")
+    with pytest.raises(ValueError, match="Unsupported file type"):
+        parse_file(img_file)
 
     # 3. Verify POST /chat/stream emits meta, token, and done SSE events and saves history.
     engine = InSightEngine(_make_settings(tmp_path))

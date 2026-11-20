@@ -1,6 +1,6 @@
 <div align="center">
   <h1>InSight</h1>
-  <p><strong>Private Document RAG Workspace with Docling, Qdrant Local, SQLite, and Selectable Full/Quantized LLM Inference.</strong></p>
+  <p><strong>Private Document RAG Workspace with Lightweight Parsers, Qdrant Local, SQLite, and Selectable Full/Quantized LLM Inference.</strong></p>
 
   [![Python](https://img.shields.io/badge/Python-3.10%2B-145347?style=flat-square)](https://www.python.org/)
   [![FastAPI](https://img.shields.io/badge/FastAPI-Backend-145347?style=flat-square)](https://fastapi.tiangolo.com/)
@@ -12,10 +12,10 @@
 
 ## Ringkasan
 
-**InSight** adalah prototype sistem Retrieval-Augmented Generation (RAG) untuk berinteraksi dengan dokumen Anda (PDF, DOCX, PPTX, XLSX, HTML, gambar, Markdown, TXT, CSV, JSON, dan kode) tanpa mengirim dokumen ke API LLM pihak ketiga.
+**InSight** adalah prototype sistem Retrieval-Augmented Generation (RAG) untuk berinteraksi dengan dokumen Anda (PDF, DOCX, PPTX, XLSX, HTML, Markdown, TXT, CSV, JSON, dan kode) tanpa mengirim dokumen ke API LLM pihak ketiga.
 
 ### Model Privasi (100% Lokal & Offline)
-FastAPI, Docling / fallback parser, Qdrant Local, SQLite, folder `resources/`, dan LLM lokal (**Ollama** / **Hugging Face** / `local_smart`) berjalan penuh di perangkat Anda. Dokumen dan pertanyaan tidak pernah keluar dari PC Anda.
+FastAPI, parser dokumen ringan (`pypdfium2`, `python-docx`, `python-pptx`, `openpyxl`, `beautifulsoup4`), Qdrant Local, SQLite, folder `resources/`, dan LLM lokal (**llama.cpp GGUF** / **Ollama** / `local_smart`) berjalan penuh di perangkat Anda. Dokumen dan pertanyaan tidak pernah keluar dari PC Anda.
 
 ---
 
@@ -24,7 +24,7 @@ FastAPI, Docling / fallback parser, Qdrant Local, SQLite, folder `resources/`, d
 ```mermaid
 flowchart LR
     UI["Web Chatbot UI (index.html)"] -->|"HTTP / JSON + rag_mode"| API["FastAPI Server (run.py)"]
-    API -->|"Parse ke Markdown + Halaman"| Parser["Docling / Fallback Parsers"]
+    API -->|"Parse ke Markdown + Halaman"| Parser["Lightweight Parsers (pypdfium2 / python-docx / openpyxl)"]
     Parser -->|"Chunks + Gabung Tabel"| Qdrant["Qdrant Local (Dense + BM25 Sparse)"]
     API -->|"Metadata & Riwayat"| SQLite["SQLite (insight.sqlite)"]
     Qdrant -->|"HybridRAG atau AdaptiveRAG + Optional Reranker"| LLM["LLM Lokal (unsloth/Qwen3-1.7B-GGUF via llama.cpp / Ollama / HF / local_smart)"]
@@ -34,7 +34,7 @@ flowchart LR
 - **Hanya 2 Opsi Metode RAG (`HybridRAG` & `AdaptiveRAG`):**
   - **HybridRAG (`hybrid`):** Menggabungkan pencarian vektor dense + sparse BM25/lexical (`0.70 dense + 0.30 sparse`) dengan evaluasi relevansi dan *query rewriting* otomatis 1x jika hasil awal kurang relevan.
   - **AdaptiveRAG (`adaptive`):** Menggunakan `QueryAnalyzer` untuk menganalisis kompleksitas (`simple`, `medium`, `complex`), faktualitas, dan kebutuhan multi-sumber, lalu merutekan ke strategi `direct_llm`, `simple_vector`, `hybrid_search` (bobot dinamis `0.8/0.2` atau `0.6/0.4`), atau `comprehensive` dengan eskalasi otomatis bila relevan rendah.
-- **Docling Document Parsing & Sitasi Halaman:** Mengubah PDF, DOCX, PPTX, XLSX, HTML, dan gambar menjadi Markdown terstruktur, melacak `page_label` per chunk, serta menggabungkan tabel Markdown yang terpecah lintas halaman.
+- **Lightweight Document Parsing & Sitasi Halaman:** Mengubah PDF, DOCX, PPTX, XLSX, dan HTML menjadi Markdown terstruktur secara cepat tanpa beban PyTorch/OCR, melacak `page_label` per chunk, serta menggabungkan tabel Markdown yang terpecah lintas halaman.
 - **Qdrant Local Mode + Transparansi Embedder:** Penyimpanan vektor langsung di folder lokal tanpa Docker, dengan status fallback `HashingEmbedder` yang diekspos di `/health` dan banner UI (serta opsi `INSIGHT_STRICT_EMBEDDER=true`).
 - **Folder `resources/` Terpusat:** Seluruh unduhan model & cache (`HF_HOME`, `FASTEMBED_CACHE_PATH`, `OLLAMA_MODELS`, `TORCH_HOME`, `XDG_CACHE_HOME`) diarahkan ke `INSIGHT_RESOURCES_DIR` (default `C:\Open Source\InSight\resources`) dan dapat dipantau lewat `GET /resources` serta modal Settings.
 - **Opsi Presisi Model (`4bit` / `8bit` / `full`):** Memudahkan penyesuaian dengan spesifikasi RAM/GPU lokal.

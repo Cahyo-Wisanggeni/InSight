@@ -140,7 +140,7 @@ class ChatResult:
 
 
 class InSightEngine:
-    """Stateful workspace engine combining SQLite, Qdrant Local, Docling, and Dual RAG (HybridRAG / AdaptiveRAG)."""
+    """Stateful workspace engine combining SQLite, Qdrant Local, lightweight parsers, and Dual RAG (HybridRAG / AdaptiveRAG)."""
 
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or Settings.from_env()

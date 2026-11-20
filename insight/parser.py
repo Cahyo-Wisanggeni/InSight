@@ -1,11 +1,8 @@
-"""Document parsing (Docling-first) and structure-aware Markdown chunking."""
+"""Lightweight document parsing (PDF/Office/HTML/Text) and structure-aware Markdown chunking."""
 
 from __future__ import annotations
 
-import gc
-import os
 import re
-import threading
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -21,34 +18,18 @@ TEXT_EXTENSIONS = {
     ".yml",
 }
 
-DOCLING_EXTENSIONS = {
+DOCUMENT_EXTENSIONS = {
     ".pdf",
     ".docx",
-    ".doc",
     ".pptx",
-    ".ppt",
     ".xlsx",
-    ".xls",
     ".html",
     ".htm",
     ".xhtml",
-    ".png",
-    ".jpg",
-    ".jpeg",
-    ".webp",
-    ".bmp",
-    ".tiff",
-    ".gif",
-    ".asciidoc",
-    ".adoc",
 }
 
-DOCLING_PAGE_BREAK = "<!-- INSIGHT_PAGE_BREAK -->"
 PAGE_MARKER_RE = re.compile(r"^\s*<!--\s*INSIGHT_PAGE:(\d+)\s*-->\s*$")
 TABLE_SEP_RE = re.compile(r"^\s*\|?(?:\s*:?-{3,}:?\s*\|)+\s*:?-{3,}:?\s*\|?\s*$")
-
-_docling_lock = threading.Lock()
-_docling_converter = None
 
 
 @dataclass(frozen=True)
@@ -72,41 +53,6 @@ class _MarkdownBlock:
     preceded_by_page_break: bool = False
 
 
-def _get_docling_converter():
-    """Return a lazily cached Docling DocumentConverter instance."""
-    global _docling_converter
-    with _docling_lock:
-        if _docling_converter is None:
-            from docling.document_converter import DocumentConverter
-
-            _docling_converter = DocumentConverter()
-        return _docling_converter
-
-
-def release_docling_converter() -> None:
-    """Release the cached Docling converter so its RAM is freed for LLM inference."""
-    global _docling_converter
-    with _docling_lock:
-        if _docling_converter is not None:
-            _docling_converter = None
-            gc.collect()
-
-
-def _add_pdf_page_markers(raw_markdown: str) -> str:
-    """Convert Docling page-break placeholders into numbered INSIGHT_PAGE markers."""
-    if not raw_markdown.strip():
-        return ""
-    if DOCLING_PAGE_BREAK in raw_markdown:
-        raw_pages = raw_markdown.split(DOCLING_PAGE_BREAK)
-        marked: list[str] = []
-        for idx, page_text in enumerate(raw_pages, start=1):
-            cleaned = page_text.strip()
-            if cleaned:
-                marked.append(f"<!-- INSIGHT_PAGE:{idx} -->\n\n{cleaned}")
-        return "\n\n".join(marked).strip()
-    return f"<!-- INSIGHT_PAGE:1 -->\n\n{raw_markdown.strip()}"
-
-
 def parse_file(file_path: Path) -> ParsedDocument:
     """Convert an uploaded file into clean Markdown."""
     ext = file_path.suffix.lower()
@@ -121,44 +67,19 @@ def parse_file(file_path: Path) -> ParsedDocument:
             markdown = raw
         return ParsedDocument(markdown=markdown, parser_used="native_text")
 
-    if ext in DOCLING_EXTENSIONS:
+    if ext in DOCUMENT_EXTENSIONS:
         try:
-            converter = _get_docling_converter()
-            result = converter.convert(str(file_path))
-            if ext == ".pdf":
-                try:
-                    raw_md = result.document.export_to_markdown(
-                        page_break_placeholder=f"\n\n{DOCLING_PAGE_BREAK}\n\n"
-                    )
-                except TypeError:
-                    raw_md = result.document.export_to_markdown()
-                markdown = _add_pdf_page_markers(raw_md)
-            else:
-                markdown = result.document.export_to_markdown().strip()
-            return ParsedDocument(markdown=markdown, parser_used="docling")
+            parsed = _parse_document_file(file_path, ext)
+            if parsed is not None:
+                return parsed
         except Exception as exc:
-            fallback = _fallback_parse(file_path, ext)
-            if fallback is not None:
-                return fallback
-            if isinstance(exc, ImportError):
-                raise RuntimeError(
-                    f"Format '{ext}' membutuhkan Docling. Install dengan: pip install docling"
-                ) from exc
             raise RuntimeError(f"Gagal memproses '{file_path.name}': {exc}") from exc
-        finally:
-            if os.getenv("INSIGHT_KEEP_DOCLING_LOADED", "false").strip().lower() not in {
-                "1",
-                "true",
-                "yes",
-                "on",
-            }:
-                release_docling_converter()
 
     raise ValueError(f"Unsupported file type: '{ext or 'unknown'}'")
 
 
-def _fallback_parse(file_path: Path, ext: str) -> ParsedDocument | None:
-    """Fallback extractors using lightweight Python parsers when Docling is unavailable."""
+def _parse_document_file(file_path: Path, ext: str) -> ParsedDocument | None:
+    """Extract Markdown from PDF, Office, and HTML files using lightweight Python parsers."""
     if ext == ".pdf":
         import pypdfium2 as pdfium
 
