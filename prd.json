@@ -20,16 +20,16 @@
     {
       "id": "US-002",
       "title": "Extract page numbers during PDF parsing and preserve page_label in chunk_markdown",
-      "description": "As a researcher, I want PDF parsers (Docling and pypdfium2 fallback) to track page numbers so that chunk_markdown populates page_label accurately.",
+      "description": "As a researcher, I want lightweight PDF parsing (pypdfium2) to track page numbers so that chunk_markdown populates page_label accurately.",
       "acceptanceCriteria": [
-        "Emit consistent page boundary markers in pypdfium2 fallback and Docling PDF conversion in insight/parser.py",
+        "Emit consistent page boundary markers in pypdfium2 PDF conversion in insight/parser.py",
         "Update chunk_markdown() to assign single page (e.g. \"3\") or range (e.g. \"3-4\") to TextChunk.page_label while keeping \"\" for non-paginated formats (.txt, .md, .csv, .py)",
         "Add unit tests in tests/test_insight.py verifying single-page and cross-page chunk page_label values",
         "Tests pass"
       ],
       "priority": 2,
       "passes": true,
-      "notes": "Consistent <!-- INSIGHT_PAGE:N --> markers emitted for pypdfium2 and Docling PDFs."
+      "notes": "Consistent <!-- INSIGHT_PAGE:N --> markers emitted for pypdfium2 PDFs."
     },
     {
       "id": "US-003",

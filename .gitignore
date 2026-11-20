@@ -25,6 +25,7 @@ huggingface/
 models/
 
 # OS & editor files
+.licenses/
 .DS_Store
 Thumbs.db
 .vscode/
