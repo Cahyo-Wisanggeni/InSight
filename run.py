@@ -72,9 +72,11 @@ def serve(host: str, port: int, app=None) -> None:
     if app is None:
         stop_stale_instances(port)
         from insight.config import Settings
-        from insight.llm import ensure_ollama_running
+        from insight.llm import ensure_gguf_model, ensure_ollama_running
 
-        ensure_ollama_running(Settings.from_env())
+        cfg = Settings.from_env()
+        ensure_gguf_model(cfg)
+        ensure_ollama_running(cfg)
     target_app = app or create_app()
     config = uvicorn.Config(target_app, host=host, port=port)
     server = uvicorn.Server(config)

@@ -301,6 +301,7 @@ class LocalVectorStore:
         self.use_reranker = use_reranker
         self.rerank_model = rerank_model
         self._reranker = None
+        self._corpus_cache: list[tuple[Any, dict[str, Any]]] | None = None
         self._ensure_collection()
 
     @property
@@ -395,7 +396,14 @@ class LocalVectorStore:
             )
             if saved_points:
                 self.migrated_points = self._reembed_points(saved_points)
+            self._corpus_cache = None
             self._write_recorded_embedder()
+
+    def _get_corpus_points(self) -> list[tuple[Any, dict[str, Any]]]:
+        with self._lock:
+            if self._corpus_cache is None:
+                self._corpus_cache = self._scroll_all_points()
+            return list(self._corpus_cache)
 
     def _get_reranker(self):
         if not self.use_reranker:
@@ -433,6 +441,7 @@ class LocalVectorStore:
             )
         with self._lock:
             self.client.upsert(collection_name=self.COLLECTION_NAME, points=points)
+            self._corpus_cache = None
         return len(points)
 
     def delete_document(self, doc_id: str) -> None:
@@ -450,6 +459,7 @@ class LocalVectorStore:
                     )
                 ),
             )
+            self._corpus_cache = None
 
     def _dedupe_chunks(self, items: list[RetrievedChunk], limit: int) -> list[RetrievedChunk]:
         deduped: list[RetrievedChunk] = []
@@ -503,16 +513,65 @@ class LocalVectorStore:
                 limit=effective_limit,
                 with_payload=True,
             )
-        points = response.points
-        if not points:
+        dense_points = response.points
+        corpus = self._get_corpus_points()
+        if not dense_points and not corpus:
             return []
 
-        payloads = [pt.payload or {} for pt in points]
-        texts = [str(p.get("text", "")) for p in payloads]
-        dense_scores = [min(1.0, max(0.0, float(pt.score))) for pt in points]
-        bm25_norm = _normalize_scores(_bm25_scores(query, texts), preserve_positive_unit=False)
-        lex_scores = [_lexical_overlap(query, text) for text in texts]
-        sparse_scores = [(0.6 * b) + (0.4 * l) for b, l in zip(bm25_norm, lex_scores)]
+        dense_by_id: dict[Any, tuple[dict[str, Any], float]] = {
+            pt.id: (dict(pt.payload or {}), min(1.0, max(0.0, float(pt.score))))
+            for pt in dense_points
+        }
+
+        sparse_by_id: dict[Any, float] = {}
+        corpus_payload_by_id: dict[Any, dict[str, Any]] = {}
+        top_sparse_ids: list[Any] = []
+        if corpus:
+            corpus_texts = [str(payload.get("text", "")) for _, payload in corpus]
+            bm25_norm = _normalize_scores(_bm25_scores(query, corpus_texts), preserve_positive_unit=False)
+            sparse_candidates: list[tuple[Any, float]] = []
+            for (pt_id, payload), b_score, text in zip(corpus, bm25_norm, corpus_texts):
+                corpus_payload_by_id[pt_id] = payload
+                l_score = _lexical_overlap(query, text)
+                s_score = (0.6 * b_score) + (0.4 * l_score)
+                if s_score > 0.0:
+                    sparse_by_id[pt_id] = s_score
+                    sparse_candidates.append((pt_id, s_score))
+            sparse_candidates.sort(key=lambda item: item[1], reverse=True)
+            top_sparse_ids = [pt_id for pt_id, _ in sparse_candidates[:effective_limit]]
+
+        missing_dense_ids = [pt_id for pt_id in top_sparse_ids if pt_id not in dense_by_id]
+        if missing_dense_ids:
+            with self._lock:
+                extra = self.client.query_points(
+                    collection_name=self.COLLECTION_NAME,
+                    query=query_vec,
+                    query_filter=self._models.Filter(
+                        must=[self._models.HasIdCondition(has_id=missing_dense_ids)]
+                    ),
+                    limit=len(missing_dense_ids),
+                    with_payload=True,
+                )
+            for pt in extra.points:
+                dense_by_id[pt.id] = (
+                    dict(pt.payload or corpus_payload_by_id.get(pt.id, {})),
+                    min(1.0, max(0.0, float(pt.score))),
+                )
+
+        candidate_ids = list(dict.fromkeys([*dense_by_id.keys(), *top_sparse_ids]))
+        if not candidate_ids:
+            return []
+
+        payloads: list[dict[str, Any]] = []
+        texts: list[str] = []
+        dense_scores: list[float] = []
+        sparse_scores: list[float] = []
+        for pt_id in candidate_ids:
+            payload, d_score = dense_by_id.get(pt_id, (corpus_payload_by_id.get(pt_id, {}), 0.0))
+            payloads.append(payload)
+            texts.append(str(payload.get("text", "")))
+            dense_scores.append(d_score)
+            sparse_scores.append(sparse_by_id.get(pt_id, 0.0))
 
         def _make_chunk(payload: dict, text: str, score: float) -> RetrievedChunk:
             return RetrievedChunk(

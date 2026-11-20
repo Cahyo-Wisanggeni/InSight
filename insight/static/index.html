@@ -3134,7 +3134,7 @@
         const ragBadge = document.createElement("span");
         ragBadge.className = "rag-meta-badge";
         const modeText = formatRagLabel(meta.rag_mode);
-        const strategy = meta.retrieval_strategy && meta.retrieval_strategy !== "none" && meta.retrieval_strategy !== "greeting"
+        const strategy = meta.retrieval_strategy && meta.retrieval_strategy !== "none"
           ? ` · ${meta.retrieval_strategy}`
           : "";
         ragBadge.textContent = `${modeText}${strategy}`;
@@ -3416,19 +3416,83 @@
       el.chatScroll.scrollTop = el.chatScroll.scrollHeight;
 
       try {
-        const res = await apiFetch("/chat", {
+        const headers = { "Content-Type": "application/json" };
+        if (state.token) {
+          headers["X-InSight-Token"] = state.token;
+        }
+        const streamResp = await fetch("/chat/stream", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({
             question: text,
             session_id: state.sessionId,
             rag_mode: state.ragMode,
           }),
         });
-        pending.remove();
-        renderMessage("assistant", res.answer, res.sources, {
-          rag_mode: res.rag_mode,
-          retrieval_strategy: res.retrieval_strategy,
+        if (!streamResp.ok || !streamResp.body) {
+          let detail = `HTTP ${streamResp.status}`;
+          try {
+            const errJson = await streamResp.json();
+            if (errJson && errJson.detail) detail = errJson.detail;
+          } catch {}
+          throw new Error(detail);
+        }
+
+        const reader = streamResp.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let sseBuffer = "";
+        let meta = { rag_mode: state.ragMode, retrieval_strategy: "", sources: [] };
+        let fullAnswer = "";
+        let liveRow = null;
+        let liveBody = null;
+
+        const ensureLiveBubble = () => {
+          if (liveRow) return;
+          pending.remove();
+          liveRow = document.createElement("article");
+          liveRow.className = "msg-row assistant";
+          const bubble = document.createElement("div");
+          bubble.className = "msg-bubble";
+          liveBody = document.createElement("div");
+          liveBody.className = "msg-markdown";
+          liveBody.style.whiteSpace = "pre-wrap";
+          bubble.appendChild(liveBody);
+          liveRow.appendChild(bubble);
+          el.chatFeed.appendChild(liveRow);
+        };
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          sseBuffer += decoder.decode(value, { stream: true });
+          const frames = sseBuffer.split("\n\n");
+          sseBuffer = frames.pop() || "";
+          for (const frame of frames) {
+            const dataLine = frame
+              .split("\n")
+              .find((line) => line.startsWith("data:"));
+            if (!dataLine) continue;
+            const payload = JSON.parse(dataLine.slice(5).trim());
+            if (payload.type === "meta") {
+              meta = payload;
+              ensureLiveBubble();
+            } else if (payload.type === "token") {
+              ensureLiveBubble();
+              fullAnswer += payload.delta || "";
+              liveBody.textContent = fullAnswer;
+              el.chatScroll.scrollTop = el.chatScroll.scrollHeight;
+            } else if (payload.type === "done") {
+              fullAnswer = payload.answer || fullAnswer;
+            }
+          }
+        }
+
+        if (liveRow) liveRow.remove();
+        else pending.remove();
+
+        renderMessage("assistant", fullAnswer, meta.sources || [], {
+          rag_mode: meta.rag_mode || state.ragMode,
+          retrieval_strategy: meta.retrieval_strategy || "",
           question: text,
         });
         await Promise.all([loadSessions(), loadHealth()]);

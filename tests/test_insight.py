@@ -245,7 +245,7 @@ def test_fallback_parsers_pdf_docx_pptx_xlsx_html(tmp_path: Path, monkeypatch) -
     assert "alert(1)" not in parsed_html.markdown
 
 
-def test_greeting_and_ollama_unreachable_fallback(tmp_path: Path, monkeypatch) -> None:
+def test_empty_docs_and_ollama_unreachable_fallback(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(
         "insight.vectorstore.build_embedder",
         lambda _name: __import__("insight.vectorstore", fromlist=["HashingEmbedder"]).HashingEmbedder(),
@@ -276,21 +276,17 @@ def test_greeting_and_ollama_unreachable_fallback(tmp_path: Path, monkeypatch) -
     app = create_app(InSightEngine(settings))
     client = TestClient(app)
 
-    # Greeting before any upload should give a friendly response, not fail.
-    greet_empty = client.post("/chat", json={"question": "halo?"})
-    assert greet_empty.status_code == 200
-    assert "Halo! Saya InSight" in greet_empty.json()["answer"]
+    # Chat before any upload should prompt the user to upload a document first.
+    empty_res = client.post("/chat", json={"question": "halo?"})
+    assert empty_res.status_code == 200
+    assert "Belum ada dokumen yang diunggah" in empty_res.json()["answer"]
 
-    # Upload a document, test greeting with docs, and test unreachable Ollama fallback.
+    # Upload a document and test unreachable Ollama fallback.
     up = client.post(
         "/documents/upload",
         files={"file": ("kebijakan.md", b"# Keamanan\n\nInSight menyimpan vektor di Qdrant lokal dan riwayat di SQLite.", "text/markdown")},
     )
     assert up.status_code == 200
-
-    greet_with_docs = client.post("/chat", json={"question": "halo"})
-    assert greet_with_docs.status_code == 200
-    assert "kebijakan.md" in greet_with_docs.json()["answer"]
 
     ask_res = client.post("/chat", json={"question": "Di mana InSight menyimpan vektor?"})
     assert ask_res.status_code == 200
@@ -876,7 +872,7 @@ def test_resources_dir_env_routing_and_qwen_05b_default(tmp_path: Path, monkeypa
     assert os.environ["TORCH_HOME"] == str(res_root.resolve() / "torch")
 
     env_settings = Settings.from_env(base_dir=tmp_path / "data")
-    assert env_settings.llm_model == "qwen2.5:0.5b"
+    assert env_settings.llm_model == "unsloth/Qwen3-1.7B-GGUF"
     assert env_settings.resources_dir == res_root.resolve()
 
     dummy_model = res_root / "ollama" / "qwen05b.bin"
@@ -949,6 +945,86 @@ def test_auto_runner_selects_local_gguf_when_ollama_unavailable(tmp_path: Path, 
     assert runner.label == "llamacpp:qwen2.5-0.5b-instruct-q4_k_m.gguf"
     assert captured["model_path"] == str(gguf_file)
     assert runner.generate("Apa isi dokumen?", []) == "GGUF-OK: Apa isi dokumen?"
+
+
+def test_unsloth_qwen3_gguf_resolution_priority_and_think_stripping(tmp_path: Path, monkeypatch) -> None:
+    from insight.llm import AutoRunner, LlamaCppRunner, _strip_thinking_tags, resolve_gguf_model
+    from insight.vectorstore import RetrievedChunk
+
+    res_root = tmp_path / "resources"
+    gguf_dir = res_root / "gguf"
+    gguf_dir.mkdir(parents=True, exist_ok=True)
+    other_gguf = gguf_dir / "qwen2.5-0.5b-instruct-q4_k_m.gguf"
+    other_gguf.write_bytes(b"old")
+
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        sqlite_path=tmp_path / "data" / "insight.sqlite",
+        qdrant_path=tmp_path / "data" / "qdrant_db",
+        upload_dir=tmp_path / "data" / "uploads",
+        llm_backend="auto",
+        llm_model="unsloth/Qwen3-1.7B-GGUF",
+        precision_mode="4bit",
+        max_seq_length=2048,
+        max_new_tokens=256,
+        ollama_url="http://127.0.0.1:19999",
+        embed_model="hashing-fallback",
+        use_reranker=False,
+        rerank_model="cross-encoder/ms-marco-MiniLM-L-6-v2",
+        top_k_candidates=8,
+        top_k_final=3,
+        chunk_size=300,
+        chunk_overlap=50,
+        password="",
+        auto_shutdown=False,
+        shutdown_grace_seconds=4.0,
+        heartbeat_timeout_seconds=25.0,
+        resources_dir=res_root,
+    )
+
+    # Must NOT pick unrelated qwen2.5 GGUF when unsloth/Qwen3-1.7B-GGUF is requested.
+    assert resolve_gguf_model(settings) is None
+
+    qwen3_gguf = gguf_dir / "Qwen3-1.7B-UD-Q4_K_XL.gguf"
+    qwen3_gguf.write_bytes(b"qwen3")
+    assert resolve_gguf_model(settings) == qwen3_gguf
+
+    # Even if Ollama has an unrelated model, AutoRunner must prefer the matching local GGUF.
+    monkeypatch.setattr("insight.llm.resolve_ollama_model", lambda _cfg, timeout=0.5: "other-ollama:latest")
+
+    captured_calls: list[dict] = []
+
+    class FakeLlama:
+        def create_chat_completion(self, **kwargs):
+            captured_calls.append(kwargs)
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": "<think>\ninternal reasoning\n</think>\n\nJawaban final dari dokumen."
+                        }
+                    }
+                ]
+            }
+
+    def _fake_init(self, model_path: Path, cfg: Settings) -> None:
+        self._model = FakeLlama()
+        self.settings = cfg
+        self.model_path = model_path
+        self._is_qwen3 = True
+        self.label = f"llamacpp:{model_path.name}"
+
+    monkeypatch.setattr(LlamaCppRunner, "__init__", _fake_init)
+
+    runner = AutoRunner(settings)
+    assert runner.label == "llamacpp:Qwen3-1.7B-UD-Q4_K_XL.gguf"
+    chunk = RetrievedChunk(doc_id="d1", filename="doc.md", section="Intro", page_label="1", chunk_index=0, text="Isi doc.", score=0.9)
+    answer = runner.generate("Apa isinya?", [chunk])
+    assert answer == "Jawaban final dari dokumen."
+    assert captured_calls[0]["messages"][-1]["content"].endswith("/no_think")
+    assert captured_calls[0]["temperature"] == 0.7
+    assert captured_calls[0]["top_p"] == 0.8
+    assert _strip_thinking_tags("<think>unclosed") == ""
 
 
 def test_qdrant_migrates_when_embedder_name_changes_same_dimension(tmp_path: Path, monkeypatch) -> None:
@@ -1030,4 +1106,110 @@ def test_conversation_memory_front_matter_and_toc_penalty(tmp_path: Path, monkey
     assert captured_histories[-1] is not None
     assert len(captured_histories[-1]) >= 2
     assert captured_histories[-1][0]["content"] == "pada bagian cover siapa penulisnya?"
+    engine.close()
+
+
+def test_true_corpus_wide_bm25_hybrid_retrieval(tmp_path: Path) -> None:
+    from insight.parser import TextChunk
+    from insight.vectorstore import LocalVectorStore
+
+    class BiasDenseEmbedder:
+        dimension = 3
+        name = "bias-dense-3d"
+
+        def embed(self, texts: list[str]) -> list[list[float]]:
+            vecs: list[list[float]] = []
+            for t in texts:
+                if "PASAL_KHUSUS_99" in t and "QUERY:" not in t:
+                    # Orthogonal to query vector so dense-only top_k_candidates=4 misses it completely.
+                    vecs.append([0.0, 1.0, 0.0])
+                elif "QUERY:" in t:
+                    vecs.append([1.0, 0.0, 0.0])
+                else:
+                    # Moderate dense similarity (~0.30) for filler chunks.
+                    vecs.append([0.3, 0.9539, 0.0])
+            return vecs
+
+    store = LocalVectorStore(qdrant_path=tmp_path / "qdrant", embed_model="hashing-fallback")
+    store.embedder = BiasDenseEmbedder()
+    store._ensure_collection()
+
+    chunks = [
+        TextChunk(chunk_index=i, text=f"Dokumen umum paragraf pengisi nomor {i}.", section="Umum", page_label="1")
+        for i in range(15)
+    ]
+    chunks.append(
+        TextChunk(
+            chunk_index=15,
+            text="Ketentuan PASAL_KHUSUS_99 mengatur sanksi administratif lokal.",
+            section="Sanksi",
+            page_label="16",
+        )
+    )
+    store.upsert_chunks("doc-hybrid", "regulasi.md", chunks)
+
+    hits = store.search(
+        query="QUERY: PASAL_KHUSUS_99",
+        top_k_candidates=4,
+        top_k_final=2,
+        strategy="hybrid_search",
+        dense_weight=0.70,
+        sparse_weight=0.30,
+    )
+    assert any("PASAL_KHUSUS_99" in h.text for h in hits)
+    store.close()
+
+
+def test_docling_memory_release_and_chat_stream_sse(tmp_path: Path, monkeypatch) -> None:
+    import json
+    import insight.parser as parser_mod
+    from insight.llm import _stream_filter_think
+
+    # 1. Verify _stream_filter_think strips split <think>...</think> blocks cleanly.
+    raw_chunks = iter(["<thi", "nk>rahasia", " internal</thi", "nk>\n\nJawaban ", "bersih."])
+    assert "".join(_stream_filter_think(raw_chunks)) == "Jawaban bersih."
+
+    # 2. Verify Docling converter is released after parse_file unless INSIGHT_KEEP_DOCLING_LOADED=true.
+    monkeypatch.delenv("INSIGHT_KEEP_DOCLING_LOADED", raising=False)
+    parser_mod._docling_converter = object()
+    monkeypatch.setattr(parser_mod, "_get_docling_converter", lambda: type("C", (), {"convert": lambda self, _p: type("R", (), {"document": type("D", (), {"export_to_markdown": lambda self, **kw: "Isi"})()})()})())
+    pdf_file = tmp_path / "sample.pdf"
+    pdf_file.write_bytes(b"%PDF-1.4\n")
+    parsed = parser_mod.parse_file(pdf_file)
+    assert parsed.parser_used == "docling"
+    assert parser_mod._docling_converter is None
+
+    # 3. Verify POST /chat/stream emits meta, token, and done SSE events and saves history.
+    engine = InSightEngine(_make_settings(tmp_path))
+    doc = tmp_path / "catatan.md"
+    doc.write_text("# Ringkasan\n\nInSight mendukung streaming token SSE.", encoding="utf-8")
+    engine.ingest_file(doc)
+    monkeypatch.setattr(
+        engine.llm,
+        "generate_stream",
+        lambda question, contexts, history=None: iter(["Halo ", "dunia!"]),
+    )
+
+    client = TestClient(create_app(engine=engine))
+    with client.stream(
+        "POST",
+        "/chat/stream",
+        json={"question": "Apa yang didukung InSight?", "session_id": "s-stream", "rag_mode": "hybrid"},
+    ) as resp:
+        assert resp.status_code == 200
+        body = "".join(resp.iter_text())
+
+    events = []
+    for frame in body.strip().split("\n\n"):
+        data_line = next((ln for ln in frame.splitlines() if ln.startswith("data:")), None)
+        if data_line:
+            events.append(json.loads(data_line[5:].strip()))
+
+    assert any(e.get("type") == "meta" and e.get("rag_mode") == "hybrid" for e in events)
+    assert "".join(e.get("delta", "") for e in events if e.get("type") == "token") == "Halo dunia!"
+    assert any(e.get("type") == "done" and e.get("answer") == "Halo dunia!" for e in events)
+
+    hist = client.get("/history", params={"session_id": "s-stream"}).json()["messages"]
+    assert hist[-1]["role"] == "assistant"
+    assert hist[-1]["content"] == "Halo dunia!"
     engine.close()

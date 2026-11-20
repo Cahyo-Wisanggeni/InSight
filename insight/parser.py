@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import gc
+import os
 import re
 import threading
 from dataclasses import dataclass
@@ -81,6 +83,15 @@ def _get_docling_converter():
         return _docling_converter
 
 
+def release_docling_converter() -> None:
+    """Release the cached Docling converter so its RAM is freed for LLM inference."""
+    global _docling_converter
+    with _docling_lock:
+        if _docling_converter is not None:
+            _docling_converter = None
+            gc.collect()
+
+
 def _add_pdf_page_markers(raw_markdown: str) -> str:
     """Convert Docling page-break placeholders into numbered INSIGHT_PAGE markers."""
     if not raw_markdown.strip():
@@ -134,6 +145,14 @@ def parse_file(file_path: Path) -> ParsedDocument:
                     f"Format '{ext}' membutuhkan Docling. Install dengan: pip install docling"
                 ) from exc
             raise RuntimeError(f"Gagal memproses '{file_path.name}': {exc}") from exc
+        finally:
+            if os.getenv("INSIGHT_KEEP_DOCLING_LOADED", "false").strip().lower() not in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            }:
+                release_docling_converter()
 
     raise ValueError(f"Unsupported file type: '{ext or 'unknown'}'")
 

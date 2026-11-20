@@ -27,7 +27,7 @@ flowchart LR
     API -->|"Parse ke Markdown + Halaman"| Parser["Docling / Fallback Parsers"]
     Parser -->|"Chunks + Gabung Tabel"| Qdrant["Qdrant Local (Dense + BM25 Sparse)"]
     API -->|"Metadata & Riwayat"| SQLite["SQLite (insight.sqlite)"]
-    Qdrant -->|"HybridRAG atau AdaptiveRAG + Optional Reranker"| LLM["LLM Lokal (Ollama qwen2.5:0.5b / HF / local_smart)"]
+    Qdrant -->|"HybridRAG atau AdaptiveRAG + Optional Reranker"| LLM["LLM Lokal (unsloth/Qwen3-1.7B-GGUF via llama.cpp / Ollama / HF / local_smart)"]
 ```
 
 ### Fitur Utama
@@ -106,8 +106,9 @@ Salin `.env.example` jika ingin mengatur konfigurasi secara persisten:
 | `INSIGHT_TOKEN_TTL_SECONDS` | `43200` | Masa berlaku token sesi login dalam detik (default 12 jam) |
 | `INSIGHT_LOGIN_MAX_ATTEMPTS` | `5` | Batas percobaan login gagal per IP sebelum diblokir `HTTP 429` |
 | `INSIGHT_LOGIN_WINDOW_SECONDS` | `60` | Jendela waktu rate-limit login dalam detik |
-| `INSIGHT_LLM_BACKEND` | `auto` | Pilihan: `auto`, `llamacpp`, `local_smart`, `retrieval_only`, `ollama`, `unsloth`, `hf` |
-| `INSIGHT_LLM_MODEL` | `qwen2.5:0.5b` | Nama model lokal (Ollama / GGUF `resources/gguf` / Hugging Face) |
+| `INSIGHT_LLM_BACKEND` | `auto` (`llamacpp` di `.env.example`) | Pilihan: `auto`, `llamacpp`, `local_smart`, `retrieval_only`, `ollama`, `unsloth`, `hf` |
+| `INSIGHT_LLM_MODEL` | `unsloth/Qwen3-1.7B-GGUF` | Repo/model LLM lokal (GGUF `resources/gguf`, Ollama, atau Hugging Face) |
+| `INSIGHT_GGUF_FILE` | `Qwen3-1.7B-UD-Q4_K_XL.gguf` | Nama file `.gguf` pilihan dari repo `unsloth/Qwen3-1.7B-GGUF` |
 | `INSIGHT_PRECISION` | `4bit` | Presisi model: `4bit`, `8bit`, atau `full` |
 | `INSIGHT_RAG_MODE` | `hybrid` | Pilihan metode RAG (hanya 2 opsi): `hybrid` (`HybridRAG`) atau `adaptive` (`AdaptiveRAG`) |
 | `INSIGHT_EMBED_MODEL` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | Model embedding multibahasa (Indonesia/Inggris) Step 1 |

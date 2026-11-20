@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -10,6 +12,8 @@ from typing import Any, Literal
 PrecisionMode = Literal["4bit", "8bit", "full"]
 LLMBackend = Literal["auto", "llamacpp", "local_smart", "unsloth", "hf", "ollama", "retrieval_only"]
 RAGMode = Literal["hybrid", "adaptive"]
+DEFAULT_LLM_MODEL = "unsloth/Qwen3-1.7B-GGUF"
+DEFAULT_GGUF_FILENAME = "Qwen3-1.7B-UD-Q4_K_XL.gguf"
 DEFAULT_RESOURCES_DIR = Path(__file__).resolve().parent.parent.parent / "resources"
 RESOURCE_SUBDIRS = ("huggingface", "huggingface/hub", "fastembed", "ollama", "gguf", "torch", "cache")
 
@@ -107,6 +111,24 @@ def summarize_resources(resources_dir: Path) -> dict[str, Any]:
     }
 
 
+_resources_cache_lock = threading.Lock()
+_resources_cache: dict[str, tuple[float, dict[str, Any]]] = {}
+
+
+def summarize_resources_cached(resources_dir: Path, ttl_seconds: float = 30.0) -> dict[str, Any]:
+    """Return a TTL-cached resource summary to avoid repeated rglob scans on /health."""
+    key = str(resources_dir.resolve())
+    now = time.monotonic()
+    with _resources_cache_lock:
+        cached = _resources_cache.get(key)
+        if cached is not None and (now - cached[0]) < ttl_seconds:
+            return cached[1]
+    summary = summarize_resources(resources_dir)
+    with _resources_cache_lock:
+        _resources_cache[key] = (time.monotonic(), summary)
+    return summary
+
+
 def load_env_file(env_path: Path | None = None) -> bool:
     """Load variables from a local .env file without overriding existing OS env vars."""
     loaded = False
@@ -182,7 +204,7 @@ class Settings:
             qdrant_path=Path(os.getenv("INSIGHT_QDRANT_PATH", str(root / "qdrant_db"))).resolve(),
             upload_dir=Path(os.getenv("INSIGHT_UPLOAD_DIR", str(root / "uploads"))).resolve(),
             llm_backend=backend,  # type: ignore[arg-type]
-            llm_model=os.getenv("INSIGHT_LLM_MODEL", "qwen2.5:0.5b"),
+            llm_model=os.getenv("INSIGHT_LLM_MODEL", DEFAULT_LLM_MODEL),
             precision_mode=precision,  # type: ignore[arg-type]
             max_seq_length=int(os.getenv("INSIGHT_MAX_SEQ_LENGTH", "4096")),
             max_new_tokens=int(os.getenv("INSIGHT_MAX_NEW_TOKENS", "512")),

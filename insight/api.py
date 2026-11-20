@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hmac
+import json
 import secrets
 import tempfile
 import threading
@@ -14,11 +15,18 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 from insight import __version__
-from insight.config import DEFAULT_RESOURCES_DIR, Settings, load_env_file, summarize_resources
+from insight.config import (
+    DEFAULT_RESOURCES_DIR,
+    Settings,
+    load_env_file,
+    normalize_rag_mode,
+    summarize_resources,
+    summarize_resources_cached,
+)
 from insight.rag import VALID_RAG_MODES, InSightEngine
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -203,7 +211,7 @@ def create_app(engine: InSightEngine | None = None, settings: Settings | None = 
     @app.get("/health")
     def health() -> dict:
         docs = rag.list_documents()
-        res_summary = summarize_resources(app_settings.resources_dir or DEFAULT_RESOURCES_DIR)
+        res_summary = summarize_resources_cached(app_settings.resources_dir or DEFAULT_RESOURCES_DIR)
         return {
             "status": "ok",
             "version": __version__,
@@ -335,6 +343,36 @@ def create_app(engine: InSightEngine | None = None, settings: Settings | None = 
             "retrieval_strategy": result.retrieval_strategy,
             "query_analysis": result.query_analysis,
         }
+
+    @app.post("/chat/stream", dependencies=[Depends(require_auth)])
+    def chat_stream(payload: ChatRequest) -> StreamingResponse:
+        cleaned = payload.question.strip()
+        if not cleaned:
+            raise HTTPException(status_code=400, detail="Question cannot be empty.")
+        try:
+            if payload.rag_mode is not None:
+                normalize_rag_mode(payload.rag_mode, default=rag.settings.rag_mode, strict=True)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        def _event_iter():
+            tracker.begin_request()
+            try:
+                for event in rag.ask_stream(
+                    question=cleaned,
+                    session_id=payload.session_id,
+                    rag_mode=payload.rag_mode,
+                ):
+                    evt_type = event.get("type", "message")
+                    yield f"event: {evt_type}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
+            finally:
+                tracker.end_request()
+
+        return StreamingResponse(
+            _event_iter(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     @app.get("/history", dependencies=[Depends(require_auth)])
     def get_history(session_id: str = "default") -> dict:

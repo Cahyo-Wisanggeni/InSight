@@ -6,10 +6,10 @@ import re
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 from insight.config import RAGMode, Settings, normalize_rag_mode
-from insight.llm import LazyLLM, is_greeting
+from insight.llm import LazyLLM
 from insight.parser import chunk_markdown, parse_file
 from insight.storage import DocumentRecord, MessageRecord, SessionSummary, SQLiteStore
 from insight.vectorstore import STOPWORDS, TOKEN_RE, LocalVectorStore, RetrievedChunk, _lexical_overlap
@@ -212,7 +212,7 @@ class InSightEngine:
 
     @staticmethod
     def _contextualize_query(question: str, prior_messages: list[MessageRecord]) -> str:
-        """Expand short or anaphoric follow-ups using the most recent non-greeting user turn."""
+        """Expand short or anaphoric follow-ups using the most recent user turn."""
         if not prior_messages:
             return question
         q_lower = question.lower().strip()
@@ -231,7 +231,7 @@ class InSightEngine:
         prev_users = [
             m.content.strip()
             for m in prior_messages
-            if m.role == "user" and m.content.strip() and not is_greeting(m.content)
+            if m.role == "user" and m.content.strip()
         ]
         if not prev_users:
             return question
@@ -368,12 +368,21 @@ class InSightEngine:
             uploaded.unlink()
         return True
 
-    def ask(
+    def _prepare_ask(
         self,
         question: str,
         session_id: str = "default",
         rag_mode: str | None = None,
-    ) -> ChatResult:
+    ) -> tuple[
+        str,
+        RAGMode,
+        str,
+        dict[str, Any] | None,
+        list[dict[str, str]],
+        list[RetrievedChunk],
+        list[dict[str, Any]],
+        str | None,
+    ]:
         cleaned = question.strip()
         if not cleaned:
             raise ValueError("Question cannot be empty.")
@@ -391,52 +400,32 @@ class InSightEngine:
         chat_history = [
             {"role": m.role, "content": m.content}
             for m in prior_messages[-6:]
-            if m.role in {"user", "assistant"} and not is_greeting(m.content)
+            if m.role in {"user", "assistant"}
         ]
         retrieval_query = self._contextualize_query(cleaned, prior_messages)
-
         self.store.add_message(session_id=session_id, role="user", content=cleaned)
 
         docs = self.store.list_documents()
         if not docs:
-            if is_greeting(cleaned):
-                answer = (
-                    "Halo! Saya InSight, asisten dokumen pribadi Anda. "
-                    "Saat ini belum ada dokumen di ruang kerja. Silakan klik tombol '+' atau 'Unggah Dokumen' "
-                    "di panel kiri untuk mengunggah file (PDF, DOCX, PPTX, XLSX, HTML, Markdown, TXT, CSV, atau JSON), "
-                    "lalu tanyakan isinya kepada saya."
-                )
-            else:
-                answer = (
-                    "Belum ada dokumen yang diunggah untuk menjawab pertanyaan tersebut. "
-                    "Silakan klik '+' atau 'Unggah Dokumen' di panel kiri untuk menambahkan dokumen terlebih dahulu."
-                )
-            self.store.add_message(session_id=session_id, role="assistant", content=answer, sources=[])
-            return ChatResult(
-                answer=answer,
-                sources=[],
-                session_id=session_id,
-                rag_mode=selected_mode,
-                retrieval_strategy="greeting" if is_greeting(cleaned) else "none",
-                query_analysis=query_analysis,
+            empty_answer = (
+                "Belum ada dokumen yang diunggah untuk menjawab pertanyaan tersebut. "
+                "Silakan klik '+' atau 'Unggah Dokumen' di panel kiri untuk menambahkan dokumen terlebih dahulu."
             )
-
-        if is_greeting(cleaned):
-            unique_names = list(dict.fromkeys(doc.filename for doc in docs))
-            doc_names = ", ".join(unique_names[:5])
-            extra = f" (dan {len(unique_names) - 5} lainnya)" if len(unique_names) > 5 else ""
-            answer = (
-                f"Halo! Saat ini ada {len(docs)} dokumen siap ditelusuri: {doc_names}{extra}. "
-                "Silakan tanyakan bagian yang ingin Anda cari atau minta ringkasannya."
-            )
-            self.store.add_message(session_id=session_id, role="assistant", content=answer, sources=[])
-            return ChatResult(
-                answer=answer,
-                sources=[],
+            self.store.add_message(
                 session_id=session_id,
-                rag_mode=selected_mode,
-                retrieval_strategy="greeting",
-                query_analysis=query_analysis,
+                role="assistant",
+                content=empty_answer,
+                sources=[],
+            )
+            return (
+                cleaned,
+                selected_mode,
+                "none",
+                query_analysis,
+                chat_history,
+                [],
+                [],
+                empty_answer,
             )
 
         if selected_mode == "adaptive":
@@ -447,7 +436,6 @@ class InSightEngine:
             retrieved, retrieval_strategy = self._retrieve_hybrid(retrieval_query)
 
         retrieved = self._merge_front_matter(retrieval_query, retrieved)
-
         sources = [
             {
                 "doc_id": item.doc_id,
@@ -460,6 +448,43 @@ class InSightEngine:
             }
             for item in retrieved
         ]
+        return (
+            cleaned,
+            selected_mode,
+            retrieval_strategy,
+            query_analysis,
+            chat_history,
+            retrieved,
+            sources,
+            None,
+        )
+
+    def ask(
+        self,
+        question: str,
+        session_id: str = "default",
+        rag_mode: str | None = None,
+    ) -> ChatResult:
+        (
+            cleaned,
+            selected_mode,
+            retrieval_strategy,
+            query_analysis,
+            chat_history,
+            retrieved,
+            sources,
+            empty_answer,
+        ) = self._prepare_ask(question, session_id=session_id, rag_mode=rag_mode)
+
+        if empty_answer is not None:
+            return ChatResult(
+                answer=empty_answer,
+                sources=[],
+                session_id=session_id,
+                rag_mode=selected_mode,
+                retrieval_strategy="none",
+                query_analysis=query_analysis,
+            )
 
         answer = self.llm.generate(question=cleaned, contexts=retrieved, history=chat_history)
         self.store.add_message(
@@ -476,6 +501,51 @@ class InSightEngine:
             retrieval_strategy=retrieval_strategy,
             query_analysis=query_analysis,
         )
+
+    def ask_stream(
+        self,
+        question: str,
+        session_id: str = "default",
+        rag_mode: str | None = None,
+    ) -> Iterator[dict[str, Any]]:
+        (
+            cleaned,
+            selected_mode,
+            retrieval_strategy,
+            query_analysis,
+            chat_history,
+            retrieved,
+            sources,
+            empty_answer,
+        ) = self._prepare_ask(question, session_id=session_id, rag_mode=rag_mode)
+
+        yield {
+            "type": "meta",
+            "session_id": session_id,
+            "rag_mode": selected_mode,
+            "retrieval_strategy": retrieval_strategy,
+            "query_analysis": query_analysis,
+            "sources": sources,
+        }
+
+        if empty_answer is not None:
+            yield {"type": "token", "delta": empty_answer}
+            yield {"type": "done", "answer": empty_answer}
+            return
+
+        parts: list[str] = []
+        for delta in self.llm.generate_stream(question=cleaned, contexts=retrieved, history=chat_history):
+            if delta:
+                parts.append(delta)
+                yield {"type": "token", "delta": delta}
+        answer = "".join(parts).strip()
+        self.store.add_message(
+            session_id=session_id,
+            role="assistant",
+            content=answer,
+            sources=sources,
+        )
+        yield {"type": "done", "answer": answer}
 
     def get_history(self, session_id: str = "default") -> list[MessageRecord]:
         return self.store.list_messages(session_id=session_id)

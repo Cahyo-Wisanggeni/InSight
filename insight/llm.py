@@ -2,56 +2,87 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
 import subprocess
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Iterator, Protocol
 
-from insight.config import Settings
+from insight.config import DEFAULT_GGUF_FILENAME, DEFAULT_LLM_MODEL, DEFAULT_RESOURCES_DIR, Settings
 from insight.vectorstore import STOPWORDS, RetrievedChunk
 
-GREETING_WORDS = {
-    "halo",
-    "hai",
-    "hi",
-    "hello",
-    "hey",
-    "pagi",
-    "siang",
-    "sore",
-    "malam",
-    "tes",
-    "test",
-    "ping",
-    "bantuan",
-    "help",
-}
-GREETING_PHRASES = {
-    "apa kabar",
-    "bisa apa",
-    "selamat pagi",
-    "selamat siang",
-    "selamat sore",
-    "selamat malam",
-}
 QUERY_TOKEN_RE = re.compile(r"[A-Za-z0-9_]{2,}")
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
+THINK_BLOCK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL | re.IGNORECASE)
+THINK_OPEN_RE = re.compile(r"<think>.*$", re.DOTALL | re.IGNORECASE)
 
 
-def is_greeting(text: str) -> bool:
-    """Return True when the user sent a short conversational greeting or help check."""
-    cleaned = re.sub(r"[^\w\s]", " ", text.lower()).strip()
-    cleaned = re.sub(r"\s+", " ", cleaned)
-    if not cleaned:
-        return False
-    if cleaned in GREETING_WORDS or cleaned in GREETING_PHRASES:
-        return True
-    words = cleaned.split()
-    return len(words) <= 3 and all(w in GREETING_WORDS for w in words)
+def _strip_thinking_tags(text: str) -> str:
+    """Remove Qwen3 <think>...</think> reasoning blocks so only the final answer is returned."""
+    cleaned = THINK_BLOCK_RE.sub("", text)
+    cleaned = THINK_OPEN_RE.sub("", cleaned)
+    return cleaned.strip()
+
+
+def _stream_filter_think(chunks: Iterator[str]) -> Iterator[str]:
+    """Filter <think>...</think> blocks from a token stream without leaking raw tags."""
+    in_think = False
+    buf = ""
+    open_tag = "<think>"
+    close_tag = "</think>"
+
+    for delta in chunks:
+        if not delta:
+            continue
+        buf += delta
+        while buf:
+            if in_think:
+                end_idx = buf.lower().find(close_tag)
+                if end_idx == -1:
+                    keep = len(close_tag) - 1
+                    buf = buf[-keep:] if len(buf) > keep else buf
+                    break
+                buf = buf[end_idx + len(close_tag) :].lstrip()
+                in_think = False
+            else:
+                start_idx = buf.lower().find(open_tag)
+                if start_idx != -1:
+                    if start_idx > 0:
+                        yield buf[:start_idx]
+                    buf = buf[start_idx + len(open_tag) :]
+                    in_think = True
+                else:
+                    hold = 0
+                    lower_buf = buf.lower()
+                    for k in range(min(len(buf), len(open_tag) - 1), 0, -1):
+                        if open_tag.startswith(lower_buf[-k:]):
+                            hold = k
+                            break
+                    if hold:
+                        emit = buf[:-hold]
+                        if emit:
+                            yield emit
+                        buf = buf[-hold:]
+                        break
+                    yield buf
+                    buf = ""
+
+    if not in_think and buf:
+        yield buf
+
+
+def _is_qwen3_model(name: str) -> bool:
+    return "qwen3" in re.sub(r"[^a-z0-9]+", "", name.lower())
+
+
+def _is_gguf_repo_or_file(model_name: str) -> bool:
+    lower = model_name.strip().lower()
+    return lower.endswith(".gguf") or ("/" in lower and "gguf" in lower)
 
 SYSTEM_PROMPT = (
     "You are InSight, a private document assistant. "
@@ -117,24 +148,11 @@ def build_prompt(
 
 
 class SmartLocalRunner:
-    """Zero-download local synthesis runner with greeting awareness and extractive summary."""
+    """Zero-download local synthesis runner using extractive summary."""
 
     label = "local_smart"
 
     def generate(self, question: str, contexts: list[RetrievedChunk]) -> str:
-        if is_greeting(question):
-            if not contexts:
-                return (
-                    "Halo! Saya InSight, asisten dokumen pribadi Anda. "
-                    "Saat ini belum ada dokumen di ruang kerja. Klik '+' atau 'Unggah Dokumen' di panel kiri "
-                    "untuk menambahkan file, lalu tanyakan isinya kepada saya."
-                )
-            names = list(dict.fromkeys(ctx.filename for ctx in contexts))
-            return (
-                f"Halo! Dokumen Anda siap ditelusuri ({', '.join(names)}). "
-                "Silakan ajukan pertanyaan spesifik atau minta ringkasan isinya."
-            )
-
         if not contexts:
             return "Tidak ada potongan dokumen yang relevan ditemukan."
 
@@ -224,12 +242,56 @@ class OllamaRunner:
             )
             response.raise_for_status()
             data = response.json()
-            content = str(data.get("message", {}).get("content", "")).strip()
+            content = _strip_thinking_tags(str(data.get("message", {}).get("content", "")))
             if content:
                 return content
         except Exception:
             pass
         return SmartLocalRunner().generate(question, contexts)
+
+    def generate_stream(
+        self,
+        question: str,
+        contexts: list[RetrievedChunk],
+        history: list[dict[str, str]] | None = None,
+    ) -> Iterator[str]:
+        import httpx
+
+        user_prompt = build_prompt(question, contexts, history=history)
+        emitted = False
+        try:
+            def _raw_tokens() -> Iterator[str]:
+                with httpx.stream(
+                    "POST",
+                    f"{self.base_url}/api/chat",
+                    json={
+                        "model": self.model,
+                        "stream": True,
+                        "messages": [
+                            {"role": "system", "content": SYSTEM_PROMPT},
+                            {"role": "user", "content": user_prompt},
+                        ],
+                    },
+                    timeout=120.0,
+                ) as response:
+                    response.raise_for_status()
+                    for line in response.iter_lines():
+                        if not line:
+                            continue
+                        data = json.loads(line)
+                        delta = str(data.get("message", {}).get("content", ""))
+                        if delta:
+                            yield delta
+
+            for token in _stream_filter_think(_raw_tokens()):
+                emitted = True
+                yield token
+        except Exception:
+            if not emitted:
+                yield SmartLocalRunner().generate(question, contexts)
+            return
+        if not emitted:
+            yield SmartLocalRunner().generate(question, contexts)
 
 
 def find_ollama_executable() -> str | None:
@@ -259,7 +321,11 @@ def resolve_ollama_model(settings: Settings, timeout: float = 0.5) -> str | None
             models = [m.get("name", "") for m in res.json().get("models", []) if m.get("name")]
             if models:
                 target = settings.llm_model
-                return target if target in models else models[0]
+                if target in models:
+                    return target
+                if _is_gguf_repo_or_file(target):
+                    return None
+                return models[0]
     except Exception:
         pass
     return None
@@ -313,6 +379,12 @@ def ensure_ollama_running(settings: Settings, wait_seconds: float = 5.0) -> bool
     return False
 
 
+def _normalize_model_key(raw: str) -> str:
+    leaf = raw.strip().split("/")[-1]
+    leaf = re.sub(r"(?i)(?:[-_]?gguf)+$", "", leaf)
+    return re.sub(r"[^a-z0-9]+", "", leaf.lower())
+
+
 def resolve_gguf_model(settings: Settings) -> Path | None:
     """Locate a local .gguf model file under INSIGHT_GGUF_PATH or resources/gguf."""
     explicit = os.getenv("INSIGHT_GGUF_PATH", "").strip()
@@ -330,13 +402,69 @@ def resolve_gguf_model(settings: Settings) -> Path | None:
     ggufs = sorted(p for p in gguf_dir.rglob("*.gguf") if p.is_file())
     if not ggufs:
         return None
-    # Prefer a GGUF file matching the configured model family (e.g. qwen2.5 / 0.5b)
-    norm_target = re.sub(r"[^a-z0-9]+", "", settings.llm_model.lower())
-    for item in ggufs:
-        norm_name = re.sub(r"[^a-z0-9]+", "", item.stem.lower())
-        if norm_target and norm_target in norm_name:
-            return item
+
+    preferred_file = os.getenv("INSIGHT_GGUF_FILE", "").strip()
+    if preferred_file:
+        for item in ggufs:
+            if item.name.lower() == preferred_file.lower():
+                return item
+
+    norm_target = _normalize_model_key(settings.llm_model)
+    matches = [
+        item for item in ggufs
+        if norm_target and norm_target in re.sub(r"[^a-z0-9]+", "", item.stem.lower())
+    ]
+    if matches:
+        for item in matches:
+            if item.name.lower() == DEFAULT_GGUF_FILENAME.lower():
+                return item
+        for item in matches:
+            if "q4km" in re.sub(r"[^a-z0-9]+", "", item.stem.lower()):
+                return item
+        return matches[0]
+    if _is_gguf_repo_or_file(settings.llm_model):
+        return None
     return ggufs[0]
+
+
+def ensure_gguf_model(settings: Settings) -> Path | None:
+    """Download the configured Hugging Face GGUF file into resources/gguf if not yet cached locally."""
+    if settings.llm_backend not in {"auto", "llamacpp"}:
+        return None
+    existing = resolve_gguf_model(settings)
+    if existing is not None:
+        return existing
+    if "/" not in settings.llm_model or "gguf" not in settings.llm_model.lower():
+        return None
+
+    gguf_dir = ((settings.resources_dir or DEFAULT_RESOURCES_DIR) / "gguf").resolve()
+    gguf_dir.mkdir(parents=True, exist_ok=True)
+    filename = os.getenv("INSIGHT_GGUF_FILE", "").strip()
+    if not filename and settings.llm_model.strip().lower() == DEFAULT_LLM_MODEL.lower():
+        filename = DEFAULT_GGUF_FILENAME
+
+    try:
+        from huggingface_hub import HfApi, hf_hub_download
+
+        if not filename:
+            files = [f for f in HfApi().list_repo_files(settings.llm_model) if f.lower().endswith(".gguf")]
+            for preferred in ("UD-Q4_K_XL", "Q4_K_M", "Q4_K_S"):
+                hit = next((f for f in files if preferred.lower() in f.lower()), None)
+                if hit:
+                    filename = hit
+                    break
+            if not filename and files:
+                filename = files[0]
+        if not filename:
+            return None
+        downloaded = hf_hub_download(
+            repo_id=settings.llm_model,
+            filename=filename,
+            local_dir=str(gguf_dir),
+        )
+        return Path(downloaded)
+    except Exception:
+        return None
 
 
 class LlamaCppRunner:
@@ -345,8 +473,9 @@ class LlamaCppRunner:
     def __init__(self, model_path: Path, settings: Settings) -> None:
         from llama_cpp import Llama
 
-        n_ctx = max(512, min(settings.max_seq_length, 2048))
-        n_threads = max(1, min(4, os.cpu_count() or 2))
+        n_ctx = max(512, settings.max_seq_length)
+        n_threads = max(1, min(8, os.cpu_count() or 4))
+        self._lock = threading.Lock()
         self._model = Llama(
             model_path=str(model_path),
             n_ctx=n_ctx,
@@ -355,7 +484,45 @@ class LlamaCppRunner:
         )
         self.settings = settings
         self.model_path = model_path
+        self._is_qwen3 = _is_qwen3_model(model_path.name) or _is_qwen3_model(settings.llm_model)
         self.label = f"llamacpp:{model_path.name}"
+
+    def _prepare_chat_call(
+        self,
+        question: str,
+        contexts: list[RetrievedChunk],
+        history: list[dict[str, str]] | None = None,
+    ) -> tuple[list[dict[str, str]], dict]:
+        user_prompt = build_prompt(question, contexts, history=history)
+        if self._is_qwen3:
+            user_prompt = f"{user_prompt}\n/no_think"
+            sampling = {
+                "max_tokens": min(self.settings.max_new_tokens, 512),
+                "temperature": 0.7,
+                "top_p": 0.8,
+                "top_k": 20,
+                "min_p": 0.0,
+                "repeat_penalty": 1.1,
+            }
+        else:
+            sampling = {
+                "max_tokens": min(self.settings.max_new_tokens, 320),
+                "temperature": 0.2,
+                "top_p": 0.9,
+                "repeat_penalty": 1.18,
+            }
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt},
+        ]
+        return messages, sampling
+
+    def _get_lock(self) -> threading.Lock:
+        lock = getattr(self, "_lock", None)
+        if lock is None:
+            lock = threading.Lock()
+            self._lock = lock
+        return lock
 
     def generate(
         self,
@@ -363,28 +530,51 @@ class LlamaCppRunner:
         contexts: list[RetrievedChunk],
         history: list[dict[str, str]] | None = None,
     ) -> str:
-        user_prompt = build_prompt(question, contexts, history=history)
+        messages, sampling = self._prepare_chat_call(question, contexts, history=history)
         try:
-            response = self._model.create_chat_completion(
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-                max_tokens=min(self.settings.max_new_tokens, 320),
-                temperature=0.2,
-                top_p=0.9,
-                repeat_penalty=1.18,
-            )
-            content = str(response["choices"][0]["message"]["content"] or "").strip()
+            with self._get_lock():
+                response = self._model.create_chat_completion(messages=messages, **sampling)
+            content = _strip_thinking_tags(str(response["choices"][0]["message"]["content"] or ""))
             if content:
                 return content
         except Exception:
             pass
         return SmartLocalRunner().generate(question, contexts)
 
+    def generate_stream(
+        self,
+        question: str,
+        contexts: list[RetrievedChunk],
+        history: list[dict[str, str]] | None = None,
+    ) -> Iterator[str]:
+        messages, sampling = self._prepare_chat_call(question, contexts, history=history)
+        emitted = False
+        try:
+            def _raw_tokens() -> Iterator[str]:
+                with self._get_lock():
+                    stream = self._model.create_chat_completion(
+                        messages=messages,
+                        stream=True,
+                        **sampling,
+                    )
+                    for chunk in stream:
+                        delta = str(chunk["choices"][0].get("delta", {}).get("content") or "")
+                        if delta:
+                            yield delta
+
+            for token in _stream_filter_think(_raw_tokens()):
+                emitted = True
+                yield token
+        except Exception:
+            if not emitted:
+                yield SmartLocalRunner().generate(question, contexts)
+            return
+        if not emitted:
+            yield SmartLocalRunner().generate(question, contexts)
+
 
 class AutoRunner:
-    """Uses local Ollama, local GGUF (llama-cpp-python), or SmartLocalRunner fallback."""
+    """Uses local GGUF (llama-cpp-python), local Ollama, or SmartLocalRunner fallback."""
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -393,15 +583,24 @@ class AutoRunner:
 
     @staticmethod
     def _resolve(settings: Settings) -> LLMRunner:
+        prefer_gguf = _is_gguf_repo_or_file(settings.llm_model)
+        if prefer_gguf:
+            gguf_path = resolve_gguf_model(settings)
+            if gguf_path is not None:
+                try:
+                    return LlamaCppRunner(gguf_path, settings)
+                except Exception:
+                    pass
         chosen = resolve_ollama_model(settings)
         if chosen:
             return OllamaRunner(chosen, settings.ollama_url)
-        gguf_path = resolve_gguf_model(settings)
-        if gguf_path is not None:
-            try:
-                return LlamaCppRunner(gguf_path, settings)
-            except Exception:
-                pass
+        if not prefer_gguf:
+            gguf_path = resolve_gguf_model(settings)
+            if gguf_path is not None:
+                try:
+                    return LlamaCppRunner(gguf_path, settings)
+                except Exception:
+                    pass
         return SmartLocalRunner()
 
     def generate(
@@ -415,6 +614,18 @@ class AutoRunner:
             self._delegate = refreshed
             self.label = refreshed.label
         return _call_runner_generate(self._delegate, question, contexts, history=history)
+
+    def generate_stream(
+        self,
+        question: str,
+        contexts: list[RetrievedChunk],
+        history: list[dict[str, str]] | None = None,
+    ) -> Iterator[str]:
+        if isinstance(self._delegate, SmartLocalRunner):
+            refreshed = self._resolve(self.settings)
+            self._delegate = refreshed
+            self.label = refreshed.label
+        return _call_runner_generate_stream(self._delegate, question, contexts, history=history)
 
 
 class UnslothRunner:
@@ -459,7 +670,7 @@ class UnslothRunner:
                 do_sample=False,
             )
         generated = output_ids[0][inputs["input_ids"].shape[1] :]
-        return self._tokenizer.decode(generated, skip_special_tokens=True).strip()
+        return _strip_thinking_tags(self._tokenizer.decode(generated, skip_special_tokens=True))
 
 
 class HuggingFaceRunner:
@@ -514,7 +725,7 @@ class HuggingFaceRunner:
                 do_sample=False,
             )
         generated = output_ids[0][inputs["input_ids"].shape[1] :]
-        return self._tokenizer.decode(generated, skip_special_tokens=True).strip()
+        return _strip_thinking_tags(self._tokenizer.decode(generated, skip_special_tokens=True))
 
 
 def _call_runner_generate(
@@ -529,6 +740,23 @@ def _call_runner_generate(
         except TypeError:
             pass
     return runner.generate(question, contexts)
+
+
+def _call_runner_generate_stream(
+    runner: LLMRunner,
+    question: str,
+    contexts: list[RetrievedChunk],
+    history: list[dict[str, str]] | None = None,
+) -> Iterator[str]:
+    stream_fn = getattr(runner, "generate_stream", None)
+    if callable(stream_fn):
+        try:
+            yield from stream_fn(question, contexts, history=history)
+            return
+        except TypeError:
+            yield from stream_fn(question, contexts)
+            return
+    yield _call_runner_generate(runner, question, contexts, history=history)
 
 
 @dataclass
@@ -603,3 +831,11 @@ class LazyLLM:
         history: list[dict[str, str]] | None = None,
     ) -> str:
         return _call_runner_generate(self._get_runner(), question, contexts, history=history)
+
+    def generate_stream(
+        self,
+        question: str,
+        contexts: list[RetrievedChunk],
+        history: list[dict[str, str]] | None = None,
+    ) -> Iterator[str]:
+        return _call_runner_generate_stream(self._get_runner(), question, contexts, history=history)
