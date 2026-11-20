@@ -2342,8 +2342,10 @@
               </div>
 
               <div class="toolbar-right">
+                <label for="model-select" class="sr-only">Pilih Model</label>
+                <select id="model-select" class="rag-select" aria-label="Pilih Model LLM" title="Pilih Model LLM"></select>
                 <button type="button" id="model-trigger-btn" class="model-trigger-btn">
-                  <span id="model-label">retrieval_only · 4bit</span>
+                  <span id="model-label">llamacpp · 4bit</span>
                 </button>
               </div>
             </div>
@@ -2361,7 +2363,10 @@
         <dt>LLM Backend</dt>
         <dd id="set-backend">-</dd>
         <dt>LLM Model</dt>
-        <dd id="set-model">-</dd>
+        <dd>
+          <select id="settings-model-select" class="rag-select" style="width: 100%; max-width: 280px; margin-bottom: 4px;"></select>
+          <div id="set-model" style="font-size: 0.72rem; color: var(--ink-muted);">-</div>
+        </dd>
         <dt>Metode RAG</dt>
         <dd id="set-rag-mode">-</dd>
         <dt>Presisi</dt>
@@ -2455,6 +2460,9 @@
       serverOffline: false,
       workspaceView: "chat",
       lastQuestion: "",
+      models: [],
+      activeModelId: "",
+      switchingModel: false,
     };
 
     const el = {
@@ -2506,6 +2514,8 @@
       modeChatBtn: document.getElementById("mode-chat-btn"),
       modeDocsBtn: document.getElementById("mode-docs-btn"),
       ragModeSelect: document.getElementById("rag-mode-select"),
+      modelSelect: document.getElementById("model-select"),
+      settingsModelSelect: document.getElementById("settings-model-select"),
       pillDocCount: document.getElementById("pill-doc-count"),
       modelTriggerBtn: document.getElementById("model-trigger-btn"),
       modelLabel: document.getElementById("model-label"),
@@ -2630,6 +2640,10 @@
 
         document.getElementById("set-backend").textContent = info.llm_runtime || info.llm_backend;
         document.getElementById("set-model").textContent = info.llm_model;
+        if (info.active_model_id) {
+          state.activeModelId = info.active_model_id;
+          renderModelSelects();
+        }
         document.getElementById("set-rag-mode").textContent = formatRagLabel(state.ragMode);
         document.getElementById("set-precision").textContent = info.precision_mode;
         document.getElementById("set-embedder").textContent = isFallback
@@ -2651,6 +2665,92 @@
         state.serverOffline = true;
         el.topPillText.textContent = "Server offline";
         el.modelLabel.textContent = "Offline";
+      }
+    }
+
+    const MODEL_ID_KEY = "insight_model_id";
+
+    function renderModelSelects() {
+      const selects = [el.modelSelect, el.settingsModelSelect].filter(Boolean);
+      for (const sel of selects) {
+        sel.innerHTML = "";
+        for (const m of state.models || []) {
+          const opt = document.createElement("option");
+          opt.value = m.id;
+          const status = m.downloaded ? "" : " (unduh otomatis)";
+          opt.textContent = `${m.name}${status}`;
+          if (m.id === state.activeModelId) {
+            opt.selected = true;
+          }
+          sel.appendChild(opt);
+        }
+      }
+    }
+
+    async function loadModels() {
+      try {
+        const headers = {};
+        if (state.token) headers["X-InSight-Token"] = state.token;
+        const res = await fetch("/models", { headers });
+        if (!res.ok) return;
+        const data = await res.json();
+        state.models = data.models || [];
+        state.activeModelId = data.active_model_id || (state.models[0] && state.models[0].id) || "";
+
+        const savedModel = localStorage.getItem(MODEL_ID_KEY);
+        if (savedModel && savedModel !== state.activeModelId && state.models.some((m) => m.id === savedModel)) {
+          await switchModel(savedModel, false);
+          return;
+        }
+
+        renderModelSelects();
+      } catch (err) {
+        console.warn("Gagal memuat daftar model:", err);
+      }
+    }
+
+    async function switchModel(modelId, showNotice = true) {
+      if (!modelId || state.switchingModel) return;
+      state.switchingModel = true;
+      if (el.modelSelect) el.modelSelect.disabled = true;
+      if (el.settingsModelSelect) el.settingsModelSelect.disabled = true;
+
+      const target = (state.models || []).find((m) => m.id === modelId);
+      const name = target ? target.name : modelId;
+      let toast = null;
+      if (showNotice) {
+        toast = document.createElement("div");
+        toast.className = "status-note thinking-note";
+        toast.textContent = `Memuat model ${name}... (mohon tunggu jika pertama kali mengunduh)`;
+        el.chatFeed.appendChild(toast);
+        el.chatScroll.scrollTop = el.chatScroll.scrollHeight;
+      }
+
+      try {
+        await apiFetch("/models/select", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model_id: modelId }),
+        });
+        state.activeModelId = modelId;
+        localStorage.setItem(MODEL_ID_KEY, modelId);
+        if (toast) {
+          toast.className = "status-note";
+          toast.textContent = `Model aktif: ${name}`;
+          setTimeout(() => toast.remove(), 3000);
+        }
+        await loadHealth();
+        renderModelSelects();
+      } catch (err) {
+        if (toast) {
+          toast.className = "status-note error";
+          toast.textContent = `Gagal beralih ke model ${name}: ${err.message}`;
+          setTimeout(() => toast.remove(), 5000);
+        }
+      } finally {
+        state.switchingModel = false;
+        if (el.modelSelect) el.modelSelect.disabled = false;
+        if (el.settingsModelSelect) el.settingsModelSelect.disabled = false;
       }
     }
 
@@ -3611,6 +3711,13 @@
       }
     });
 
+    if (el.modelSelect) {
+      el.modelSelect.addEventListener("change", (e) => switchModel(e.target.value));
+    }
+    if (el.settingsModelSelect) {
+      el.settingsModelSelect.addEventListener("change", (e) => switchModel(e.target.value));
+    }
+
     el.questionInput.addEventListener("focus", () => {
       if (state.workspaceView === "docs") {
         setWorkspaceView("chat");
@@ -3737,7 +3844,9 @@
     async function refreshAll() {
       await loadHealth();
       if (!el.authModal.classList.contains("open")) {
-        await Promise.all([loadDocuments(), loadSessions(), loadHistory()]);
+        await Promise.all([loadDocuments(), loadSessions(), loadHistory(), loadModels()]);
+      } else {
+        await loadModels();
       }
     }
 

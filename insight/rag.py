@@ -156,6 +156,20 @@ class InSightEngine:
         self.llm = LazyLLM(self.settings)
         self.query_analyzer = QueryAnalyzer()
 
+    @property
+    def active_model_id(self) -> str:
+        return self.llm.active_model_id
+
+    def list_models(self) -> list[dict[str, Any]]:
+        from insight.llm import list_available_models
+
+        return list_available_models(self.settings)
+
+    def switch_model(self, model_id: str) -> dict[str, Any]:
+        result = self.llm.switch_model(model_id)
+        self.settings = self.llm.settings
+        return result
+
     @staticmethod
     def select_adaptive_strategy(analysis: dict[str, Any]) -> str:
         """Select optimal retrieval strategy from QueryAnalyzer output."""

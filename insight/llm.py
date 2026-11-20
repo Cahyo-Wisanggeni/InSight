@@ -11,10 +11,31 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator, Protocol
+from typing import Any, Iterator, Protocol
 
 from insight.config import DEFAULT_GGUF_FILENAME, DEFAULT_LLM_MODEL, DEFAULT_RESOURCES_DIR, Settings
 from insight.vectorstore import STOPWORDS, RetrievedChunk
+
+PRESET_MODELS: list[dict[str, Any]] = [
+    {
+        "id": "qwen2.5-0.5b",
+        "name": "Qwen2.5 0.5B (Super Cepat)",
+        "backend": "llamacpp",
+        "repo_id": "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
+        "filename": "qwen2.5-0.5b-instruct-q4_k_m.gguf",
+        "size_label": "~398 MB",
+        "description": "Super ringan & cepat, respons 2–4 detik di CPU laptop",
+    },
+    {
+        "id": "qwen3-1.7b",
+        "name": "Qwen3 1.7B (Detail)",
+        "backend": "llamacpp",
+        "repo_id": "unsloth/Qwen3-1.7B-GGUF",
+        "filename": "Qwen3-1.7B-UD-Q4_K_XL.gguf",
+        "size_label": "~1.08 GB",
+        "description": "Analisis lebih detail & penalaran mendalam",
+    },
+]
 
 QUERY_TOKEN_RE = re.compile(r"[A-Za-z0-9_]{2,}")
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
@@ -403,13 +424,16 @@ def resolve_gguf_model(settings: Settings) -> Path | None:
     if not ggufs:
         return None
 
+    norm_target = _normalize_model_key(settings.llm_model)
+
     preferred_file = os.getenv("INSIGHT_GGUF_FILE", "").strip()
     if preferred_file:
-        for item in ggufs:
-            if item.name.lower() == preferred_file.lower():
-                return item
+        pref_norm = _normalize_model_key(preferred_file)
+        if not norm_target or norm_target in pref_norm or settings.llm_model.strip().lower() == DEFAULT_LLM_MODEL.lower():
+            for item in ggufs:
+                if item.name.lower() == preferred_file.lower():
+                    return item
 
-    norm_target = _normalize_model_key(settings.llm_model)
     matches = [
         item for item in ggufs
         if norm_target and norm_target in re.sub(r"[^a-z0-9]+", "", item.stem.lower())
@@ -439,16 +463,26 @@ def ensure_gguf_model(settings: Settings) -> Path | None:
 
     gguf_dir = ((settings.resources_dir or DEFAULT_RESOURCES_DIR) / "gguf").resolve()
     gguf_dir.mkdir(parents=True, exist_ok=True)
-    filename = os.getenv("INSIGHT_GGUF_FILE", "").strip()
-    if not filename and settings.llm_model.strip().lower() == DEFAULT_LLM_MODEL.lower():
+    norm_target = _normalize_model_key(settings.llm_model)
+
+    filename = ""
+    preferred_env = os.getenv("INSIGHT_GGUF_FILE", "").strip()
+    if preferred_env and (not norm_target or norm_target in _normalize_model_key(preferred_env)):
+        filename = preferred_env
+    elif settings.llm_model.strip().lower() == DEFAULT_LLM_MODEL.lower():
         filename = DEFAULT_GGUF_FILENAME
+    else:
+        for p in PRESET_MODELS:
+            if p.get("repo_id", "").lower() == settings.llm_model.lower():
+                filename = p.get("filename", "")
+                break
 
     try:
         from huggingface_hub import HfApi, hf_hub_download
 
         if not filename:
             files = [f for f in HfApi().list_repo_files(settings.llm_model) if f.lower().endswith(".gguf")]
-            for preferred in ("UD-Q4_K_XL", "Q4_K_M", "Q4_K_S"):
+            for preferred in ("UD-Q4_K_XL", "Q4_K_M", "Q4_K_S", "Q4_0", "Q5_K_M"):
                 hit = next((f for f in files if preferred.lower() in f.lower()), None)
                 if hit:
                     filename = hit
@@ -465,6 +499,101 @@ def ensure_gguf_model(settings: Settings) -> Path | None:
         return Path(downloaded)
     except Exception:
         return None
+
+
+def list_available_models(settings: Settings) -> list[dict[str, Any]]:
+    """Return all preset models, cached GGUF models, and running Ollama models."""
+    gguf_dir = (settings.resources_dir / "gguf") if settings.resources_dir else None
+    cached_ggufs: dict[str, Path] = {}
+    if gguf_dir and gguf_dir.is_dir():
+        for p in gguf_dir.rglob("*.gguf"):
+            if p.is_file():
+                cached_ggufs[p.name.lower()] = p
+
+    norm_current = _normalize_model_key(settings.llm_model)
+    results: list[dict[str, Any]] = []
+    matched_active = False
+
+    for preset in PRESET_MODELS:
+        fname = preset.get("filename", "").lower()
+        repo = preset.get("repo_id", "")
+        norm_preset = _normalize_model_key(repo)
+        is_downloaded = fname in cached_ggufs or any(
+            norm_preset in re.sub(r"[^a-z0-9]+", "", k) for k in cached_ggufs
+        )
+        is_active = (
+            settings.llm_backend in {"auto", "llamacpp"}
+            and (
+                settings.llm_model.lower() == repo.lower()
+                or (norm_current and norm_current in norm_preset)
+            )
+        )
+        if is_active and not matched_active:
+            matched_active = True
+        else:
+            is_active = False
+
+        results.append({
+            "id": preset["id"],
+            "name": preset["name"],
+            "backend": preset["backend"],
+            "repo_id": repo,
+            "filename": preset["filename"],
+            "size_label": preset["size_label"],
+            "description": preset["description"],
+            "downloaded": is_downloaded,
+            "active": is_active,
+        })
+
+    preset_filenames = {p.get("filename", "").lower() for p in PRESET_MODELS}
+    for fname, p in cached_ggufs.items():
+        if fname not in preset_filenames:
+            custom_id = f"custom:{p.name}"
+            is_active = (
+                not matched_active
+                and settings.llm_backend in {"auto", "llamacpp"}
+                and (settings.llm_model.lower() == p.name.lower() or norm_current in _normalize_model_key(p.name))
+            )
+            if is_active:
+                matched_active = True
+            results.append({
+                "id": custom_id,
+                "name": p.name,
+                "backend": "llamacpp",
+                "repo_id": p.name,
+                "filename": p.name,
+                "size_label": f"{round(p.stat().st_size / (1024 * 1024), 1)} MB",
+                "description": "Custom local GGUF model",
+                "downloaded": True,
+                "active": is_active,
+            })
+
+    try:
+        import httpx
+        res = httpx.get(f"{settings.ollama_url}/api/tags", timeout=0.3)
+        if res.status_code == 200:
+            for item in res.json().get("models", []):
+                tag = item.get("name", "")
+                if tag:
+                    is_active = settings.llm_backend == "ollama" and settings.llm_model.lower() == tag.lower()
+                    results.append({
+                        "id": f"ollama:{tag}",
+                        "name": f"Ollama: {tag}",
+                        "backend": "ollama",
+                        "repo_id": tag,
+                        "filename": "",
+                        "size_label": "Ollama Service",
+                        "description": "Model dari Ollama lokal",
+                        "downloaded": True,
+                        "active": is_active,
+                    })
+    except Exception:
+        pass
+
+    if not any(r["active"] for r in results) and results:
+        results[0]["active"] = True
+
+    return results
 
 
 class LlamaCppRunner:
@@ -779,6 +908,76 @@ class LazyLLM:
     @property
     def active_model(self) -> str:
         return self.settings.llm_model
+
+    @property
+    def active_model_id(self) -> str:
+        models = list_available_models(self.settings)
+        for m in models:
+            if m.get("active"):
+                return str(m.get("id"))
+        return "custom"
+
+    def switch_model(self, model_id: str) -> dict[str, Any]:
+        """Switch active LLM to a preset model or custom GGUF/Ollama model."""
+        from dataclasses import replace
+
+        norm_id = model_id.strip().lower()
+        target_preset = next((p for p in PRESET_MODELS if p["id"] == norm_id), None)
+
+        if target_preset is not None:
+            new_settings = replace(
+                self.settings,
+                llm_backend="llamacpp",
+                llm_model=target_preset["repo_id"],
+            )
+            ensure_gguf_model(new_settings)
+            self.settings = new_settings
+            self._runner = None
+            return {
+                "id": target_preset["id"],
+                "name": target_preset["name"],
+                "backend": "llamacpp",
+                "model": target_preset["repo_id"],
+                "runtime": self.active_runtime,
+            }
+
+        if norm_id.startswith("ollama:"):
+            ollama_tag = norm_id.split(":", 1)[1]
+            new_settings = replace(
+                self.settings,
+                llm_backend="ollama",
+                llm_model=ollama_tag,
+            )
+            self.settings = new_settings
+            self._runner = None
+            return {
+                "id": norm_id,
+                "name": f"Ollama: {ollama_tag}",
+                "backend": "ollama",
+                "model": ollama_tag,
+                "runtime": self.active_runtime,
+            }
+
+        gguf_dir = (self.settings.resources_dir / "gguf") if self.settings.resources_dir else None
+        if gguf_dir and gguf_dir.is_dir():
+            for g in gguf_dir.rglob("*.gguf"):
+                if g.name.lower() == norm_id or f"custom:{g.name.lower()}" == norm_id:
+                    new_settings = replace(
+                        self.settings,
+                        llm_backend="llamacpp",
+                        llm_model=g.name,
+                    )
+                    self.settings = new_settings
+                    self._runner = None
+                    return {
+                        "id": f"custom:{g.name}",
+                        "name": g.name,
+                        "backend": "llamacpp",
+                        "model": g.name,
+                        "runtime": self.active_runtime,
+                    }
+
+        raise ValueError(f"Model ID '{model_id}' tidak ditemukan.")
 
     @property
     def active_precision(self) -> str:

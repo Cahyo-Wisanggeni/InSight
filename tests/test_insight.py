@@ -1173,3 +1173,51 @@ def test_unsupported_image_rejected_and_chat_stream_sse(tmp_path: Path, monkeypa
     assert hist[-1]["role"] == "assistant"
     assert hist[-1]["content"] == "Halo dunia!"
     engine.close()
+
+
+def test_model_selection_api_and_engine_switching(tmp_path: Path, monkeypatch) -> None:
+    from dataclasses import replace
+    from insight.llm import PRESET_MODELS
+
+    res_dir = tmp_path / "resources"
+    settings = replace(_make_settings(tmp_path), resources_dir=res_dir)
+    engine = InSightEngine(settings)
+
+    # 1. Verify list_models returns presets with download status
+    models = engine.list_models()
+    assert len(models) >= 2
+    preset_ids = [m["id"] for m in models]
+    assert "qwen2.5-0.5b" in preset_ids
+    assert "qwen3-1.7b" in preset_ids
+
+    # 2. Mock ensure_gguf_model so test doesn't hit HuggingFace download
+    gguf_dir = res_dir / "gguf"
+    gguf_dir.mkdir(parents=True, exist_ok=True)
+    fake_05b = gguf_dir / "qwen2.5-0.5b-instruct-q4_k_m.gguf"
+    fake_05b.write_bytes(b"GGUF")
+
+    monkeypatch.setattr("insight.llm.ensure_gguf_model", lambda _cfg: fake_05b)
+
+    # 3. Test switch_model via engine
+    switch_res = engine.switch_model("qwen2.5-0.5b")
+    assert switch_res["id"] == "qwen2.5-0.5b"
+    assert engine.active_model_id == "qwen2.5-0.5b"
+    assert "Qwen2.5" in switch_res["model"] or "0.5B" in switch_res["model"]
+
+    # 4. Test API GET /models and POST /models/select
+    client = TestClient(create_app(engine=engine))
+    get_res = client.get("/models")
+    assert get_res.status_code == 200
+    data = get_res.json()
+    assert data["active_model_id"] == "qwen2.5-0.5b"
+    assert any(m["id"] == "qwen2.5-0.5b" and m["active"] for m in data["models"])
+
+    post_res = client.post("/models/select", json={"model_id": "qwen3-1.7b"})
+    assert post_res.status_code == 200
+    assert post_res.json()["ok"] is True
+    assert engine.active_model_id == "qwen3-1.7b"
+
+    # Invalid model ID returns HTTP 400
+    bad_res = client.post("/models/select", json={"model_id": "non-existent-model"})
+    assert bad_res.status_code == 400
+    engine.close()

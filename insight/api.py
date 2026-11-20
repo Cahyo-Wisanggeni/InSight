@@ -42,6 +42,10 @@ class ChatRequest(BaseModel):
     rag_mode: str | None = None
 
 
+class ModelSelectRequest(BaseModel):
+    model_id: str
+
+
 class LoginRateLimiter:
     """In-memory sliding-window rate limiter for failed login attempts."""
 
@@ -219,6 +223,7 @@ def create_app(engine: InSightEngine | None = None, settings: Settings | None = 
             "auth_required": bool(app_settings.password),
             "llm_backend": llm.active_backend,
             "llm_model": llm.active_model,
+            "active_model_id": rag.active_model_id,
             "llm_runtime": llm.active_runtime,
             "precision_mode": llm.active_precision,
             "embedder": rag.vectors.embedder.name,
@@ -237,6 +242,22 @@ def create_app(engine: InSightEngine | None = None, settings: Settings | None = 
     @app.get("/resources", dependencies=[Depends(require_auth)])
     def list_resources() -> dict:
         return summarize_resources(app_settings.resources_dir or DEFAULT_RESOURCES_DIR)
+
+    @app.get("/models", dependencies=[Depends(require_auth)])
+    def get_models() -> dict:
+        models = rag.list_models()
+        return {
+            "active_model_id": rag.active_model_id,
+            "models": models,
+        }
+
+    @app.post("/models/select", dependencies=[Depends(require_auth)])
+    async def select_model(payload: ModelSelectRequest) -> dict:
+        try:
+            res = await run_in_threadpool(rag.switch_model, payload.model_id)
+            return {"ok": True, "model": res}
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.post("/runtime/heartbeat", dependencies=[Depends(require_auth)])
     def runtime_heartbeat() -> dict:
