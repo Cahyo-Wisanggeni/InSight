@@ -14,7 +14,7 @@ LLMBackend = Literal["auto", "llamacpp", "local_smart", "unsloth", "hf", "ollama
 RAGMode = Literal["hybrid", "adaptive"]
 DEFAULT_LLM_MODEL = "unsloth/Qwen3-1.7B-GGUF"
 DEFAULT_GGUF_FILENAME = "Qwen3-1.7B-UD-Q4_K_XL.gguf"
-DEFAULT_RESOURCES_DIR = Path(__file__).resolve().parent.parent.parent / "resources"
+DEFAULT_RESOURCES_DIR = Path(__file__).resolve().parent.parent / "resources"
 RESOURCE_SUBDIRS = ("huggingface", "huggingface/hub", "fastembed", "ollama", "gguf", "torch", "cache")
 
 

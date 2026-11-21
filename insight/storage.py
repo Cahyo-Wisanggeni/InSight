@@ -185,17 +185,33 @@ class SQLiteStore:
             ).fetchone()
         return DocumentRecord(**dict(row)) if row else None
 
-    def find_documents_by_filename(self, filename: str) -> list[DocumentRecord]:
+    def find_documents_by_filename(
+        self,
+        filename: str,
+        project_id: str | None = None,
+    ) -> list[DocumentRecord]:
+        clean_proj = project_id.strip() if project_id else None
         with self._connect() as conn:
-            rows = conn.execute(
-                """
-                SELECT doc_id, filename, file_ext, chunk_count, char_count, parser_used, created_at, project_id
-                FROM documents
-                WHERE filename = ?
-                ORDER BY created_at DESC
-                """,
-                (filename,),
-            ).fetchall()
+            if clean_proj is None:
+                rows = conn.execute(
+                    """
+                    SELECT doc_id, filename, file_ext, chunk_count, char_count, parser_used, created_at, project_id
+                    FROM documents
+                    WHERE filename = ? AND project_id IS NULL
+                    ORDER BY created_at DESC
+                    """,
+                    (filename,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT doc_id, filename, file_ext, chunk_count, char_count, parser_used, created_at, project_id
+                    FROM documents
+                    WHERE filename = ? AND project_id = ?
+                    ORDER BY created_at DESC
+                    """,
+                    (filename, clean_proj),
+                ).fetchall()
         return [DocumentRecord(**dict(row)) for row in rows]
 
     def set_document_project(self, doc_id: str, project_id: str | None) -> DocumentRecord | None:

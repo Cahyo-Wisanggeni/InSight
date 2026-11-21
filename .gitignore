@@ -23,6 +23,7 @@ qdrant_db/
 .cache/
 huggingface/
 models/
+resources/
 
 # OS & editor files
 .licenses/

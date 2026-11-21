@@ -3041,7 +3041,7 @@
           <select id="model-select" class="sr-only" aria-label="Pilih Model LLM"></select>
           <div id="model-dropdown" class="custom-dropdown">
             <button type="button" id="model-dropdown-btn" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" title="Pilih Model LLM">
-              <span id="model-dropdown-label">Qwen 3 - 0.5B</span>
+              <span id="model-dropdown-label">Qwen 3 - 0.6B</span>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="m6 9 6 6 6-6" />
               </svg>
@@ -3533,13 +3533,17 @@
 
     async function loadHealth() {
       try {
-        const res = await fetch("/health");
+        const res = await fetch("/health", { headers: authHeaders() });
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
         }
         const info = await res.json();
         state.health = info;
         state.serverOffline = false;
+        if (info.auth_required && !info.llm_backend) {
+          openAuthModal();
+          return;
+        }
         if (!localStorage.getItem(RAG_MODE_KEY) && info.rag_mode) {
           state.ragMode = normalizeRagMode(info.rag_mode);
         }
@@ -4965,6 +4969,8 @@
       el.chatFeed.appendChild(pending);
       el.chatScroll.scrollTop = el.chatScroll.scrollHeight;
 
+      let liveRow = null;
+      let liveBody = null;
       try {
         const headers = { "Content-Type": "application/json" };
         if (state.token) {
@@ -4996,8 +5002,6 @@
         let sseBuffer = "";
         let meta = { rag_mode: state.ragMode, retrieval_strategy: "", sources: [] };
         let fullAnswer = "";
-        let liveRow = null;
-        let liveBody = null;
 
         const ensureLiveBubble = () => {
           if (liveRow) return;
@@ -5037,6 +5041,8 @@
               el.chatScroll.scrollTop = el.chatScroll.scrollHeight;
             } else if (payload.type === "done") {
               fullAnswer = payload.answer || fullAnswer;
+            } else if (payload.type === "error") {
+              throw new Error(payload.detail || "Terjadi kesalahan saat memproses jawaban.");
             }
           }
         }
@@ -5054,8 +5060,11 @@
         });
         await Promise.all([loadSessions(), loadHealth()]);
       } catch (err) {
+        stopPendingAnim();
+        if (liveRow) liveRow.remove();
         pending.className = "status-note error";
         pending.textContent = `Gagal memproses: ${err.message}`;
+        if (!pending.isConnected) el.chatFeed.appendChild(pending);
       } finally {
         state.busy = false;
         el.sendBtn.disabled = false;
@@ -5367,9 +5376,14 @@
 
     function sendDisconnectBeacon() {
       if (state.serverStopped) return;
-      const qs = state.token ? `?token=${encodeURIComponent(state.token)}` : "";
-      if (navigator.sendBeacon) {
-        navigator.sendBeacon(`/runtime/disconnect${qs}`);
+      try {
+        fetch("/runtime/disconnect", {
+          method: "POST",
+          keepalive: true,
+          headers: authHeaders(),
+        }).catch(() => {});
+      } catch {
+        // Ignore transient network errors on unload.
       }
     }
 

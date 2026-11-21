@@ -15,6 +15,7 @@ from insight.storage import DocumentRecord, MessageRecord, ProjectRecord, Sessio
 from insight.vectorstore import STOPWORDS, TOKEN_RE, LocalVectorStore, RetrievedChunk, _lexical_overlap
 
 VALID_RAG_MODES: tuple[RAGMode, ...] = ("hybrid", "adaptive")
+_UNSET: Any = object()
 
 
 class QueryAnalyzer:
@@ -392,7 +393,7 @@ class InSightEngine:
         if not chunks:
             raise ValueError(f"Document '{filename}' produced zero text chunks.")
 
-        existing_same_name = self.store.find_documents_by_filename(filename)
+        existing_same_name = self.store.find_documents_by_filename(filename, project_id=project_id)
 
         doc_id = uuid.uuid4().hex[:12]
         self.vectors.upsert_chunks(doc_id=doc_id, filename=filename, chunks=chunks)
@@ -426,9 +427,6 @@ class InSightEngine:
             return False
         self.vectors.delete_document(doc_id)
         self.store.delete_document(doc_id)
-        uploaded = self.settings.upload_dir / f"{doc_id}_{record.filename}"
-        if uploaded.exists():
-            uploaded.unlink()
         return True
 
     def rename_document(self, doc_id: str, new_name: str) -> DocumentRecord | None:
@@ -444,10 +442,6 @@ class InSightEngine:
         if updated is None:
             return None
         self.vectors.rename_document(doc_id, cleaned)
-        old_path = self.settings.upload_dir / f"{doc_id}_{record.filename}"
-        new_path = self.settings.upload_dir / f"{doc_id}_{cleaned}"
-        if old_path.exists() and not new_path.exists():
-            old_path.rename(new_path)
         return updated
 
     def create_project(self, name: str) -> ProjectRecord:
@@ -471,8 +465,8 @@ class InSightEngine:
         question: str,
         session_id: str = "default",
         rag_mode: str | None = None,
-        doc_id: str | None = None,
-        project_id: str | None = None,
+        doc_id: Any = _UNSET,
+        project_id: Any = _UNSET,
     ) -> tuple[
         str,
         RAGMode,
@@ -503,7 +497,6 @@ class InSightEngine:
             if m.role in {"user", "assistant"}
         ]
         retrieval_query = self._contextualize_query(cleaned, prior_messages)
-        self.store.add_message(session_id=session_id, role="user", content=cleaned)
 
         docs = self.store.list_documents()
         if not docs:
@@ -511,6 +504,7 @@ class InSightEngine:
                 "Belum ada dokumen yang diunggah untuk menjawab pertanyaan tersebut. "
                 "Silakan klik '+' atau 'Unggah Dokumen' di panel kiri untuk menambahkan dokumen terlebih dahulu."
             )
+            self.store.add_message(session_id=session_id, role="user", content=cleaned)
             self.store.add_message(
                 session_id=session_id,
                 role="assistant",
@@ -528,15 +522,21 @@ class InSightEngine:
                 empty_answer,
             )
 
-        if doc_id is not None:
-            self.store.set_session_doc(session_id=session_id, doc_id=doc_id or None)
-        if project_id is not None:
-            self.store.set_session_project(session_id=session_id, project_id=project_id or None)
+        if doc_id is not _UNSET:
+            clean_doc = doc_id.strip() if isinstance(doc_id, str) else None
+            self.store.set_session_doc(session_id=session_id, doc_id=clean_doc or None)
+            if clean_doc and project_id is _UNSET:
+                self.store.set_session_project(session_id=session_id, project_id=None)
+        if project_id is not _UNSET:
+            clean_proj = project_id.strip() if isinstance(project_id, str) else None
+            self.store.set_session_project(session_id=session_id, project_id=clean_proj or None)
+            if clean_proj and doc_id is _UNSET:
+                self.store.set_session_doc(session_id=session_id, doc_id=None)
         effective_doc_id = self.store.get_session_doc(session_id)
         effective_project_id = self.store.get_session_project(session_id)
         effective_doc_ids = (
             self.store.list_project_doc_ids(effective_project_id)
-            if effective_project_id
+            if effective_project_id and not effective_doc_id
             else None
         )
 
@@ -589,8 +589,8 @@ class InSightEngine:
         question: str,
         session_id: str = "default",
         rag_mode: str | None = None,
-        doc_id: str | None = None,
-        project_id: str | None = None,
+        doc_id: Any = _UNSET,
+        project_id: Any = _UNSET,
         sampling_params: dict[str, Any] | None = None,
     ) -> ChatResult:
         (
@@ -632,6 +632,7 @@ class InSightEngine:
                 answer = self.llm.generate(question=cleaned, contexts=retrieved, history=chat_history)
         else:
             answer = self.llm.generate(question=cleaned, contexts=retrieved, history=chat_history)
+        self.store.add_message(session_id=session_id, role="user", content=cleaned)
         self.store.add_message(
             session_id=session_id,
             role="assistant",
@@ -652,8 +653,8 @@ class InSightEngine:
         question: str,
         session_id: str = "default",
         rag_mode: str | None = None,
-        doc_id: str | None = None,
-        project_id: str | None = None,
+        doc_id: Any = _UNSET,
+        project_id: Any = _UNSET,
         sampling_params: dict[str, Any] | None = None,
     ) -> Iterator[dict[str, Any]]:
         (
@@ -713,6 +714,7 @@ class InSightEngine:
                 parts.append(delta)
                 yield {"type": "token", "delta": delta}
         answer = "".join(parts).strip()
+        self.store.add_message(session_id=session_id, role="user", content=cleaned)
         self.store.add_message(
             session_id=session_id,
             role="assistant",

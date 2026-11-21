@@ -9,7 +9,7 @@ import shutil
 import subprocess
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterator, Protocol
 
@@ -18,12 +18,12 @@ from insight.vectorstore import STOPWORDS, RetrievedChunk
 
 PRESET_MODELS: list[dict[str, Any]] = [
     {
-        "id": "qwen2.5-0.5b",
-        "name": "Qwen 3 - 0.5B",
+        "id": "qwen3-0.6b",
+        "name": "Qwen 3 - 0.6B",
         "backend": "llamacpp",
-        "repo_id": "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
-        "filename": "qwen2.5-0.5b-instruct-q4_k_m.gguf",
-        "size_label": "~398 MB",
+        "repo_id": "unsloth/Qwen3-0.6B-GGUF",
+        "filename": "Qwen3-0.6B-UD-Q4_K_XL.gguf",
+        "size_label": "~387 MB",
         "description": "Jawaban cepat",
     },
     {
@@ -257,23 +257,54 @@ class OllamaRunner:
         self.base_url = base_url
         self.label = f"ollama:{model}"
 
+    @staticmethod
+    def _build_ollama_options(sampling_params: dict[str, Any] | None) -> dict[str, Any]:
+        if not sampling_params:
+            return {}
+        options: dict[str, Any] = {}
+        key_map = {
+            "max_tokens": ("num_predict", int),
+            "top_k": ("top_k", int),
+            "temperature": ("temperature", float),
+            "top_p": ("top_p", float),
+            "min_p": ("min_p", float),
+            "repeat_penalty": ("repeat_penalty", float),
+            "frequency_penalty": ("frequency_penalty", float),
+            "presence_penalty": ("presence_penalty", float),
+        }
+        for src_key, (dst_key, caster) in key_map.items():
+            if src_key in sampling_params and sampling_params[src_key] is not None:
+                try:
+                    val = caster(sampling_params[src_key])
+                    if dst_key == "num_predict":
+                        val = max(1, val)
+                    options[dst_key] = val
+                except (TypeError, ValueError):
+                    pass
+        return options
+
     def generate(
         self,
         question: str,
         contexts: list[RetrievedChunk],
         history: list[dict[str, str]] | None = None,
+        sampling_params: dict[str, Any] | None = None,
     ) -> str:
         import httpx
 
         messages = build_chat_messages(question, contexts, history=history)
+        payload: dict[str, Any] = {
+            "model": self.model,
+            "stream": False,
+            "messages": messages,
+        }
+        options = self._build_ollama_options(sampling_params)
+        if options:
+            payload["options"] = options
         try:
             response = httpx.post(
                 f"{self.base_url}/api/chat",
-                json={
-                    "model": self.model,
-                    "stream": False,
-                    "messages": messages,
-                },
+                json=payload,
                 timeout=120.0,
             )
             response.raise_for_status()
@@ -290,21 +321,26 @@ class OllamaRunner:
         question: str,
         contexts: list[RetrievedChunk],
         history: list[dict[str, str]] | None = None,
+        sampling_params: dict[str, Any] | None = None,
     ) -> Iterator[str]:
         import httpx
 
         messages = build_chat_messages(question, contexts, history=history)
+        payload: dict[str, Any] = {
+            "model": self.model,
+            "stream": True,
+            "messages": messages,
+        }
+        options = self._build_ollama_options(sampling_params)
+        if options:
+            payload["options"] = options
         emitted = False
         try:
             def _raw_tokens() -> Iterator[str]:
                 with httpx.stream(
                     "POST",
                     f"{self.base_url}/api/chat",
-                    json={
-                        "model": self.model,
-                        "stream": True,
-                        "messages": messages,
-                    },
+                    json=payload,
                     timeout=120.0,
                 ) as response:
                     response.raise_for_status()
@@ -779,24 +815,94 @@ class AutoRunner:
         question: str,
         contexts: list[RetrievedChunk],
         history: list[dict[str, str]] | None = None,
+        sampling_params: dict[str, Any] | None = None,
     ) -> str:
         if isinstance(self._delegate, SmartLocalRunner):
             refreshed = self._resolve(self.settings)
             self._delegate = refreshed
             self.label = refreshed.label
-        return _call_runner_generate(self._delegate, question, contexts, history=history)
+        return _call_runner_generate(
+            self._delegate, question, contexts, history=history, sampling_params=sampling_params
+        )
 
     def generate_stream(
         self,
         question: str,
         contexts: list[RetrievedChunk],
         history: list[dict[str, str]] | None = None,
+        sampling_params: dict[str, Any] | None = None,
     ) -> Iterator[str]:
         if isinstance(self._delegate, SmartLocalRunner):
             refreshed = self._resolve(self.settings)
             self._delegate = refreshed
             self.label = refreshed.label
-        return _call_runner_generate_stream(self._delegate, question, contexts, history=history)
+        return _call_runner_generate_stream(
+            self._delegate, question, contexts, history=history, sampling_params=sampling_params
+        )
+
+
+def _generate_transformers_reply(
+    model: Any,
+    tokenizer: Any,
+    question: str,
+    contexts: list[RetrievedChunk],
+    default_max_new_tokens: int,
+    *,
+    history: list[dict[str, str]] | None = None,
+    sampling_params: dict[str, Any] | None = None,
+    as_list_input: bool = False,
+) -> str:
+    """Shared generation helper for Unsloth and Hugging Face causal LM runners."""
+    import torch
+
+    messages = build_chat_messages(question, contexts, history=history)
+    if hasattr(tokenizer, "apply_chat_template"):
+        prompt_text = tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+    else:
+        prompt_text = f"{SYSTEM_PROMPT}\n\n{build_prompt(question, contexts, history=history)}"
+
+    tok_arg: Any = [prompt_text] if as_list_input else prompt_text
+    inputs = tokenizer(tok_arg, return_tensors="pt").to(model.device)
+
+    max_new_tokens = default_max_new_tokens
+    gen_kwargs: dict[str, Any] = {"do_sample": False}
+    if sampling_params:
+        if sampling_params.get("max_tokens") is not None:
+            try:
+                max_new_tokens = max(1, int(sampling_params["max_tokens"]))
+            except (TypeError, ValueError):
+                pass
+        if sampling_params.get("temperature") is not None:
+            try:
+                temp = float(sampling_params["temperature"])
+                if temp > 0.0:
+                    gen_kwargs["do_sample"] = True
+                    gen_kwargs["temperature"] = temp
+            except (TypeError, ValueError):
+                pass
+        if gen_kwargs.get("do_sample") and sampling_params.get("top_p") is not None:
+            try:
+                gen_kwargs["top_p"] = float(sampling_params["top_p"])
+            except (TypeError, ValueError):
+                pass
+        if gen_kwargs.get("do_sample") and sampling_params.get("top_k") is not None:
+            try:
+                gen_kwargs["top_k"] = max(0, int(sampling_params["top_k"]))
+            except (TypeError, ValueError):
+                pass
+
+    with torch.no_grad():
+        output_ids = model.generate(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            **gen_kwargs,
+        )
+    generated = output_ids[0][inputs["input_ids"].shape[1] :]
+    return _strip_thinking_tags(tokenizer.decode(generated, skip_special_tokens=True))
 
 
 class UnslothRunner:
@@ -817,31 +923,23 @@ class UnslothRunner:
         self.settings = settings
         self.label = f"unsloth:{settings.llm_model} ({settings.precision_mode})"
 
-    def generate(self, question: str, contexts: list[RetrievedChunk]) -> str:
-        import torch
-
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": build_prompt(question, contexts)},
-        ]
-        if hasattr(self._tokenizer, "apply_chat_template"):
-            prompt_text = self._tokenizer.apply_chat_template(
-                messages,
-                tokenize=False,
-                add_generation_prompt=True,
-            )
-        else:
-            prompt_text = f"{SYSTEM_PROMPT}\n\n{build_prompt(question, contexts)}"
-
-        inputs = self._tokenizer([prompt_text], return_tensors="pt").to(self._model.device)
-        with torch.no_grad():
-            output_ids = self._model.generate(
-                **inputs,
-                max_new_tokens=self.settings.max_new_tokens,
-                do_sample=False,
-            )
-        generated = output_ids[0][inputs["input_ids"].shape[1] :]
-        return _strip_thinking_tags(self._tokenizer.decode(generated, skip_special_tokens=True))
+    def generate(
+        self,
+        question: str,
+        contexts: list[RetrievedChunk],
+        history: list[dict[str, str]] | None = None,
+        sampling_params: dict[str, Any] | None = None,
+    ) -> str:
+        return _generate_transformers_reply(
+            self._model,
+            self._tokenizer,
+            question,
+            contexts,
+            self.settings.max_new_tokens,
+            history=history,
+            sampling_params=sampling_params,
+            as_list_input=True,
+        )
 
 
 class HuggingFaceRunner:
@@ -872,31 +970,23 @@ class HuggingFaceRunner:
         self.settings = settings
         self.label = f"hf:{settings.llm_model} ({settings.precision_mode})"
 
-    def generate(self, question: str, contexts: list[RetrievedChunk]) -> str:
-        import torch
-
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": build_prompt(question, contexts)},
-        ]
-        if hasattr(self._tokenizer, "apply_chat_template"):
-            prompt_text = self._tokenizer.apply_chat_template(
-                messages,
-                tokenize=False,
-                add_generation_prompt=True,
-            )
-        else:
-            prompt_text = f"{SYSTEM_PROMPT}\n\n{build_prompt(question, contexts)}"
-
-        inputs = self._tokenizer(prompt_text, return_tensors="pt").to(self._model.device)
-        with torch.no_grad():
-            output_ids = self._model.generate(
-                **inputs,
-                max_new_tokens=self.settings.max_new_tokens,
-                do_sample=False,
-            )
-        generated = output_ids[0][inputs["input_ids"].shape[1] :]
-        return _strip_thinking_tags(self._tokenizer.decode(generated, skip_special_tokens=True))
+    def generate(
+        self,
+        question: str,
+        contexts: list[RetrievedChunk],
+        history: list[dict[str, str]] | None = None,
+        sampling_params: dict[str, Any] | None = None,
+    ) -> str:
+        return _generate_transformers_reply(
+            self._model,
+            self._tokenizer,
+            question,
+            contexts,
+            self.settings.max_new_tokens,
+            history=history,
+            sampling_params=sampling_params,
+            as_list_input=False,
+        )
 
 
 def _call_runner_generate(
@@ -949,12 +1039,14 @@ class LazyLLM:
 
     settings: Settings
     _runner: LLMRunner | None = None
+    _lock: threading.RLock = field(default_factory=threading.RLock, init=False, repr=False)
 
     @property
     def label(self) -> str:
-        if self._runner is not None:
-            return self._runner.label
-        return f"{self.settings.llm_backend}:{self.settings.llm_model} ({self.settings.precision_mode})"
+        with self._lock:
+            if self._runner is not None:
+                return self._runner.label
+            return f"{self.settings.llm_backend}:{self.settings.llm_model} ({self.settings.precision_mode})"
 
     @property
     def active_backend(self) -> str:
@@ -966,11 +1058,26 @@ class LazyLLM:
 
     @property
     def active_model_id(self) -> str:
-        models = list_available_models(self.settings)
-        for m in models:
-            if m.get("active"):
-                return str(m.get("id"))
-        return "custom"
+        settings = self.settings
+        backend = settings.llm_backend
+        model = settings.llm_model.strip()
+        if backend == "ollama":
+            return f"ollama:{model}"
+        if backend in {"auto", "llamacpp"}:
+            norm_current = _normalize_model_key(model)
+            for preset in PRESET_MODELS:
+                repo = preset.get("repo_id", "")
+                fname = preset.get("filename", "")
+                norm_preset = _normalize_model_key(repo)
+                if (
+                    model.lower() == repo.lower()
+                    or model.lower() == fname.lower()
+                    or (norm_current and norm_preset and (norm_current == norm_preset or norm_preset in norm_current))
+                ):
+                    return str(preset["id"])
+            if model.lower().endswith(".gguf"):
+                return f"custom:{Path(model).name}"
+        return str(PRESET_MODELS[0]["id"]) if PRESET_MODELS else "custom"
 
     def switch_model(self, model_id: str) -> dict[str, Any]:
         """Switch active LLM to a preset model or custom GGUF/Ollama model."""
@@ -980,56 +1087,62 @@ class LazyLLM:
         target_preset = next((p for p in PRESET_MODELS if p["id"] == norm_id), None)
 
         if target_preset is not None:
-            new_settings = replace(
-                self.settings,
-                llm_backend="llamacpp",
-                llm_model=target_preset["repo_id"],
-            )
-            ensure_gguf_model(new_settings)
-            self.settings = new_settings
-            self._runner = None
+            with self._lock:
+                new_settings = replace(
+                    self.settings,
+                    llm_backend="llamacpp",
+                    llm_model=target_preset["repo_id"],
+                )
+                ensure_gguf_model(new_settings)
+                self.settings = new_settings
+                self._runner = None
+                runtime = self.active_runtime
             return {
                 "id": target_preset["id"],
                 "name": target_preset["name"],
                 "backend": "llamacpp",
                 "model": target_preset["repo_id"],
-                "runtime": self.active_runtime,
+                "runtime": runtime,
             }
 
         if norm_id.startswith("ollama:"):
-            ollama_tag = norm_id.split(":", 1)[1]
-            new_settings = replace(
-                self.settings,
-                llm_backend="ollama",
-                llm_model=ollama_tag,
-            )
-            self.settings = new_settings
-            self._runner = None
+            ollama_tag = model_id.strip().split(":", 1)[1]
+            with self._lock:
+                new_settings = replace(
+                    self.settings,
+                    llm_backend="ollama",
+                    llm_model=ollama_tag,
+                )
+                self.settings = new_settings
+                self._runner = None
+                runtime = self.active_runtime
             return {
-                "id": norm_id,
+                "id": f"ollama:{ollama_tag}",
                 "name": f"Ollama: {ollama_tag}",
                 "backend": "ollama",
                 "model": ollama_tag,
-                "runtime": self.active_runtime,
+                "runtime": runtime,
             }
 
         gguf_dir = (self.settings.resources_dir / "gguf") if self.settings.resources_dir else None
         if gguf_dir and gguf_dir.is_dir():
             for g in gguf_dir.rglob("*.gguf"):
                 if g.name.lower() == norm_id or f"custom:{g.name.lower()}" == norm_id:
-                    new_settings = replace(
-                        self.settings,
-                        llm_backend="llamacpp",
-                        llm_model=g.name,
-                    )
-                    self.settings = new_settings
-                    self._runner = None
+                    with self._lock:
+                        new_settings = replace(
+                            self.settings,
+                            llm_backend="llamacpp",
+                            llm_model=g.name,
+                        )
+                        self.settings = new_settings
+                        self._runner = None
+                        runtime = self.active_runtime
                     return {
                         "id": f"custom:{g.name}",
                         "name": g.name,
                         "backend": "llamacpp",
                         "model": g.name,
-                        "runtime": self.active_runtime,
+                        "runtime": runtime,
                     }
 
         raise ValueError(f"Model ID '{model_id}' tidak ditemukan.")
@@ -1040,43 +1153,50 @@ class LazyLLM:
 
     @property
     def active_runtime(self) -> str:
-        if self._runner is not None:
-            return self._runner.label
-        backend = self.settings.llm_backend
+        with self._lock:
+            if self._runner is not None:
+                return self._runner.label
+            settings = self.settings
+        backend = settings.llm_backend
         if backend == "auto":
-            gguf = resolve_gguf_model(self.settings)
+            gguf = resolve_gguf_model(settings)
             if gguf is not None:
                 return f"llamacpp:{gguf.name} (ready)"
             return "auto (pending)"
         if backend == "llamacpp":
-            gguf = resolve_gguf_model(self.settings)
+            gguf = resolve_gguf_model(settings)
             return f"llamacpp:{gguf.name} (ready)" if gguf is not None else "local_smart (gguf missing)"
         return backend
 
     def _get_runner(self) -> LLMRunner:
-        if self._runner is not None:
-            return self._runner
+        runner = self._runner
+        if runner is not None:
+            return runner
+        with self._lock:
+            if self._runner is not None:
+                return self._runner
 
-        backend = self.settings.llm_backend
-        if backend == "auto":
-            self._runner = AutoRunner(self.settings)
-        elif backend == "llamacpp":
-            gguf_path = resolve_gguf_model(self.settings)
-            if gguf_path is not None:
-                self._runner = LlamaCppRunner(gguf_path, self.settings)
-            else:
+            settings = self.settings
+            backend = settings.llm_backend
+            if backend == "auto":
+                self._runner = AutoRunner(settings)
+            elif backend == "llamacpp":
+                gguf_path = resolve_gguf_model(settings)
+                if gguf_path is not None:
+                    self._runner = LlamaCppRunner(gguf_path, settings)
+                else:
+                    self._runner = SmartLocalRunner()
+            elif backend == "local_smart":
                 self._runner = SmartLocalRunner()
-        elif backend == "local_smart":
-            self._runner = SmartLocalRunner()
-        elif backend == "ollama":
-            self._runner = OllamaRunner(self.settings.llm_model, self.settings.ollama_url)
-        elif backend == "unsloth":
-            self._runner = UnslothRunner(self.settings)
-        elif backend == "hf":
-            self._runner = HuggingFaceRunner(self.settings)
-        else:
-            self._runner = RetrievalOnlyRunner()
-        return self._runner
+            elif backend == "ollama":
+                self._runner = OllamaRunner(settings.llm_model, settings.ollama_url)
+            elif backend == "unsloth":
+                self._runner = UnslothRunner(settings)
+            elif backend == "hf":
+                self._runner = HuggingFaceRunner(settings)
+            else:
+                self._runner = RetrievalOnlyRunner()
+            return self._runner
 
     def generate(
         self,

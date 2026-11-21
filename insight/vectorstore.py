@@ -164,20 +164,14 @@ class SentenceTransformerProvider:
         return [row.tolist() for row in arr]
 
 
-def build_embedder(model_name: str, strict: bool = False) -> Embedder:
+def build_embedder(model_name: str) -> Embedder:
     try:
         return FastEmbedProvider(model_name)
     except Exception:
         pass
     try:
         return SentenceTransformerProvider(model_name)
-    except Exception as exc:
-        if strict:
-            raise RuntimeError(
-                f"Strict embedder mode is enabled (INSIGHT_STRICT_EMBEDDER=true), "
-                f"but neural embedder '{model_name}' could not be loaded. "
-                "Install 'fastembed' or 'sentence-transformers' to continue."
-            ) from exc
+    except Exception:
         return HashingEmbedder()
 
 
@@ -195,12 +189,18 @@ def _strip_toc_noise(text: str) -> str:
     return TOC_DOTS_RE.sub(" ", text)
 
 
-def _lexical_overlap(query: str, text: str) -> float:
+def _query_lexical_tokens(query: str) -> set[str]:
     raw_q_tokens = set(TOKEN_RE.findall(query.lower()))
     if not raw_q_tokens:
-        return 0.0
+        return set()
     filtered_q_tokens = {tok for tok in raw_q_tokens if len(tok) >= 2 and tok not in STOPWORDS}
-    q_tokens = filtered_q_tokens or raw_q_tokens
+    return filtered_q_tokens or raw_q_tokens
+
+
+def _lexical_overlap(query: str, text: str) -> float:
+    q_tokens = _query_lexical_tokens(query)
+    if not q_tokens:
+        return 0.0
     t_tokens = set(TOKEN_RE.findall(_strip_toc_noise(text).lower()))
     return len(q_tokens & t_tokens) / len(q_tokens)
 
@@ -226,29 +226,25 @@ def _normalize_scores(scores: list[float], *, preserve_positive_unit: bool = Tru
     return [(s - lo) / (hi - lo) for s in scores]
 
 
-def _bm25_scores(
+def _bm25_scores_from_tfs(
     query: str,
-    texts: list[str],
+    doc_tfs: list[dict[str, int]],
+    doc_lens: list[int],
     k1: float = 1.5,
     b: float = 0.75,
 ) -> list[float]:
-    """Compute lightweight BM25Okapi relevance scores across candidate texts."""
-    if not texts:
+    """Compute BM25Okapi scores from pre-tokenized term frequencies and document lengths."""
+    if not doc_tfs:
         return []
     q_tokens = _tokenize_bm25(query)
     if not q_tokens:
-        return [0.0] * len(texts)
+        return [0.0] * len(doc_tfs)
 
-    from collections import Counter
-
-    doc_tokens_list = [_tokenize_bm25(_strip_toc_noise(t)) for t in texts]
-    doc_tfs = [Counter(tokens) for tokens in doc_tokens_list]
-    doc_lens = [len(tokens) for tokens in doc_tokens_list]
     avg_dl = (sum(doc_lens) / len(doc_lens)) if doc_lens else 1.0
     if avg_dl <= 0.0:
         avg_dl = 1.0
 
-    n_docs = len(texts)
+    n_docs = len(doc_tfs)
     unique_q = list(dict.fromkeys(q_tokens))
     scores = [0.0] * n_docs
 
@@ -266,6 +262,23 @@ def _bm25_scores(
             scores[idx] += idf * ((freq * (k1 + 1.0)) / max(denom, 1e-9))
 
     return scores
+
+
+def _bm25_scores(
+    query: str,
+    texts: list[str],
+    k1: float = 1.5,
+    b: float = 0.75,
+) -> list[float]:
+    """Compute lightweight BM25Okapi relevance scores across candidate texts."""
+    if not texts:
+        return []
+    from collections import Counter
+
+    doc_tokens_list = [_tokenize_bm25(_strip_toc_noise(t)) for t in texts]
+    doc_tfs = [Counter(tokens) for tokens in doc_tokens_list]
+    doc_lens = [len(tokens) for tokens in doc_tokens_list]
+    return _bm25_scores_from_tfs(query, doc_tfs, doc_lens, k1=k1, b=b)
 
 
 class LocalVectorStore:
@@ -302,6 +315,7 @@ class LocalVectorStore:
         self.rerank_model = rerank_model
         self._reranker = None
         self._corpus_cache: list[tuple[Any, dict[str, Any]]] | None = None
+        self._sparse_index_cache: list[tuple[Any, dict[str, Any], dict[str, int], int, set[str]]] | None = None
         self._ensure_collection()
 
     @property
@@ -396,14 +410,34 @@ class LocalVectorStore:
             )
             if saved_points:
                 self.migrated_points = self._reembed_points(saved_points)
-            self._corpus_cache = None
+            self._invalidate_corpus_cache()
             self._write_recorded_embedder()
+
+    def _invalidate_corpus_cache(self) -> None:
+        self._corpus_cache = None
+        self._sparse_index_cache = None
 
     def _get_corpus_points(self) -> list[tuple[Any, dict[str, Any]]]:
         with self._lock:
             if self._corpus_cache is None:
                 self._corpus_cache = self._scroll_all_points()
             return list(self._corpus_cache)
+
+    def _get_sparse_index(self) -> list[tuple[Any, dict[str, Any], dict[str, int], int, set[str]]]:
+        from collections import Counter
+
+        with self._lock:
+            if self._sparse_index_cache is None:
+                if self._corpus_cache is None:
+                    self._corpus_cache = self._scroll_all_points()
+                entries: list[tuple[Any, dict[str, Any], dict[str, int], int, set[str]]] = []
+                for pt_id, payload in self._corpus_cache:
+                    cleaned = _strip_toc_noise(str(payload.get("text", "")))
+                    bm25_tokens = _tokenize_bm25(cleaned)
+                    lex_tokens = set(TOKEN_RE.findall(cleaned.lower()))
+                    entries.append((pt_id, payload, dict(Counter(bm25_tokens)), len(bm25_tokens), lex_tokens))
+                self._sparse_index_cache = entries
+            return list(self._sparse_index_cache)
 
     def _get_reranker(self):
         if not self.use_reranker:
@@ -441,7 +475,7 @@ class LocalVectorStore:
             )
         with self._lock:
             self.client.upsert(collection_name=self.COLLECTION_NAME, points=points)
-            self._corpus_cache = None
+            self._invalidate_corpus_cache()
         return len(points)
 
     def delete_document(self, doc_id: str) -> None:
@@ -459,7 +493,7 @@ class LocalVectorStore:
                     )
                 ),
             )
-            self._corpus_cache = None
+            self._invalidate_corpus_cache()
 
     def rename_document(self, doc_id: str, new_filename: str) -> None:
         with self._lock:
@@ -475,7 +509,7 @@ class LocalVectorStore:
                     ]
                 ),
             )
-            self._corpus_cache = None
+            self._invalidate_corpus_cache()
 
     def _dedupe_chunks(self, items: list[RetrievedChunk], limit: int) -> list[RetrievedChunk]:
         deduped: list[RetrievedChunk] = []
@@ -502,12 +536,12 @@ class LocalVectorStore:
         doc_ids: list[str] | None = None,
     ) -> list[RetrievedChunk]:
         target_ids: set[str] | None = None
-        if doc_ids is not None:
+        if doc_id:
+            target_ids = {doc_id}
+        elif doc_ids is not None:
             target_ids = {d for d in doc_ids if d}
             if not target_ids:
                 return []
-        elif doc_id:
-            target_ids = {doc_id}
 
         strategy_norm = (strategy or "hybrid_search").strip().lower()
         effective_limit = (
@@ -553,10 +587,10 @@ class LocalVectorStore:
                 with_payload=True,
             )
         dense_points = response.points
-        corpus = self._get_corpus_points()
-        if target_ids is not None:
-            corpus = [(pt_id, pl) for pt_id, pl in corpus if pl.get("doc_id") in target_ids]
-        if not dense_points and not corpus:
+        sparse_entries = self._get_sparse_index() if sw > 0.0 else []
+        if target_ids is not None and sparse_entries:
+            sparse_entries = [entry for entry in sparse_entries if entry[1].get("doc_id") in target_ids]
+        if not dense_points and not sparse_entries:
             return []
 
         dense_by_id: dict[Any, tuple[dict[str, Any], float]] = {
@@ -567,13 +601,19 @@ class LocalVectorStore:
         sparse_by_id: dict[Any, float] = {}
         corpus_payload_by_id: dict[Any, dict[str, Any]] = {}
         top_sparse_ids: list[Any] = []
-        if corpus:
-            corpus_texts = [str(payload.get("text", "")) for _, payload in corpus]
-            bm25_norm = _normalize_scores(_bm25_scores(query, corpus_texts), preserve_positive_unit=False)
+        if sparse_entries:
+            doc_tfs = [entry[2] for entry in sparse_entries]
+            doc_lens = [entry[3] for entry in sparse_entries]
+            bm25_norm = _normalize_scores(
+                _bm25_scores_from_tfs(query, doc_tfs, doc_lens),
+                preserve_positive_unit=False,
+            )
+            q_lex_tokens = _query_lexical_tokens(query)
+            q_lex_len = len(q_lex_tokens)
             sparse_candidates: list[tuple[Any, float]] = []
-            for (pt_id, payload), b_score, text in zip(corpus, bm25_norm, corpus_texts):
+            for (pt_id, payload, _tf, _dlen, lex_tokens), b_score in zip(sparse_entries, bm25_norm):
                 corpus_payload_by_id[pt_id] = payload
-                l_score = _lexical_overlap(query, text)
+                l_score = (len(q_lex_tokens & lex_tokens) / q_lex_len) if q_lex_len else 0.0
                 s_score = (0.6 * b_score) + (0.4 * l_score)
                 if s_score > 0.0:
                     sparse_by_id[pt_id] = s_score
@@ -674,12 +714,12 @@ class LocalVectorStore:
     ) -> list[RetrievedChunk]:
         """Return earliest document chunks (cover/title/authors), prioritizing non-TOC content."""
         target_ids: set[str] | None = None
-        if doc_ids is not None:
+        if doc_id:
+            target_ids = {doc_id}
+        elif doc_ids is not None:
             target_ids = {d for d in doc_ids if d}
             if not target_ids:
                 return []
-        elif doc_id:
-            target_ids = {doc_id}
 
         must_conds: list[Any] = [
             self._models.FieldCondition(

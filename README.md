@@ -34,10 +34,10 @@ flowchart LR
 - **Hanya 2 Opsi Metode RAG (`HybridRAG` & `AdaptiveRAG`):**
   - **HybridRAG (`hybrid`):** Menggabungkan pencarian vektor dense + sparse BM25/lexical (`0.70 dense + 0.30 sparse`) dengan evaluasi relevansi dan *query rewriting* otomatis 1x jika hasil awal kurang relevan.
   - **AdaptiveRAG (`adaptive`):** Menggunakan `QueryAnalyzer` untuk menganalisis kompleksitas (`simple`, `medium`, `complex`), faktualitas, dan kebutuhan multi-sumber, lalu merutekan ke strategi `direct_llm`, `simple_vector`, `hybrid_search` (bobot dinamis `0.8/0.2` atau `0.6/0.4`), atau `comprehensive` dengan eskalasi otomatis bila relevan rendah.
-- **Model Selection Dinamis (0.5B Super Cepat vs 1.7B Detail):** Pengguna dapat memilih model LLM langsung dari Web UI (dropdown di toolbar atau Pengaturan) antara model super cepat & hemat RAM (`Qwen2.5-0.5B`, respons 2–4 detik di CPU) atau model analisis mendalam (`Qwen3-1.7B`), serta dukungan model Ollama lokal jika aktif.
+- **Model Selection Dinamis (0.6B Super Cepat vs 1.7B Detail):** Pengguna dapat memilih model LLM langsung dari Web UI (dropdown di toolbar atau Pengaturan) antara model super cepat & hemat RAM (`Qwen3-0.6B`, respons 2–4 detik di CPU) atau model analisis mendalam (`Qwen3-1.7B`), serta dukungan model Ollama lokal jika aktif.
 - **Lightweight Document Parsing & Sitasi Halaman:** Mengubah PDF, DOCX, PPTX, XLSX, dan HTML menjadi Markdown terstruktur secara cepat tanpa beban PyTorch/OCR, melacak `page_label` per chunk, serta menggabungkan tabel Markdown yang terpecah lintas halaman.
 - **Qdrant Local Mode + Transparansi Embedder:** Penyimpanan vektor langsung di folder lokal tanpa Docker, dengan status fallback `HashingEmbedder` yang diekspos di `/health` dan banner UI (serta opsi `INSIGHT_STRICT_EMBEDDER=true`).
-- **Folder `resources/` Terpusat:** Seluruh unduhan model & cache (`HF_HOME`, `FASTEMBED_CACHE_PATH`, `OLLAMA_MODELS`, `TORCH_HOME`, `XDG_CACHE_HOME`) diarahkan ke `INSIGHT_RESOURCES_DIR` (default `C:\Open Source\InSight\resources`) dan dapat dipantau lewat `GET /resources` serta modal Settings.
+- **Folder `resources/` Terpusat:** Seluruh unduhan model & cache (`HF_HOME`, `FASTEMBED_CACHE_PATH`, `OLLAMA_MODELS`, `TORCH_HOME`, `XDG_CACHE_HOME`) diarahkan ke `INSIGHT_RESOURCES_DIR` (default `./resources`) dan dapat dipantau lewat `GET /resources` serta modal Settings.
 - **Opsi Presisi Model (`4bit` / `8bit` / `full`):** Memudahkan penyesuaian dengan spesifikasi RAM/GPU lokal.
 - **Riwayat & Daftar Dokumen di SQLite:** Ringan, portabel dalam satu file `.sqlite`, dengan penghapusan vektor Qdrant otomatis saat dokumen dihapus.
 - **Proteksi Kata Sandi Opsional:** Mengamankan akses endpoint lewat `INSIGHT_PASSWORD` dengan rate-limiting login (`HTTP 429`) dan masa berlaku token (`INSIGHT_TOKEN_TTL_SECONDS`).
@@ -102,7 +102,7 @@ Salin `.env.example` jika ingin mengatur konfigurasi secara persisten:
 | `INSIGHT_HOST` | `127.0.0.1` | Host server FastAPI |
 | `INSIGHT_PORT` | `8000` | Port server |
 | `INSIGHT_DATA_DIR` | `./data` | Direktori penyimpanan SQLite dan Qdrant lokal |
-| `INSIGHT_RESOURCES_DIR` | `C:\Open Source\InSight\resources` | Direktori terpusat untuk semua model/cache terunduh |
+| `INSIGHT_RESOURCES_DIR` | `./resources` | Direktori terpusat untuk semua model/cache terunduh |
 | `INSIGHT_PASSWORD` | `""` (kosong) | Kata sandi sesi opsional untuk login |
 | `INSIGHT_TOKEN_TTL_SECONDS` | `43200` | Masa berlaku token sesi login dalam detik (default 12 jam) |
 | `INSIGHT_LOGIN_MAX_ATTEMPTS` | `5` | Batas percobaan login gagal per IP sebelum diblokir `HTTP 429` |
@@ -131,7 +131,7 @@ FastAPI juga menyediakan dokumentasi interaktif otomatis di `http://127.0.0.1:80
 | `GET /resources` | Pantau daftar file dan ukuran cache/model terunduh di `INSIGHT_RESOURCES_DIR` |
 | `POST /auth/login` | Tukar `INSIGHT_PASSWORD` menjadi token sesi `X-InSight-Token` (rate-limited + TTL) |
 | `GET /models` | Ambil daftar model LLM lokal dan preset yang tersedia beserta status aktif/unduhan |
-| `POST /models/select` | Beralih model LLM aktif secara instan (`qwen2.5-0.5b`, `qwen3-1.7b`, atau Ollama) |
+| `POST /models/select` | Beralih model LLM aktif secara instan (`qwen3-0.6b`, `qwen3-1.7b`, atau Ollama) |
 | `POST /documents/upload` | Unggah dan indeks dokumen ke Qdrant + SQLite |
 | `GET /documents` | Ambil daftar dokumen terindeks |
 | `DELETE /documents/{doc_id}` | Hapus dokumen dari SQLite dan vektornya dari Qdrant |

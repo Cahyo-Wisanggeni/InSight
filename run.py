@@ -46,7 +46,7 @@ def stop_stale_instances(port: int) -> None:
                         break
             except Exception:
                 pass
-            if (same_workspace and is_insight_script) or holds_port:
+            if same_workspace and (is_insight_script or holds_port):
                 stale.append(proc)
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue

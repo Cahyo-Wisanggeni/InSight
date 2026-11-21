@@ -154,8 +154,10 @@ def test_runtime_auto_shutdown_lifecycle(tmp_path: Path, monkeypatch) -> None:
     assert tracker.has_client is True
     assert tracker.should_shutdown(now=100.0) is False
 
-    # Simulate disconnect via sendBeacon token query param, then cancel via refresh heartbeat.
-    assert client.post(f"/runtime/disconnect?token={token}").status_code == 200
+    # Query-string token must be rejected to prevent token leakage in server logs.
+    assert client.post(f"/runtime/disconnect?token={token}").status_code == 401
+    # Disconnect with header token succeeds, then cancels via refresh heartbeat.
+    assert client.post("/runtime/disconnect", headers={"X-InSight-Token": token}).status_code == 200
     assert tracker.disconnect_deadline is not None
     tracker.record_heartbeat(now=101.0)
     assert tracker.disconnect_deadline is None
@@ -343,7 +345,7 @@ def test_login_rate_limit_and_token_ttl(tmp_path: Path, monkeypatch) -> None:
     # Advance past 30s TTL: token must be rejected on both protected routes and disconnect.
     now["t"] += 31.0
     assert client.get("/documents", headers={"X-InSight-Token": token}).status_code == 401
-    assert client.post(f"/runtime/disconnect?token={token}").status_code == 401
+    assert client.post("/runtime/disconnect", headers={"X-InSight-Token": token}).status_code == 401
 
 
 def test_runtime_manual_shutdown_endpoint(tmp_path: Path, monkeypatch) -> None:
@@ -1186,30 +1188,31 @@ def test_model_selection_api_and_engine_switching(tmp_path: Path, monkeypatch) -
     models = engine.list_models()
     assert len(models) >= 2
     preset_ids = [m["id"] for m in models]
-    assert "qwen2.5-0.5b" in preset_ids
+    assert "qwen3-0.6b" in preset_ids
     assert "qwen3-1.7b" in preset_ids
 
     # 2. Mock ensure_gguf_model so test doesn't hit HuggingFace download
     gguf_dir = res_dir / "gguf"
     gguf_dir.mkdir(parents=True, exist_ok=True)
-    fake_05b = gguf_dir / "qwen2.5-0.5b-instruct-q4_k_m.gguf"
-    fake_05b.write_bytes(b"GGUF")
+    fake_06b = gguf_dir / "Qwen3-0.6B-UD-Q4_K_XL.gguf"
+    fake_06b.write_bytes(b"GGUF")
 
-    monkeypatch.setattr("insight.llm.ensure_gguf_model", lambda _cfg: fake_05b)
+    monkeypatch.setattr("insight.llm.ensure_gguf_model", lambda _cfg: fake_06b)
 
     # 3. Test switch_model via engine
-    switch_res = engine.switch_model("qwen2.5-0.5b")
-    assert switch_res["id"] == "qwen2.5-0.5b"
-    assert engine.active_model_id == "qwen2.5-0.5b"
-    assert "Qwen2.5" in switch_res["model"] or "0.5B" in switch_res["model"]
+    switch_res = engine.switch_model("qwen3-0.6b")
+    assert switch_res["id"] == "qwen3-0.6b"
+    assert switch_res["name"] == "Qwen 3 - 0.6B"
+    assert engine.active_model_id == "qwen3-0.6b"
+    assert "Qwen3-0.6B" in switch_res["model"]
 
     # 4. Test API GET /models and POST /models/select
     client = TestClient(create_app(engine=engine))
     get_res = client.get("/models")
     assert get_res.status_code == 200
     data = get_res.json()
-    assert data["active_model_id"] == "qwen2.5-0.5b"
-    assert any(m["id"] == "qwen2.5-0.5b" and m["active"] for m in data["models"])
+    assert data["active_model_id"] == "qwen3-0.6b"
+    assert any(m["id"] == "qwen3-0.6b" and m["active"] for m in data["models"])
 
     post_res = client.post("/models/select", json={"model_id": "qwen3-1.7b"})
     assert post_res.status_code == 200
@@ -1439,4 +1442,241 @@ def test_project_crud_multi_doc_upload_and_scoped_chat(tmp_path: Path, monkeypat
     assert client.get("/projects").json()["projects"] == []
     docs_after = {d["doc_id"]: d for d in client.get("/documents").json()["documents"]}
     assert docs_after[doc_1["doc_id"]]["project_id"] is None
+
+
+def test_audit_regression_fixes(tmp_path: Path, monkeypatch) -> None:
+    import json
+    import threading
+    import time
+    from dataclasses import replace
+
+    import run as insight_run
+    from insight.config import DEFAULT_RESOURCES_DIR
+    from insight.llm import AutoRunner, LazyLLM, LlamaCppRunner, _generate_transformers_reply
+    from insight.vectorstore import HashingEmbedder, RetrievedChunk
+
+    monkeypatch.setattr("insight.vectorstore.build_embedder", lambda _name: HashingEmbedder())
+
+    # Fix #6: DEFAULT_RESOURCES_DIR must stay inside the repo directory.
+    repo_root = Path(__file__).resolve().parent.parent
+    assert DEFAULT_RESOURCES_DIR == repo_root / "resources"
+
+    # Fix #1: AutoRunner forwards sampling_params to LlamaCppRunner (generate & stream).
+    res_dir = tmp_path / "resources"
+    gguf_dir = res_dir / "gguf"
+    gguf_dir.mkdir(parents=True, exist_ok=True)
+    gguf_file = gguf_dir / "Qwen3-0.6B-UD-Q4_K_XL.gguf"
+    gguf_file.write_bytes(b"stub")
+
+    captured_sampling: list[dict] = []
+
+    class FakeLlama:
+        def create_chat_completion(self, **kwargs):
+            captured_sampling.append(kwargs)
+            if kwargs.get("stream"):
+                return iter([{"choices": [{"delta": {"content": "Stream OK"}}]}])
+            return {"choices": [{"message": {"content": "Sync OK"}}]}
+
+    def _fake_llama_init(self, model_path: Path, cfg: Settings) -> None:
+        self._model = FakeLlama()
+        self.settings = cfg
+        self.model_path = model_path
+        self._is_qwen3 = True
+        self._lock = threading.Lock()
+        self.label = f"llamacpp:{model_path.name}"
+
+    monkeypatch.setattr(LlamaCppRunner, "__init__", _fake_llama_init)
+    auto_cfg = replace(
+        _make_settings(tmp_path / "auto_sampling"),
+        llm_backend="auto",
+        llm_model="unsloth/Qwen3-0.6B-GGUF",
+        resources_dir=res_dir,
+    )
+    auto_runner = AutoRunner(auto_cfg)
+    chunk = RetrievedChunk(doc_id="d1", filename="doc.md", section="S", page_label="1", chunk_index=0, text="Isi.", score=0.9)
+    assert auto_runner.generate("Tanya", [chunk], sampling_params={"temperature": 0.77, "max_tokens": 123}) == "Sync OK"
+    assert captured_sampling[-1]["temperature"] == 0.77
+    assert captured_sampling[-1]["max_tokens"] == 123
+    assert "".join(auto_runner.generate_stream("Tanya", [chunk], sampling_params={"temperature": 0.55})) == "Stream OK"
+    assert captured_sampling[-1]["temperature"] == 0.55
+
+    # Fix #5: LazyLLM._get_runner initializes runner only once under concurrency.
+    init_count = {"n": 0}
+
+    def _slow_llama_init(self, model_path: Path, cfg: Settings) -> None:
+        time.sleep(0.05)
+        init_count["n"] += 1
+        _fake_llama_init(self, model_path, cfg)
+
+    monkeypatch.setattr(LlamaCppRunner, "__init__", _slow_llama_init)
+    lazy = LazyLLM(replace(auto_cfg, llm_backend="llamacpp"))
+    runners_seen: list[object] = []
+    threads = [threading.Thread(target=lambda: runners_seen.append(lazy._get_runner())) for _ in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert init_count["n"] == 1
+    assert len({id(r) for r in runners_seen}) == 1
+
+    # Fix #2 & #3 & #7 & #12: Cross-project filename isolation, scope reset, stream error handling, BM25 cache.
+    engine = InSightEngine(_make_settings(tmp_path / "ws"))
+    app = create_app(engine)
+    client = TestClient(app)
+
+    proj_a = client.post("/projects", json={"name": "Project A"}).json()["project"]["project_id"]
+    proj_b = client.post("/projects", json={"name": "Project B"}).json()["project"]["project_id"]
+
+    doc_a = client.post(
+        "/documents/upload",
+        data={"project_id": proj_a},
+        files={"file": ("laporan.md", b"# A\n\nProject A menggunakan algoritma CatBoost.", "text/markdown")},
+    ).json()["document"]["doc_id"]
+    doc_b = client.post(
+        "/documents/upload",
+        data={"project_id": proj_b},
+        files={"file": ("laporan.md", b"# B\n\nProject B menggunakan algoritma LightGBM.", "text/markdown")},
+    ).json()["document"]["doc_id"]
+
+    # Both same-named files across different projects must coexist.
+    all_docs = {d["doc_id"]: d for d in client.get("/documents").json()["documents"]}
+    assert doc_a in all_docs and doc_b in all_docs
+
+    # Fix #3: Session starts scoped to Project A, then switches to doc_b with project_id=null.
+    r1 = client.post("/chat", json={"question": "Algoritma apa?", "session_id": "s-scope", "project_id": proj_a})
+    assert r1.status_code == 200
+    assert all(s["doc_id"] == doc_a for s in r1.json()["sources"])
+
+    r2 = client.post(
+        "/chat",
+        json={"question": "Algoritma apa?", "session_id": "s-scope", "doc_id": doc_b, "project_id": None},
+    )
+    assert r2.status_code == 200
+    assert r2.json()["sources"] and all(s["doc_id"] == doc_b for s in r2.json()["sources"])
+
+    # Fix #12: Sparse index cache stays populated across repeated searches and invalidates on delete.
+    assert engine.vectors._sparse_index_cache is not None
+    cached_ref = engine.vectors._sparse_index_cache
+    engine.vectors.search("CatBoost", top_k_candidates=4, top_k_final=2)
+    assert engine.vectors._sparse_index_cache is cached_ref
+
+    # Fix #7: Stream failure emits SSE error event and does not persist orphan user message.
+    before_hist = len(client.get("/history", params={"session_id": "s-err"}).json()["messages"])
+
+    def _boom_stream(*_args, **_kwargs):
+        raise RuntimeError("Simulasi gagal LLM")
+
+    monkeypatch.setattr(engine.llm, "generate_stream", _boom_stream)
+    with client.stream("POST", "/chat/stream", json={"question": "Picu error", "session_id": "s-err"}) as resp:
+        assert resp.status_code == 200
+        raw_sse = "".join(resp.iter_text())
+    assert "event: error" in raw_sse
+    assert "Simulasi gagal LLM" in raw_sse
+    after_hist = len(client.get("/history", params={"session_id": "s-err"}).json()["messages"])
+    assert after_hist == before_hist
+
+    # Fix #9 & #11: /health does not leak details when unauthenticated and never calls Ollama HTTP.
+    import httpx
+
+    monkeypatch.setattr(httpx, "get", lambda *_a, **_kw: (_ for _ in ()).throw(AssertionError("httpx.get called!")))
+    auth_app = create_app(InSightEngine(_make_settings(tmp_path / "auth_ws", password="pw")))
+    auth_client = TestClient(auth_app)
+    anon_health = auth_client.get("/health").json()
+    assert anon_health["auth_required"] is True
+    assert "resources_dir" not in anon_health
+    assert "document_count" not in anon_health
+
+    tok = auth_client.post("/auth/login", json={"password": "pw"}).json()["token"]
+    authed_health = auth_client.get("/health", headers={"X-InSight-Token": tok}).json()
+    assert "resources_dir" in authed_health
+    assert "document_count" in authed_health
+
+    # Fix #4: stop_stale_instances must ignore unrelated Python processes holding the same port.
+    killed_pids: list[int] = []
+
+    class FakeConn:
+        def __init__(self, port: int) -> None:
+            self.laddr = type("Addr", (), {"port": port})()
+
+    class FakeProc:
+        def __init__(self, pid: int, cwd: str, cmdline: list[str], port: int) -> None:
+            self.info = {"pid": pid, "name": "python.exe", "cmdline": cmdline, "cwd": cwd}
+            self._port = port
+
+        def net_connections(self, kind="inet"):
+            return [FakeConn(self._port)]
+
+        def terminate(self):
+            killed_pids.append(self.info["pid"])
+
+        def kill(self):
+            killed_pids.append(self.info["pid"])
+
+    import psutil
+
+    foreign_proc = FakeProc(99991, r"C:\OtherProject", ["python.exe", "manage.py", "runserver"], 8000)
+    insight_proc = FakeProc(99992, insight_run.WORKSPACE_ROOT, ["python.exe", "run.py"], 8000)
+    monkeypatch.setattr(psutil, "process_iter", lambda _attrs: [foreign_proc, insight_proc])
+    monkeypatch.setattr(psutil, "wait_procs", lambda procs, timeout=3.0: (procs, []))
+    insight_run.stop_stale_instances(8000)
+    assert 99991 not in killed_pids
+    assert 99992 in killed_pids
+
+    # Fix #13: Shared transformers helper supports multi-turn history and sampling params.
+    import sys
+    import types
+
+    class FakeTensor:
+        def __init__(self, data: list[list[int]]) -> None:
+            self.data = data
+            self.shape = (len(data), len(data[0]))
+
+        def __getitem__(self, idx):
+            return self.data[idx]
+
+    class FakeBatch(dict):
+        def to(self, _device):
+            return self
+
+    captured_tr: dict = {}
+
+    class FakeTokenizer:
+        def apply_chat_template(self, messages, tokenize=False, add_generation_prompt=True):
+            captured_tr["messages"] = messages
+            return "PROMPT"
+
+        def __call__(self, text, return_tensors="pt"):
+            return FakeBatch({"input_ids": FakeTensor([[1, 2]])})
+
+        def decode(self, tokens, skip_special_tokens=True):
+            return "<think>x</think>Jawaban HF"
+
+    class FakeModel:
+        device = "cpu"
+
+        def generate(self, **kwargs):
+            captured_tr["gen_kwargs"] = kwargs
+            return [[1, 2, 3, 4]]
+
+    fake_torch = types.SimpleNamespace(no_grad=lambda: contextlib_nullcontext())
+    from contextlib import nullcontext as contextlib_nullcontext
+
+    monkeypatch.setitem(sys.modules, "torch", fake_torch)
+    reply = _generate_transformers_reply(
+        FakeModel(),
+        FakeTokenizer(),
+        "Lanjut?",
+        [chunk],
+        256,
+        history=[{"role": "user", "content": "Pertanyaan awal"}],
+        sampling_params={"temperature": 0.4, "max_tokens": 99},
+    )
+    assert reply == "Jawaban HF"
+    assert any(m["content"] == "Pertanyaan awal" for m in captured_tr["messages"])
+    assert captured_tr["gen_kwargs"]["max_new_tokens"] == 99
+    assert captured_tr["gen_kwargs"]["do_sample"] is True
+    assert captured_tr["gen_kwargs"]["temperature"] == 0.4
+
+    engine.close()
+
 

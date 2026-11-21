@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
@@ -27,7 +27,7 @@ from insight.config import (
     summarize_resources,
     summarize_resources_cached,
 )
-from insight.rag import VALID_RAG_MODES, InSightEngine
+from insight.rag import VALID_RAG_MODES, _UNSET, InSightEngine
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -216,7 +216,15 @@ def create_app(engine: InSightEngine | None = None, settings: Settings | None = 
         return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
 
     @app.get("/health")
-    def health() -> dict:
+    def health(x_insight_token: str | None = Header(default=None)) -> dict:
+        if app_settings.password and not _is_valid_token(x_insight_token):
+            return {
+                "status": "ok",
+                "version": __version__,
+                "role": "local",
+                "auth_required": True,
+                "auto_shutdown": app_settings.auto_shutdown,
+            }
         docs = rag.list_documents()
         res_summary = summarize_resources_cached(app_settings.resources_dir or DEFAULT_RESOURCES_DIR)
         return {
@@ -267,13 +275,8 @@ def create_app(engine: InSightEngine | None = None, settings: Settings | None = 
         tracker.record_heartbeat()
         return {"ok": True, "auto_shutdown": tracker.enabled}
 
-    @app.post("/runtime/disconnect")
-    def runtime_disconnect(
-        x_insight_token: str | None = Header(default=None),
-        token: str | None = Query(default=None),
-    ) -> dict:
-        if app_settings.password and not _is_valid_token(x_insight_token or token):
-            raise HTTPException(status_code=401, detail="Authentication required.")
+    @app.post("/runtime/disconnect", dependencies=[Depends(require_auth)])
+    def runtime_disconnect() -> dict:
         tracker.record_disconnect()
         return {"ok": True, "auto_shutdown": tracker.enabled}
 
@@ -412,14 +415,16 @@ def create_app(engine: InSightEngine | None = None, settings: Settings | None = 
 
     @app.post("/chat", dependencies=[Depends(require_auth)])
     def chat(payload: ChatRequest) -> dict:
+        doc_scope = payload.doc_id if "doc_id" in payload.model_fields_set else _UNSET
+        project_scope = payload.project_id if "project_id" in payload.model_fields_set else _UNSET
         tracker.begin_request()
         try:
             result = rag.ask(
                 question=payload.question,
                 session_id=payload.session_id,
                 rag_mode=payload.rag_mode,
-                doc_id=payload.doc_id,
-                project_id=payload.project_id,
+                doc_id=doc_scope,
+                project_id=project_scope,
                 sampling_params=payload.sampling,
             )
         except ValueError as exc:
@@ -446,6 +451,9 @@ def create_app(engine: InSightEngine | None = None, settings: Settings | None = 
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+        doc_scope = payload.doc_id if "doc_id" in payload.model_fields_set else _UNSET
+        project_scope = payload.project_id if "project_id" in payload.model_fields_set else _UNSET
+
         def _event_iter():
             tracker.begin_request()
             try:
@@ -453,12 +461,15 @@ def create_app(engine: InSightEngine | None = None, settings: Settings | None = 
                     question=cleaned,
                     session_id=payload.session_id,
                     rag_mode=payload.rag_mode,
-                    doc_id=payload.doc_id,
-                    project_id=payload.project_id,
+                    doc_id=doc_scope,
+                    project_id=project_scope,
                     sampling_params=payload.sampling,
                 ):
                     evt_type = event.get("type", "message")
                     yield f"event: {evt_type}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
+            except Exception as exc:
+                err_event = {"type": "error", "detail": str(exc) or "Internal server error."}
+                yield f"event: error\ndata: {json.dumps(err_event, ensure_ascii=False)}\n\n"
             finally:
                 tracker.end_request()
 
