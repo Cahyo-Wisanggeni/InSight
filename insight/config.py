@@ -207,7 +207,7 @@ class Settings:
             llm_model=os.getenv("INSIGHT_LLM_MODEL", DEFAULT_LLM_MODEL),
             precision_mode=precision,  # type: ignore[arg-type]
             max_seq_length=int(os.getenv("INSIGHT_MAX_SEQ_LENGTH", "4096")),
-            max_new_tokens=int(os.getenv("INSIGHT_MAX_NEW_TOKENS", "512")),
+            max_new_tokens=int(os.getenv("INSIGHT_MAX_NEW_TOKENS", "2048")),
             ollama_url=os.getenv("INSIGHT_OLLAMA_URL", "http://localhost:11434").rstrip("/"),
             embed_model=os.getenv(
                 "INSIGHT_EMBED_MODEL",

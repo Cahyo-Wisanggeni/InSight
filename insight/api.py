@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
@@ -40,6 +40,9 @@ class ChatRequest(BaseModel):
     question: str
     session_id: str = "default"
     rag_mode: str | None = None
+    doc_id: str | None = None
+    project_id: str | None = None
+    sampling: dict[str, float | int] | None = None
 
 
 class ModelSelectRequest(BaseModel):
@@ -300,8 +303,46 @@ def create_app(engine: InSightEngine | None = None, settings: Settings | None = 
     def list_documents() -> dict:
         return {"documents": [asdict(doc) for doc in rag.list_documents()]}
 
+    @app.get("/projects", dependencies=[Depends(require_auth)])
+    def list_projects() -> dict:
+        return {"projects": [asdict(p) for p in rag.list_projects()]}
+
+    @app.post("/projects", dependencies=[Depends(require_auth)])
+    def create_project(payload: dict) -> dict:
+        raw_name = str((payload or {}).get("name", "")).strip()
+        if not raw_name:
+            raise HTTPException(status_code=400, detail="Project name cannot be empty.")
+        try:
+            project = rag.create_project(raw_name)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"project": asdict(project)}
+
+    @app.patch("/projects/{project_id}", dependencies=[Depends(require_auth)])
+    def rename_project(project_id: str, payload: dict) -> dict:
+        raw_name = str((payload or {}).get("name", "")).strip()
+        if not raw_name:
+            raise HTTPException(status_code=400, detail="Project name cannot be empty.")
+        try:
+            updated = rag.rename_project(project_id, raw_name)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if updated is None:
+            raise HTTPException(status_code=404, detail="Project not found.")
+        return {"project": asdict(updated)}
+
+    @app.delete("/projects/{project_id}", dependencies=[Depends(require_auth)])
+    def delete_project(project_id: str) -> dict:
+        deleted = rag.delete_project(project_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Project not found.")
+        return {"deleted": True, "project_id": project_id}
+
     @app.post("/documents/upload", dependencies=[Depends(require_auth)])
-    async def upload_document(file: UploadFile = File(...)) -> dict:
+    async def upload_document(
+        file: UploadFile = File(...),
+        project_id: str | None = Form(None),
+    ) -> dict:
         filename = Path(file.filename or "document.txt").name
         suffix = Path(filename).suffix.lower()
         max_bytes = rag.settings.max_upload_mb * 1024 * 1024
@@ -325,7 +366,9 @@ def create_app(engine: InSightEngine | None = None, settings: Settings | None = 
                 tmp.write(data)
                 tmp_path = Path(tmp.name)
 
-            record = await run_in_threadpool(rag.ingest_file, tmp_path, filename)
+            record = await run_in_threadpool(
+                rag.ingest_file, tmp_path, filename, project_id=project_id or None
+            )
             return {"document": asdict(record)}
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -343,6 +386,30 @@ def create_app(engine: InSightEngine | None = None, settings: Settings | None = 
             raise HTTPException(status_code=404, detail="Document not found.")
         return {"deleted": True, "doc_id": doc_id}
 
+    @app.patch("/documents/{doc_id}", dependencies=[Depends(require_auth)])
+    def rename_document(doc_id: str, payload: dict) -> dict:
+        body = payload or {}
+        updated = None
+        if "filename" in body:
+            raw_name = str(body.get("filename", "")).strip()
+            if not raw_name:
+                raise HTTPException(status_code=400, detail="Document name cannot be empty.")
+            try:
+                updated = rag.rename_document(doc_id, raw_name)
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            if updated is None:
+                raise HTTPException(status_code=404, detail="Document not found.")
+        if "project_id" in body:
+            raw_proj = body.get("project_id")
+            proj_id = str(raw_proj).strip() if raw_proj is not None else None
+            updated = rag.set_document_project(doc_id, proj_id or None)
+            if updated is None:
+                raise HTTPException(status_code=404, detail="Document not found.")
+        if updated is None:
+            raise HTTPException(status_code=400, detail="No document fields provided to update.")
+        return {"document": asdict(updated)}
+
     @app.post("/chat", dependencies=[Depends(require_auth)])
     def chat(payload: ChatRequest) -> dict:
         tracker.begin_request()
@@ -351,6 +418,9 @@ def create_app(engine: InSightEngine | None = None, settings: Settings | None = 
                 question=payload.question,
                 session_id=payload.session_id,
                 rag_mode=payload.rag_mode,
+                doc_id=payload.doc_id,
+                project_id=payload.project_id,
+                sampling_params=payload.sampling,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -383,6 +453,9 @@ def create_app(engine: InSightEngine | None = None, settings: Settings | None = 
                     question=cleaned,
                     session_id=payload.session_id,
                     rag_mode=payload.rag_mode,
+                    doc_id=payload.doc_id,
+                    project_id=payload.project_id,
+                    sampling_params=payload.sampling,
                 ):
                     evt_type = event.get("type", "message")
                     yield f"event: {evt_type}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
@@ -401,7 +474,10 @@ def create_app(engine: InSightEngine | None = None, settings: Settings | None = 
         return {"session_id": session_id, "messages": [asdict(m) for m in messages]}
 
     @app.delete("/history", dependencies=[Depends(require_auth)])
-    def clear_history(session_id: str = "default") -> dict:
+    def clear_history(session_id: str = "default", all: bool = False) -> dict:
+        if all:
+            deleted_count = rag.clear_all_history()
+            return {"all": True, "deleted_count": deleted_count}
         deleted_count = rag.clear_history(session_id=session_id)
         return {"session_id": session_id, "deleted_count": deleted_count}
 
@@ -409,5 +485,18 @@ def create_app(engine: InSightEngine | None = None, settings: Settings | None = 
     def list_sessions() -> dict:
         sessions = rag.list_sessions()
         return {"sessions": [asdict(s) for s in sessions]}
+
+    @app.patch("/sessions/{session_id}", dependencies=[Depends(require_auth)])
+    def rename_session(session_id: str, payload: dict) -> dict:
+        title = str((payload or {}).get("title", "")).strip()
+        if not title:
+            raise HTTPException(status_code=400, detail="Conversation title cannot be empty.")
+        try:
+            renamed = rag.rename_session(session_id=session_id, title=title)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if not renamed:
+            raise HTTPException(status_code=404, detail="Conversation not found.")
+        return {"session_id": session_id, "title": title}
 
     return app

@@ -632,10 +632,9 @@ def test_ui_serves_page_citation_and_embedder_banner_markup(tmp_path: Path, monk
     assert 'id="docs-stage-panel"' in res.text
     assert 'id="sidebar-backdrop"' in res.text
     assert "color-scheme: light;" in res.text
-    assert "#5661f6" in res.text
-    assert "What's in your mind?..." in res.text
-    assert "Good day! How may I assist you today?" in res.text
-    assert 'id="canvas-theme-group"' in res.text
+    assert "#404040" in res.text
+    assert "Apa yang ingin anda ketahui?" in res.text
+    assert "Tanyakan sesuatu..." in res.text
     assert 'data-canvas-theme' in res.text
     assert "Learn, Discover" in res.text
     assert "colab" not in res.text.lower()
@@ -730,7 +729,7 @@ def test_hybrid_and_adaptive_rag_modes_and_strict_two_options(tmp_path: Path, mo
     select_match = re.search(r'<select[^>]*id="rag-mode-select"[^>]*>(.*?)</select>', ui_html, re.S)
     assert select_match is not None
     options = re.findall(r'<option\s+value="([^"]+)"[^>]*>([^<]+)</option>', select_match.group(1))
-    assert options == [("hybrid", "HybridRAG"), ("adaptive", "AdaptiveRAG")]
+    assert options == [("hybrid", "Hybrid"), ("adaptive", "Adaptive")]
 
     # Upload documents to test both HybridRAG and AdaptiveRAG end-to-end.
     assert client.post(
@@ -986,7 +985,7 @@ def test_unsloth_qwen3_gguf_resolution_priority_and_think_stripping(tmp_path: Pa
     answer = runner.generate("Apa isinya?", [chunk])
     assert answer == "Jawaban final dari dokumen."
     assert captured_calls[0]["messages"][-1]["content"].endswith("/no_think")
-    assert captured_calls[0]["temperature"] == 0.7
+    assert captured_calls[0]["temperature"] == 0.2
     assert captured_calls[0]["top_p"] == 0.8
     assert _strip_thinking_tags("<think>unclosed") == ""
 
@@ -1221,3 +1220,223 @@ def test_model_selection_api_and_engine_switching(tmp_path: Path, monkeypatch) -
     bad_res = client.post("/models/select", json={"model_id": "non-existent-model"})
     assert bad_res.status_code == 400
     engine.close()
+
+
+def test_prompt_history_limits_multiturn_and_sampling_configs(tmp_path: Path) -> None:
+    from dataclasses import replace
+
+    from insight.llm import SYSTEM_PROMPT, LlamaCppRunner, _trim_chat_history, build_chat_messages
+    from insight.storage import MessageRecord
+    from insight.vectorstore import RetrievedChunk
+
+    assert "Answer the user's question using ONLY the provided document excerpts." in SYSTEM_PROMPT
+    assert "bullet points" in SYSTEM_PROMPT.lower()
+
+    long_history = [
+        {"role": "user" if i % 2 == 0 else "assistant", "content": f"msg-{i} " + ("x" * 900)}
+        for i in range(10)
+    ]
+    trimmed = _trim_chat_history(long_history)
+    assert len(trimmed) == 8
+    assert trimmed[0]["content"].startswith("msg-2 ")
+    assert len(trimmed[0]["content"]) == 800
+
+    chunk = RetrievedChunk(doc_id="d1", filename="doc.md", section="Intro", page_label="1", chunk_index=0, text="Isi doc.", score=0.9)
+    history = [
+        {"role": "user", "content": "Apa itu Random Forest?"},
+        {"role": "assistant", "content": "Random Forest adalah metode ensemble."},
+    ]
+    msgs = build_chat_messages("Bagaimana kelebihannya?", [chunk], history=history)
+    assert [m["role"] for m in msgs] == ["system", "user", "assistant", "user"]
+    assert msgs[1]["content"] == "Apa itu Random Forest?"
+    assert msgs[2]["content"] == "Random Forest adalah metode ensemble."
+    assert "Recent conversation:" not in msgs[3]["content"]
+
+    base_cfg = _make_settings(tmp_path)
+    cfg_2048 = replace(base_cfg, max_new_tokens=2048)
+
+    runner_q3 = LlamaCppRunner.__new__(LlamaCppRunner)
+    runner_q3.settings = cfg_2048
+    runner_q3._is_qwen3 = True
+    q3_msgs, q3_sampling = runner_q3._prepare_chat_call("Lanjut", [chunk], history=history)
+    assert [m["role"] for m in q3_msgs] == ["system", "user", "assistant", "user"]
+    assert q3_sampling["max_tokens"] == 2048
+    assert q3_sampling["temperature"] == 0.2
+
+    runner_05b = LlamaCppRunner.__new__(LlamaCppRunner)
+    runner_05b.settings = cfg_2048
+    runner_05b._is_qwen3 = False
+    small_msgs, small_sampling = runner_05b._prepare_chat_call("Lanjut", [chunk], history=history)
+    assert [m["role"] for m in small_msgs] == ["system", "user", "assistant", "user"]
+    assert small_sampling["max_tokens"] == 1024
+    assert small_sampling["temperature"] == 0.2
+
+    prior = [
+        MessageRecord(id=1, session_id="s1", role="user", content="Jelaskan arsitektur sistem Random Forest pada dokumen", sources=[], created_at="t1"),
+        MessageRecord(id=2, session_id="s1", role="assistant", content="Random Forest menggunakan banyak pohon keputusan.", sources=[], created_at="t2"),
+        MessageRecord(id=3, session_id="s1", role="user", content="kelebihannya?", sources=[], created_at="t3"),
+        MessageRecord(id=4, session_id="s1", role="assistant", content="Tahan overfitting.", sources=[], created_at="t4"),
+    ]
+    rewritten = InSightEngine._contextualize_query("bagaimana dengan kekurangannya?", prior)
+    assert "Jelaskan arsitektur sistem Random Forest pada dokumen" in rewritten
+    assert "kelebihannya?" in rewritten
+    assert "bagaimana dengan kekurangannya?" in rewritten
+
+
+def test_rename_document_updates_storage_vectorstore_and_api(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "insight.vectorstore.build_embedder",
+        lambda _name: __import__("insight.vectorstore", fromlist=["HashingEmbedder"]).HashingEmbedder(),
+    )
+    app = create_app(InSightEngine(_make_settings(tmp_path)))
+    client = TestClient(app)
+
+    up = client.post(
+        "/documents/upload",
+        files={"file": ("draft_lama.md", b"# Judul\n\nMetode XGBoost dipakai untuk prediksi hasil panen.", "text/markdown")},
+    )
+    assert up.status_code == 200
+    doc_id = up.json()["document"]["doc_id"]
+
+    res = client.patch(f"/documents/{doc_id}", json={"filename": "Laporan Final.md"})
+    assert res.status_code == 200
+    assert res.json()["document"]["filename"] == "Laporan Final.md"
+
+    listed = client.get("/documents").json()["documents"]
+    assert len(listed) == 1
+    assert listed[0]["filename"] == "Laporan Final.md"
+
+    chat_res = client.post("/chat", json={"question": "Apa metode yang dipakai?", "rag_mode": "hybrid"})
+    assert chat_res.status_code == 200
+    assert chat_res.json()["sources"][0]["filename"] == "Laporan Final.md"
+
+    assert client.patch(f"/documents/{doc_id}", json={"filename": "   "}).status_code == 400
+    assert client.patch("/documents/missing-id", json={"filename": "x.md"}).status_code == 404
+
+
+def test_rename_session_updates_title_and_cleans_up_on_delete(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "insight.vectorstore.build_embedder",
+        lambda _name: __import__("insight.vectorstore", fromlist=["HashingEmbedder"]).HashingEmbedder(),
+    )
+    app = create_app(InSightEngine(_make_settings(tmp_path)))
+    client = TestClient(app)
+
+    client.post(
+        "/documents/upload",
+        files={"file": ("doc.md", b"# Info\n\nSistem menggunakan Qdrant lokal.", "text/markdown")},
+    )
+    client.post("/chat", json={"question": "Apa database vektornya?", "session_id": "sess-rename"})
+
+    rename_res = client.patch("/sessions/sess-rename", json={"title": "Diskusi Qdrant"})
+    assert rename_res.status_code == 200
+    assert rename_res.json()["title"] == "Diskusi Qdrant"
+
+    sessions = client.get("/sessions").json()["sessions"]
+    assert len(sessions) == 1
+    assert sessions[0]["session_id"] == "sess-rename"
+    assert sessions[0]["title"] == "Diskusi Qdrant"
+
+    assert client.patch("/sessions/sess-rename", json={"title": "   "}).status_code == 400
+    assert client.patch("/sessions/tidak-ada", json={"title": "Judul"}).status_code == 404
+
+    client.delete("/history?session_id=sess-rename")
+    assert client.get("/sessions").json()["sessions"] == []
+
+
+def test_session_scoped_to_document_pool(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "insight.vectorstore.build_embedder",
+        lambda _name: __import__("insight.vectorstore", fromlist=["HashingEmbedder"]).HashingEmbedder(),
+    )
+    app = create_app(InSightEngine(_make_settings(tmp_path)))
+    client = TestClient(app)
+
+    doc_a = client.post(
+        "/documents/upload",
+        files={"file": ("alpha.md", b"# Alpha\n\nProyek Alpha menggunakan metode Random Forest.", "text/markdown")},
+    ).json()["document"]["doc_id"]
+    doc_b = client.post(
+        "/documents/upload",
+        files={"file": ("beta.md", b"# Beta\n\nProyek Beta menggunakan metode XGBoost.", "text/markdown")},
+    ).json()["document"]["doc_id"]
+
+    res_a = client.post(
+        "/chat",
+        json={"question": "Metode apa yang dipakai?", "session_id": "sess-alpha", "doc_id": doc_a},
+    )
+    assert res_a.status_code == 200
+    sources_a = res_a.json()["sources"]
+    assert sources_a and all(s["doc_id"] == doc_a for s in sources_a)
+
+    res_b = client.post(
+        "/chat",
+        json={"question": "Metode apa yang dipakai?", "session_id": "sess-beta", "doc_id": doc_b},
+    )
+    assert res_b.status_code == 200
+    sources_b = res_b.json()["sources"]
+    assert sources_b and all(s["doc_id"] == doc_b for s in sources_b)
+
+    sessions = {s["session_id"]: s for s in client.get("/sessions").json()["sessions"]}
+    assert sessions["sess-alpha"]["doc_id"] == doc_a
+    assert sessions["sess-beta"]["doc_id"] == doc_b
+
+
+def test_project_crud_multi_doc_upload_and_scoped_chat(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "insight.vectorstore.build_embedder",
+        lambda _name: __import__("insight.vectorstore", fromlist=["HashingEmbedder"]).HashingEmbedder(),
+    )
+    app = create_app(InSightEngine(_make_settings(tmp_path)))
+    client = TestClient(app)
+
+    create_resp = client.post("/projects", json={"name": "Riset CAMP"})
+    assert create_resp.status_code == 200
+    proj_id = create_resp.json()["project"]["project_id"]
+
+    doc_1 = client.post(
+        "/documents/upload",
+        data={"project_id": proj_id},
+        files={"file": ("camp-part1.md", b"# CAMP Part 1\n\nTim CAMP memakai arsitektur FastAPI.", "text/markdown")},
+    ).json()["document"]
+    doc_2 = client.post(
+        "/documents/upload",
+        data={"project_id": proj_id},
+        files={"file": ("camp-part2.md", b"# CAMP Part 2\n\nEvaluasi CAMP menggunakan metrik F1-score.", "text/markdown")},
+    ).json()["document"]
+    doc_other = client.post(
+        "/documents/upload",
+        files={"file": ("other.md", b"# Other\n\nDokumen luar memakai arsitektur Django.", "text/markdown")},
+    ).json()["document"]
+
+    assert doc_1["project_id"] == proj_id
+    assert doc_2["project_id"] == proj_id
+    assert doc_other["project_id"] is None
+
+    projects = client.get("/projects").json()["projects"]
+    assert len(projects) == 1
+    assert projects[0]["doc_count"] == 2
+
+    chat_resp = client.post(
+        "/chat",
+        json={"question": "Apa arsitektur dan metrik evaluasi yang dipakai?", "session_id": "sess-camp", "project_id": proj_id},
+    )
+    assert chat_resp.status_code == 200
+    sources = chat_resp.json()["sources"]
+    assert sources
+    assert {s["doc_id"] for s in sources}.issubset({doc_1["doc_id"], doc_2["doc_id"]})
+    assert all(s["doc_id"] != doc_other["doc_id"] for s in sources)
+
+    sessions = {s["session_id"]: s for s in client.get("/sessions").json()["sessions"]}
+    assert sessions["sess-camp"]["project_id"] == proj_id
+
+    rename_resp = client.patch(f"/projects/{proj_id}", json={"name": "CAMP Final"})
+    assert rename_resp.status_code == 200
+    assert rename_resp.json()["project"]["name"] == "CAMP Final"
+
+    del_resp = client.delete(f"/projects/{proj_id}")
+    assert del_resp.status_code == 200
+    assert client.get("/projects").json()["projects"] == []
+    docs_after = {d["doc_id"]: d for d in client.get("/documents").json()["documents"]}
+    assert docs_after[doc_1["doc_id"]]["project_id"] is None
+

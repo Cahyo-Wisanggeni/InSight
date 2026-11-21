@@ -11,7 +11,7 @@ from typing import Any, Iterator
 from insight.config import RAGMode, Settings, normalize_rag_mode
 from insight.llm import LazyLLM
 from insight.parser import chunk_markdown, parse_file
-from insight.storage import DocumentRecord, MessageRecord, SessionSummary, SQLiteStore
+from insight.storage import DocumentRecord, MessageRecord, ProjectRecord, SessionSummary, SQLiteStore
 from insight.vectorstore import STOPWORDS, TOKEN_RE, LocalVectorStore, RetrievedChunk, _lexical_overlap
 
 VALID_RAG_MODES: tuple[RAGMode, ...] = ("hybrid", "adaptive")
@@ -226,19 +226,27 @@ class InSightEngine:
 
     @staticmethod
     def _contextualize_query(question: str, prior_messages: list[MessageRecord]) -> str:
-        """Expand short or anaphoric follow-ups using the most recent user turn."""
+        """Rewrite follow-up questions into self-contained retrieval queries using active topic context."""
         if not prior_messages:
             return question
         q_lower = question.lower().strip()
         words = q_lower.split()
-        is_explicit_standalone = q_lower.startswith(("apa itu ", "what is ", "define "))
+        is_explicit_standalone = q_lower.startswith(
+            ("apa itu ", "what is ", "define ", "jelaskan tentang ", "explain ")
+        )
+        if is_explicit_standalone:
+            return question
         has_followup_cue = bool(
             re.search(
-                r"\b(siapa saja|tersebut|sebelumnya|tadi|maksudnya|detailnya|selain itu|apakah hanya|bagaimana dengan|lalu|terus)\b",
+                r"\b(siapa saja|tersebut|sebelumnya|tadi|di atas|barusan|maksudnya|detailnya|"
+                r"selain itu|apakah hanya|bagaimana dengan|lalu|terus|lanjut|lebih lanjut|"
+                r"kenapa|mengapa|contohnya|alasannya|kelebihan|kekurangan|dampak|solusi|"
+                r"poin|itu|ini|mereka|keduanya|that|this|those|these|it|them|above|"
+                r"elaborate|more about|follow up)\b",
                 q_lower,
             )
         )
-        short_fragment = len(words) <= 3 and not is_explicit_standalone
+        short_fragment = len(words) <= 5
         if not (has_followup_cue or short_fragment):
             return question
 
@@ -249,15 +257,32 @@ class InSightEngine:
         ]
         if not prev_users:
             return question
-        last_topic = prev_users[-1]
-        if last_topic.lower() == q_lower:
-            return question
-        return f"{last_topic} — {question}"
 
-    def _merge_front_matter(self, query: str, chunks: list[RetrievedChunk]) -> list[RetrievedChunk]:
+        last_user = prev_users[-1]
+        anchor = next((u for u in reversed(prev_users) if len(u.split()) >= 4), last_user)
+        if anchor.lower() == q_lower:
+            return question
+
+        context_parts = [anchor]
+        if last_user.lower() not in {anchor.lower(), q_lower}:
+            context_parts.append(last_user)
+        return f"{' — '.join(context_parts)} — {question}"
+
+    def _merge_front_matter(
+        self,
+        query: str,
+        chunks: list[RetrievedChunk],
+        doc_id: str | None = None,
+        doc_ids: list[str] | None = None,
+    ) -> list[RetrievedChunk]:
         if not self._is_front_matter_query(query):
             return chunks
-        front_chunks = self.vectors.get_front_matter_chunks(max_chunk_index=3, limit=2)
+        front_chunks = self.vectors.get_front_matter_chunks(
+            max_chunk_index=3,
+            limit=2,
+            doc_id=doc_id,
+            doc_ids=doc_ids,
+        )
         if not front_chunks:
             return chunks
         merged: list[RetrievedChunk] = []
@@ -272,7 +297,12 @@ class InSightEngine:
                 break
         return merged
 
-    def _retrieve_hybrid(self, query: str) -> tuple[list[RetrievedChunk], str]:
+    def _retrieve_hybrid(
+        self,
+        query: str,
+        doc_id: str | None = None,
+        doc_ids: list[str] | None = None,
+    ) -> tuple[list[RetrievedChunk], str]:
         chunks = self.vectors.search(
             query=query,
             top_k_candidates=self.settings.top_k_candidates,
@@ -280,6 +310,8 @@ class InSightEngine:
             strategy="hybrid_search",
             dense_weight=0.70,
             sparse_weight=0.30,
+            doc_id=doc_id,
+            doc_ids=doc_ids,
         )
         if self._grade_retrieval_relevance(query, chunks) == "not_relevant":
             rewritten = self._rewrite_query_for_retrieval(query)
@@ -291,6 +323,8 @@ class InSightEngine:
                     strategy="hybrid_search",
                     dense_weight=0.70,
                     sparse_weight=0.30,
+                    doc_id=doc_id,
+                    doc_ids=doc_ids,
                 )
                 if retry_chunks and (
                     not chunks
@@ -299,7 +333,12 @@ class InSightEngine:
                     return retry_chunks, "hybrid_search_rewritten"
         return chunks, "hybrid_search"
 
-    def _retrieve_adaptive(self, query: str) -> tuple[list[RetrievedChunk], str, dict[str, Any]]:
+    def _retrieve_adaptive(
+        self,
+        query: str,
+        doc_id: str | None = None,
+        doc_ids: list[str] | None = None,
+    ) -> tuple[list[RetrievedChunk], str, dict[str, Any]]:
         analysis = self.query_analyzer.analyze_query(query)
         strategy = self.select_adaptive_strategy(analysis)
         dense_weight = 0.8 if analysis["is_factual"] else 0.6
@@ -312,6 +351,8 @@ class InSightEngine:
             strategy=strategy,
             dense_weight=dense_weight,
             sparse_weight=sparse_weight,
+            doc_id=doc_id,
+            doc_ids=doc_ids,
         )
         if self._grade_retrieval_relevance(query, chunks) == "not_relevant" and strategy != "comprehensive":
             rewritten = self._rewrite_query_for_retrieval(query)
@@ -322,6 +363,8 @@ class InSightEngine:
                 strategy="comprehensive",
                 dense_weight=0.70,
                 sparse_weight=0.30,
+                doc_id=doc_id,
+                doc_ids=doc_ids,
             )
             if escalated and (
                 not chunks
@@ -330,7 +373,12 @@ class InSightEngine:
                 return escalated, "comprehensive", analysis
         return chunks, strategy, analysis
 
-    def ingest_file(self, file_path: Path, display_name: str | None = None) -> DocumentRecord:
+    def ingest_file(
+        self,
+        file_path: Path,
+        display_name: str | None = None,
+        project_id: str | None = None,
+    ) -> DocumentRecord:
         filename = display_name or file_path.name
         parsed = parse_file(file_path)
         if not parsed.markdown:
@@ -356,6 +404,7 @@ class InSightEngine:
                 chunk_count=len(chunks),
                 char_count=len(parsed.markdown),
                 parser_used=parsed.parser_used,
+                project_id=project_id,
             )
         except Exception:
             self.vectors.delete_document(doc_id)
@@ -382,11 +431,48 @@ class InSightEngine:
             uploaded.unlink()
         return True
 
+    def rename_document(self, doc_id: str, new_name: str) -> DocumentRecord | None:
+        cleaned = Path(new_name.strip()).name
+        if not cleaned or cleaned in {".", ".."}:
+            raise ValueError("Document name cannot be empty.")
+        record = self.store.get_document(doc_id)
+        if record is None:
+            return None
+        if cleaned == record.filename:
+            return record
+        updated = self.store.rename_document(doc_id, cleaned)
+        if updated is None:
+            return None
+        self.vectors.rename_document(doc_id, cleaned)
+        old_path = self.settings.upload_dir / f"{doc_id}_{record.filename}"
+        new_path = self.settings.upload_dir / f"{doc_id}_{cleaned}"
+        if old_path.exists() and not new_path.exists():
+            old_path.rename(new_path)
+        return updated
+
+    def create_project(self, name: str) -> ProjectRecord:
+        project_id = f"proj-{uuid.uuid4().hex[:10]}"
+        return self.store.create_project(project_id=project_id, name=name)
+
+    def list_projects(self) -> list[ProjectRecord]:
+        return self.store.list_projects()
+
+    def rename_project(self, project_id: str, name: str) -> ProjectRecord | None:
+        return self.store.rename_project(project_id=project_id, name=name)
+
+    def delete_project(self, project_id: str) -> bool:
+        return self.store.delete_project(project_id=project_id)
+
+    def set_document_project(self, doc_id: str, project_id: str | None) -> DocumentRecord | None:
+        return self.store.set_document_project(doc_id=doc_id, project_id=project_id)
+
     def _prepare_ask(
         self,
         question: str,
         session_id: str = "default",
         rag_mode: str | None = None,
+        doc_id: str | None = None,
+        project_id: str | None = None,
     ) -> tuple[
         str,
         RAGMode,
@@ -413,7 +499,7 @@ class InSightEngine:
         prior_messages = self.store.list_messages(session_id=session_id)
         chat_history = [
             {"role": m.role, "content": m.content}
-            for m in prior_messages[-6:]
+            for m in prior_messages[-8:]
             if m.role in {"user", "assistant"}
         ]
         retrieval_query = self._contextualize_query(cleaned, prior_messages)
@@ -442,14 +528,39 @@ class InSightEngine:
                 empty_answer,
             )
 
+        if doc_id is not None:
+            self.store.set_session_doc(session_id=session_id, doc_id=doc_id or None)
+        if project_id is not None:
+            self.store.set_session_project(session_id=session_id, project_id=project_id or None)
+        effective_doc_id = self.store.get_session_doc(session_id)
+        effective_project_id = self.store.get_session_project(session_id)
+        effective_doc_ids = (
+            self.store.list_project_doc_ids(effective_project_id)
+            if effective_project_id
+            else None
+        )
+
         if selected_mode == "adaptive":
-            retrieved, retrieval_strategy, search_analysis = self._retrieve_adaptive(retrieval_query)
+            retrieved, retrieval_strategy, search_analysis = self._retrieve_adaptive(
+                retrieval_query,
+                doc_id=effective_doc_id,
+                doc_ids=effective_doc_ids,
+            )
             if query_analysis is None:
                 query_analysis = search_analysis
         else:
-            retrieved, retrieval_strategy = self._retrieve_hybrid(retrieval_query)
+            retrieved, retrieval_strategy = self._retrieve_hybrid(
+                retrieval_query,
+                doc_id=effective_doc_id,
+                doc_ids=effective_doc_ids,
+            )
 
-        retrieved = self._merge_front_matter(retrieval_query, retrieved)
+        retrieved = self._merge_front_matter(
+            retrieval_query,
+            retrieved,
+            doc_id=effective_doc_id,
+            doc_ids=effective_doc_ids,
+        )
         sources = [
             {
                 "doc_id": item.doc_id,
@@ -478,6 +589,9 @@ class InSightEngine:
         question: str,
         session_id: str = "default",
         rag_mode: str | None = None,
+        doc_id: str | None = None,
+        project_id: str | None = None,
+        sampling_params: dict[str, Any] | None = None,
     ) -> ChatResult:
         (
             cleaned,
@@ -488,7 +602,13 @@ class InSightEngine:
             retrieved,
             sources,
             empty_answer,
-        ) = self._prepare_ask(question, session_id=session_id, rag_mode=rag_mode)
+        ) = self._prepare_ask(
+            question,
+            session_id=session_id,
+            rag_mode=rag_mode,
+            doc_id=doc_id,
+            project_id=project_id,
+        )
 
         if empty_answer is not None:
             return ChatResult(
@@ -500,7 +620,18 @@ class InSightEngine:
                 query_analysis=query_analysis,
             )
 
-        answer = self.llm.generate(question=cleaned, contexts=retrieved, history=chat_history)
+        if sampling_params:
+            try:
+                answer = self.llm.generate(
+                    question=cleaned,
+                    contexts=retrieved,
+                    history=chat_history,
+                    sampling_params=sampling_params,
+                )
+            except TypeError:
+                answer = self.llm.generate(question=cleaned, contexts=retrieved, history=chat_history)
+        else:
+            answer = self.llm.generate(question=cleaned, contexts=retrieved, history=chat_history)
         self.store.add_message(
             session_id=session_id,
             role="assistant",
@@ -521,6 +652,9 @@ class InSightEngine:
         question: str,
         session_id: str = "default",
         rag_mode: str | None = None,
+        doc_id: str | None = None,
+        project_id: str | None = None,
+        sampling_params: dict[str, Any] | None = None,
     ) -> Iterator[dict[str, Any]]:
         (
             cleaned,
@@ -531,7 +665,13 @@ class InSightEngine:
             retrieved,
             sources,
             empty_answer,
-        ) = self._prepare_ask(question, session_id=session_id, rag_mode=rag_mode)
+        ) = self._prepare_ask(
+            question,
+            session_id=session_id,
+            rag_mode=rag_mode,
+            doc_id=doc_id,
+            project_id=project_id,
+        )
 
         yield {
             "type": "meta",
@@ -548,7 +688,27 @@ class InSightEngine:
             return
 
         parts: list[str] = []
-        for delta in self.llm.generate_stream(question=cleaned, contexts=retrieved, history=chat_history):
+        if sampling_params:
+            try:
+                stream_iter = self.llm.generate_stream(
+                    question=cleaned,
+                    contexts=retrieved,
+                    history=chat_history,
+                    sampling_params=sampling_params,
+                )
+            except TypeError:
+                stream_iter = self.llm.generate_stream(
+                    question=cleaned,
+                    contexts=retrieved,
+                    history=chat_history,
+                )
+        else:
+            stream_iter = self.llm.generate_stream(
+                question=cleaned,
+                contexts=retrieved,
+                history=chat_history,
+            )
+        for delta in stream_iter:
             if delta:
                 parts.append(delta)
                 yield {"type": "token", "delta": delta}
@@ -567,8 +727,15 @@ class InSightEngine:
     def clear_history(self, session_id: str = "default") -> int:
         return self.store.clear_messages(session_id=session_id)
 
+    def clear_all_history(self) -> int:
+        """Delete all conversation history across all sessions."""
+        return self.store.clear_all_messages()
+
     def list_sessions(self) -> list[SessionSummary]:
         return self.store.list_sessions()
+
+    def rename_session(self, session_id: str, title: str) -> bool:
+        return self.store.rename_session(session_id=session_id, title=title)
 
     def close(self) -> None:
         self.vectors.close()

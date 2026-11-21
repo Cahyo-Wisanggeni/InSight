@@ -461,6 +461,22 @@ class LocalVectorStore:
             )
             self._corpus_cache = None
 
+    def rename_document(self, doc_id: str, new_filename: str) -> None:
+        with self._lock:
+            self.client.set_payload(
+                collection_name=self.COLLECTION_NAME,
+                payload={"filename": new_filename},
+                points=self._models.Filter(
+                    must=[
+                        self._models.FieldCondition(
+                            key="doc_id",
+                            match=self._models.MatchValue(value=doc_id),
+                        )
+                    ]
+                ),
+            )
+            self._corpus_cache = None
+
     def _dedupe_chunks(self, items: list[RetrievedChunk], limit: int) -> list[RetrievedChunk]:
         deduped: list[RetrievedChunk] = []
         seen_keys: set[tuple[str, str, str]] = set()
@@ -482,7 +498,17 @@ class LocalVectorStore:
         strategy: str = "hybrid_search",
         dense_weight: float = 0.75,
         sparse_weight: float = 0.25,
+        doc_id: str | None = None,
+        doc_ids: list[str] | None = None,
     ) -> list[RetrievedChunk]:
+        target_ids: set[str] | None = None
+        if doc_ids is not None:
+            target_ids = {d for d in doc_ids if d}
+            if not target_ids:
+                return []
+        elif doc_id:
+            target_ids = {doc_id}
+
         strategy_norm = (strategy or "hybrid_search").strip().lower()
         effective_limit = (
             max(top_k_candidates, top_k_final * 3)
@@ -505,16 +531,31 @@ class LocalVectorStore:
             else:
                 dw, sw = dense_weight / total_w, sparse_weight / total_w
 
+        doc_filter = (
+            self._models.Filter(
+                must=[
+                    self._models.FieldCondition(
+                        key="doc_id",
+                        match=self._models.MatchAny(any=list(target_ids)),
+                    )
+                ]
+            )
+            if target_ids is not None
+            else None
+        )
         query_vec = self.embedder.embed([query])[0]
         with self._lock:
             response = self.client.query_points(
                 collection_name=self.COLLECTION_NAME,
                 query=query_vec,
+                query_filter=doc_filter,
                 limit=effective_limit,
                 with_payload=True,
             )
         dense_points = response.points
         corpus = self._get_corpus_points()
+        if target_ids is not None:
+            corpus = [(pt_id, pl) for pt_id, pl in corpus if pl.get("doc_id") in target_ids]
         if not dense_points and not corpus:
             return []
 
@@ -624,19 +665,39 @@ class LocalVectorStore:
 
         return self._dedupe_chunks(scored, effective_top_k)
 
-    def get_front_matter_chunks(self, max_chunk_index: int = 3, limit: int = 2) -> list[RetrievedChunk]:
+    def get_front_matter_chunks(
+        self,
+        max_chunk_index: int = 3,
+        limit: int = 2,
+        doc_id: str | None = None,
+        doc_ids: list[str] | None = None,
+    ) -> list[RetrievedChunk]:
         """Return earliest document chunks (cover/title/authors), prioritizing non-TOC content."""
+        target_ids: set[str] | None = None
+        if doc_ids is not None:
+            target_ids = {d for d in doc_ids if d}
+            if not target_ids:
+                return []
+        elif doc_id:
+            target_ids = {doc_id}
+
+        must_conds: list[Any] = [
+            self._models.FieldCondition(
+                key="chunk_index",
+                range=self._models.Range(lte=max_chunk_index),
+            )
+        ]
+        if target_ids is not None:
+            must_conds.append(
+                self._models.FieldCondition(
+                    key="doc_id",
+                    match=self._models.MatchAny(any=list(target_ids)),
+                )
+            )
         with self._lock:
             records, _ = self.client.scroll(
                 collection_name=self.COLLECTION_NAME,
-                scroll_filter=self._models.Filter(
-                    must=[
-                        self._models.FieldCondition(
-                            key="chunk_index",
-                            range=self._models.Range(lte=max_chunk_index),
-                        )
-                    ]
-                ),
+                scroll_filter=self._models.Filter(must=must_conds),
                 limit=max(12, limit * 4),
                 with_payload=True,
                 with_vectors=False,

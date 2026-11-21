@@ -3,28 +3,32 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>InSight A.I+</title>
+  <title>InSight</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
   <style>
     :root {
       color-scheme: light;
-      --bg-canvas: #eff2f9;
-      --bg-canvas-alt: #e7ecf7;
-      --bg-sidebar: #ffffff;
-      --bg-surface: #ffffff;
-      --bg-subtle: #f5f7fc;
-      --bg-hover: #f2f4fb;
-      --bg-active: #eef0ff;
-      --border-subtle: #eceef5;
-      --border-strong: #d9dfee;
-      --ink-primary: #0f1419;
-      --ink-body: #1f2633;
-      --ink-muted: #6e7485;
-      --ink-subtle: #9aa1b2;
-      --ink-on-accent: #ffffff;
-      --accent-indigo: #5661f6;
-      --accent-indigo-hover: #4651e8;
-      --accent-indigo-soft: #eef0ff;
-      --ink-dark-pill: #0b0b0f;
+      --bg-canvas: #FAFAFA;
+      --bg-canvas-alt: #E5E5E5;
+      --bg-sidebar: #EFEFEF;
+      --bg-surface: #FAFAFA;
+      --bg-subtle: rgba(229, 229, 229, 0.45);
+      --bg-hover: rgba(229, 229, 229, 0.72);
+      --bg-active: #E5E5E5;
+      --border-subtle: rgba(64, 64, 64, 0.14);
+      --border-strong: rgba(64, 64, 64, 0.28);
+      --ink-primary: #171717;
+      --ink-body: #171717;
+      --ink-muted: #404040;
+      --ink-subtle: rgba(64, 64, 64, 0.68);
+      --ink-on-accent: #FAFAFA;
+      --accent-indigo: #404040;
+      --accent-indigo-hover: #171717;
+      --accent-indigo-soft: #E5E5E5;
+      --accent-sky: #737373;
+      --ink-dark-pill: #171717;
       --danger-ink: #b91c1c;
       --danger-bg: #fef2f2;
       --danger-border: #fecaca;
@@ -34,7 +38,7 @@
       --shadow-sidebar: 0 12px 36px rgba(15, 23, 42, 0.06);
       --shadow-card: 0 8px 24px rgba(15, 23, 42, 0.04);
       --shadow-composer: 0 16px 40px rgba(15, 23, 42, 0.09);
-      --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --font-sans: "Plus Jakarta Sans", "Google Sans", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
       --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       --radius-sm: 10px;
       --radius-md: 16px;
@@ -60,6 +64,286 @@
     [data-canvas-theme="neutral"] {
       --bg-canvas: #efeff2;
       --bg-canvas-alt: #e6e7ec;
+    }
+
+    [data-theme="dark"] {
+      color-scheme: dark;
+      --bg-canvas: #0A0A0A;
+      --bg-canvas-alt: #111111;
+      --bg-sidebar: #1B1B1B;
+      --bg-surface: #141414;
+      --bg-subtle: rgba(255, 255, 255, 0.06);
+      --bg-hover: rgba(255, 255, 255, 0.10);
+      --bg-active: #262626;
+      --border-subtle: rgba(255, 255, 255, 0.10);
+      --border-strong: rgba(255, 255, 255, 0.22);
+      --ink-primary: #F5F5F5;
+      --ink-body: #D4D4D4;
+      --ink-muted: #A3A3A3;
+      --ink-subtle: rgba(255, 255, 255, 0.55);
+      --ink-on-accent: #0A0A0A;
+      --accent-indigo: #E5E5E5;
+      --accent-indigo-hover: #FFFFFF;
+      --accent-indigo-soft: rgba(255, 255, 255, 0.10);
+      --shadow-sidebar: 0 12px 36px rgba(0, 0, 0, 0.55);
+      --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.45);
+      --shadow-composer: 0 16px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    [data-theme="dark"] .workspace-main:not(.has-messages):not(.docs-view) .stage-body {
+      background: radial-gradient(ellipse 72% 62% at 50% 48%, rgba(38, 38, 38, 0.55) 0%, rgba(16, 16, 16, 0.92) 55%, #0A0A0A 100%);
+    }
+
+    [data-theme="dark"] .workspace-main:not(.has-messages):not(.docs-view) .welcome-title {
+      color: #F5F5F5;
+    }
+
+    [data-theme="dark"] .workspace-main:not(.has-messages):not(.docs-view) .composer-card,
+    [data-theme="dark"] .composer-card,
+    [data-theme="dark"] .modal-card {
+      background-color: #161616;
+      border-color: rgba(255, 255, 255, 0.14);
+    }
+
+    [data-theme="dark"] .workspace-main:not(.has-messages):not(.docs-view) .composer-input {
+      color: #F5F5F5;
+    }
+
+    [data-theme="dark"] .workspace-main:not(.has-messages):not(.docs-view) .composer-input::placeholder {
+      color: rgba(255, 255, 255, 0.45);
+    }
+
+    [data-theme="dark"] .workspace-main:not(.has-messages):not(.docs-view) .plus-btn {
+      color: #D4D4D4;
+    }
+
+    [data-theme="dark"] .workspace-main:not(.has-messages):not(.docs-view) .plus-btn:hover {
+      background-color: rgba(255, 255, 255, 0.10);
+    }
+
+    [data-theme="dark"] .send-btn,
+    [data-theme="dark"] .workspace-main:not(.has-messages):not(.docs-view) .send-btn {
+      background-color: #262626;
+      color: #F5F5F5;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow: none;
+    }
+
+    [data-theme="dark"] .send-btn:hover:not(:disabled),
+    [data-theme="dark"] .workspace-main:not(.has-messages):not(.docs-view) .send-btn:hover:not(:disabled) {
+      background-color: #363636;
+      color: #FFFFFF;
+    }
+
+    [data-theme="dark"] .custom-dropdown-trigger {
+      background-color: rgba(255, 255, 255, 0.07);
+      border-color: rgba(255, 255, 255, 0.14);
+      color: #F5F5F5;
+    }
+
+    [data-theme="dark"] .custom-dropdown-trigger:hover,
+    [data-theme="dark"] .custom-dropdown-trigger[aria-expanded="true"] {
+      background-color: #262626;
+      border-color: rgba(255, 255, 255, 0.28);
+    }
+
+    [data-theme="dark"] .custom-dropdown-trigger svg {
+      color: #A3A3A3;
+    }
+
+    [data-theme="dark"] .custom-dropdown-menu {
+      background-color: #161616;
+      border-color: rgba(255, 255, 255, 0.14);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+    }
+
+    [data-theme="dark"] .custom-dropdown-option:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+    }
+
+    [data-theme="dark"] .custom-dropdown-option.active {
+      background-color: #262626;
+    }
+
+    [data-theme="dark"] .opt-title {
+      color: #F5F5F5;
+    }
+
+    [data-theme="dark"] .opt-desc,
+    [data-theme="dark"] .opt-check {
+      color: #A3A3A3;
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 6px 0;
+      background-color: transparent;
+      border: none;
+      margin-bottom: 16px;
+    }
+
+    .advanced-settings-details {
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      background-color: var(--bg-subtle);
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .advanced-settings-summary {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--ink-primary);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .advanced-settings-summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .advanced-settings-summary svg {
+      color: var(--ink-muted);
+      transition: transform 160ms ease;
+      flex-shrink: 0;
+    }
+
+    .advanced-settings-details[open] .advanced-settings-summary svg {
+      transform: rotate(180deg);
+    }
+
+    .advanced-settings-body {
+      padding: 4px 12px 12px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .advanced-settings-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 12px;
+      margin-top: 8px;
+    }
+
+    .adv-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .adv-field label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--ink-muted);
+    }
+
+    .adv-field input {
+      width: 100%;
+      height: 32px;
+      padding: 0 9px;
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+      background-color: var(--bg-surface);
+      color: var(--ink-primary);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+    }
+
+    .adv-field input:focus {
+      outline: none;
+      border-color: var(--border-strong);
+    }
+
+    .adv-reset-row {
+      margin-top: 12px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .adv-reset-btn {
+      height: 30px;
+      padding: 0 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border-strong);
+      background-color: var(--bg-surface);
+      color: var(--ink-body);
+      font-family: var(--font-sans);
+      font-size: 0.76rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 140ms ease, color 140ms ease;
+    }
+
+    .adv-reset-btn:hover {
+      background-color: var(--bg-hover);
+      color: var(--ink-primary);
+    }
+
+    .setting-label {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--ink-primary);
+    }
+
+    .setting-desc {
+      display: block;
+      font-size: 0.74rem;
+      color: var(--ink-muted);
+      margin-top: 2px;
+    }
+
+    .theme-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .theme-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .theme-switch-slider {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background-color: #E5E5E5;
+      border: 1px solid rgba(64, 64, 64, 0.25);
+      cursor: pointer;
+      transition: background-color 160ms ease;
+    }
+
+    .theme-switch-slider::before {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      left: 2px;
+      top: 2px;
+      border-radius: 50%;
+      background-color: #404040;
+      transition: transform 160ms ease, background-color 160ms ease;
+    }
+
+    .theme-switch input:checked + .theme-switch-slider {
+      background-color: #404040;
+      border-color: #737373;
+    }
+
+    .theme-switch input:checked + .theme-switch-slider::before {
+      transform: translateX(20px);
+      background-color: #F5F5F5;
     }
 
     *, *::before, *::after {
@@ -130,30 +414,31 @@
       height: 100dvh;
       width: 100%;
       overflow: hidden;
-      padding: 14px;
-      gap: 14px;
+      padding: 0;
+      gap: 0;
+      background-color: var(--bg-canvas);
     }
 
-    /* Floating Sidebar matching Figma CHAT A.I+ */
+    /* Docked Sidebar */
     .sidebar {
-      width: 288px;
+      width: 264px;
       flex-shrink: 0;
       background-color: var(--bg-sidebar);
-      border: 1px solid rgba(255, 255, 255, 0.9);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-sidebar);
+      border-right: 1px solid var(--border-subtle);
+      border-radius: 0;
+      box-shadow: none;
       display: flex;
       flex-direction: column;
       min-height: 0;
       overflow: hidden;
-      transition: width 160ms ease, opacity 160ms ease, margin 160ms ease;
+      transition: width 160ms ease, opacity 160ms ease;
     }
 
     .app-layout.sidebar-collapsed .sidebar {
       width: 0;
-      border-width: 0;
+      border-right-width: 0;
       box-shadow: none;
-      margin-left: -14px;
+      margin-left: 0;
       opacity: 0;
       pointer-events: none;
     }
@@ -169,8 +454,7 @@
     .sidebar-brand {
       font-size: 1.05rem;
       font-weight: 700;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
+      letter-spacing: 0.01em;
       color: var(--ink-primary);
       text-decoration: none;
     }
@@ -180,8 +464,8 @@
       height: 34px;
       min-width: 34px;
       border-radius: var(--radius-pill);
-      border: 1px solid var(--border-subtle);
-      background: var(--bg-subtle);
+      border: none;
+      background: transparent;
       color: var(--ink-muted);
       display: inline-flex;
       align-items: center;
@@ -208,26 +492,27 @@
 
     .new-chat-pill {
       flex: 1;
-      height: 46px;
-      padding: 0 18px;
-      border: none;
-      border-radius: 69px;
-      background-color: var(--accent-indigo);
-      color: var(--ink-on-accent);
+      height: 38px;
+      padding: 0 14px;
+      border: 1px solid var(--border-subtle);
+      border-radius: 999px;
+      background-color: var(--bg-subtle);
+      color: var(--ink-primary);
       font-family: var(--font-sans);
-      font-size: 0.92rem;
+      font-size: 0.86rem;
       font-weight: 500;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      box-shadow: 0 8px 18px rgba(86, 97, 246, 0.28);
-      transition: background-color 140ms ease, transform 120ms ease;
+      box-shadow: none;
+      transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
     }
 
     .new-chat-pill:hover {
-      background-color: var(--accent-indigo-hover);
-      transform: translateY(-1px);
+      background-color: var(--accent-indigo);
+      border-color: var(--accent-indigo);
+      color: var(--ink-on-accent);
     }
 
     .search-circle-btn {
@@ -371,7 +656,7 @@
       padding: 0;
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: 1px;
     }
 
     .item-row {
@@ -399,7 +684,7 @@
       height: 8px;
       border-radius: 50%;
       background-color: var(--accent-indigo);
-      box-shadow: 0 0 0 3px rgba(86, 97, 246, 0.18);
+      box-shadow: 0 0 0 3px rgba(64, 64, 64, 0.18);
       margin-right: 4px;
       flex-shrink: 0;
     }
@@ -407,8 +692,8 @@
     .item-main-btn {
       flex: 1;
       min-width: 0;
-      min-height: 40px;
-      padding: 6px 10px;
+      min-height: 30px;
+      padding: 4px 10px;
       border: none;
       background: transparent;
       color: var(--ink-body);
@@ -470,9 +755,60 @@
       opacity: 1;
     }
 
+    .folder-chat-list {
+      list-style: none;
+      margin: 2px 0 6px 14px;
+      padding: 0 0 0 8px;
+      border-left: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
     .item-del-btn:hover {
       background-color: var(--danger-bg);
       color: var(--danger-ink);
+    }
+
+    .item-edit-btn {
+      min-width: 26px;
+      min-height: 26px;
+      border: none;
+      border-radius: var(--radius-pill);
+      background: transparent;
+      color: var(--ink-muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      opacity: 0;
+      transition: opacity 120ms ease, background-color 120ms ease, color 120ms ease;
+    }
+
+    .item-row:hover .item-edit-btn,
+    .item-row.active .item-edit-btn,
+    .item-edit-btn:focus-visible {
+      opacity: 1;
+    }
+
+    .item-edit-btn:hover {
+      background-color: var(--bg-active);
+      color: var(--accent-indigo);
+    }
+
+    .item-rename-input {
+      flex: 1;
+      min-width: 0;
+      height: 26px;
+      padding: 2px 8px;
+      border-radius: 8px;
+      border: 1px solid #737373;
+      background-color: #FAFAFA;
+      color: #171717;
+      font-family: var(--font-sans);
+      font-size: 0.81rem;
+      font-weight: 500;
+      outline: none;
     }
 
     .sidebar-footer {
@@ -530,7 +866,7 @@
       width: 30px;
       height: 30px;
       border-radius: 50%;
-      background: linear-gradient(135deg, #5661f6 0%, #8b5cf6 100%);
+      background: linear-gradient(135deg, #404040 0%, #737373 100%);
       color: #ffffff;
       font-size: 0.72rem;
       font-weight: 700;
@@ -642,7 +978,7 @@
 
     .theme-dot-btn.active {
       border-color: var(--accent-indigo);
-      box-shadow: 0 0 0 2px rgba(86, 97, 246, 0.28);
+      box-shadow: 0 0 0 2px rgba(64, 64, 64, 0.28);
     }
 
     .top-pill-btn {
@@ -771,6 +1107,44 @@
       position: relative;
     }
 
+    .insight-vertical-mark {
+      position: absolute;
+      right: 18px;
+      top: 0;
+      bottom: 0;
+      padding: 10px 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-sans);
+      font-size: clamp(2.8rem, 9.5vh, 6rem);
+      font-weight: 800;
+      line-height: 0.88;
+      color: #171717;
+      pointer-events: none;
+      user-select: none;
+      z-index: 1;
+    }
+
+    .insight-vertical-mark span:nth-child(1) { opacity: 0.04; }
+    .insight-vertical-mark span:nth-child(2) { opacity: 0.09; }
+    .insight-vertical-mark span:nth-child(3) { opacity: 0.15; }
+    .insight-vertical-mark span:nth-child(4) { opacity: 0.23; }
+    .insight-vertical-mark span:nth-child(5) { opacity: 0.34; }
+    .insight-vertical-mark span:nth-child(6) { opacity: 0.48; }
+    .insight-vertical-mark span:nth-child(7) { opacity: 0.65; }
+
+    [data-theme="dark"] .insight-vertical-mark {
+      color: #F5F5F5;
+    }
+
+    @media (max-width: 900px) {
+      .insight-vertical-mark {
+        display: none;
+      }
+    }
+
     .chat-scroll {
       display: none;
       flex: 1;
@@ -782,36 +1156,168 @@
       display: block;
     }
 
-    /* Welcome / Empty Screen matching Figma 19:914 ("new chat") */
+    /* Workspace Top Bar */
+    .workspace-topbar {
+      height: 52px;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-shrink: 0;
+      z-index: 25;
+    }
+
+    .workspace-topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .workspace-topbar .custom-dropdown-menu {
+      top: calc(100% + 8px);
+      bottom: auto;
+      left: 0;
+      right: auto;
+    }
+
+    /* Welcome / Empty Screen */
     .welcome-stage {
-      flex: 1;
-      min-height: 0;
-      overflow-y: auto;
-      padding: 4px 24px 8px;
+      flex: 0 0 auto;
+      width: 100%;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 20px 18px;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      gap: 6px;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 0;
     }
 
     .workspace-main.has-messages .welcome-stage,
-    .workspace-main.docs-view .welcome-stage {
+    .workspace-main.docs-view .welcome-stage,
+    .workspace-main.has-messages .welcome-chips-wrap,
+    .workspace-main.docs-view .welcome-chips-wrap {
       display: none;
     }
 
-    .welcome-brand-pill {
-      margin-top: auto;
-      padding: 5px 18px;
-      border-radius: var(--radius-pill);
-      background-color: #ffffff;
-      border: 1px solid rgba(255, 255, 255, 0.95);
-      box-shadow: var(--shadow-card);
-      font-size: 0.8rem;
-      font-weight: 700;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
+    .workspace-main:not(.has-messages):not(.docs-view) .stage-body {
+      justify-content: center;
+      background: var(--bg-canvas);
+      border-radius: 0;
+    }
+
+    .workspace-main:not(.has-messages):not(.docs-view) .welcome-title {
       color: var(--ink-primary);
+      font-size: clamp(1.45rem, 2.5vw, 1.95rem);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin: 0;
+      text-align: left;
+      min-height: 1.35em;
+    }
+
+    .welcome-title .typing-caret {
+      display: inline-block;
+      width: 2px;
+      height: 1.05em;
+      margin-left: 4px;
+      vertical-align: -0.14em;
+      background-color: var(--accent-indigo);
+      animation: caretBlink 0.9s step-end infinite;
+    }
+
+    @keyframes caretBlink {
+      0%, 50% { opacity: 1; }
+      50.01%, 100% { opacity: 0; }
+    }
+
+    .workspace-main:not(.has-messages):not(.docs-view) .composer-wrap {
+      max-width: 720px;
+      padding: 0 20px;
+    }
+
+    .workspace-main:not(.has-messages):not(.docs-view) .composer-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: 999px;
+      padding: 8px 10px 8px 14px;
+      box-shadow: 0 6px 20px rgba(23, 23, 23, 0.06);
+    }
+
+    .workspace-main:not(.has-messages):not(.docs-view) .composer-card:focus-within {
+      border-color: var(--accent-indigo);
+    }
+
+    .workspace-main:not(.has-messages):not(.docs-view) .composer-input {
+      color: var(--ink-primary);
+      padding: 6px 4px;
+    }
+
+    .workspace-main:not(.has-messages):not(.docs-view) .composer-input::placeholder {
+      color: var(--ink-subtle);
+    }
+
+    .workspace-main:not(.has-messages):not(.docs-view) .plus-btn {
+      background: transparent;
+      border-color: transparent;
+      color: var(--ink-muted);
+      width: 36px;
+      height: 36px;
+    }
+
+    .workspace-main:not(.has-messages):not(.docs-view) .plus-btn:hover {
+      background-color: var(--bg-hover);
+      border-color: transparent;
+    }
+
+    .workspace-main:not(.has-messages):not(.docs-view) .send-btn {
+      width: 36px;
+      height: 36px;
+      background-color: #404040;
+      color: #FAFAFA;
+      box-shadow: none;
+    }
+
+    .workspace-main:not(.has-messages):not(.docs-view) .send-btn:hover:not(:disabled) {
+      background-color: #737373;
+      color: #FAFAFA;
+    }
+
+    .welcome-chips-wrap {
+      width: 100%;
+      max-width: 720px;
+      margin: 14px auto 0;
+      padding: 0 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .welcome-chip {
+      height: 34px;
+      padding: 0 16px;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      background-color: var(--bg-subtle);
+      color: var(--ink-body);
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 130ms ease, border-color 130ms ease, color 130ms ease;
+    }
+
+    .welcome-chip:hover {
+      background-color: var(--bg-active);
+      border-color: var(--border-strong);
+      color: var(--ink-primary);
+    }
+
+    .workspace-main:not(.has-messages):not(.docs-view) .composer-toolbar {
+      display: none;
     }
 
     .welcome-title {
@@ -905,7 +1411,7 @@
     .prompt-card:hover {
       transform: translateY(-2px);
       border-color: var(--accent-indigo);
-      box-shadow: 0 12px 28px rgba(86, 97, 246, 0.12);
+      box-shadow: 0 12px 28px rgba(64, 64, 64, 0.12);
     }
 
     .prompt-orb {
@@ -1109,64 +1615,75 @@
     .msg-item.user {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 10px 4px;
-      border-bottom: 1px solid rgba(217, 223, 238, 0.7);
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: none;
     }
 
     .user-msg-left {
-      display: flex;
+      order: 2;
+      display: inline-flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       min-width: 0;
-      flex: 1;
+      flex: 0 1 auto;
+      max-width: 78%;
+      padding: 10px 16px;
+      border-radius: 18px 18px 4px 18px;
+      background-color: #E5E5E5;
+      color: #171717;
+    }
+
+    [data-theme="dark"] .user-msg-left {
+      background-color: #262626;
+      color: #F5F5F5;
     }
 
     .user-msg-avatar {
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
-      color: #ffffff;
-      font-size: 0.72rem;
-      font-weight: 700;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
+      display: none;
     }
 
     .user-msg-text {
       margin: 0;
-      font-size: 0.94rem;
+      font-size: 0.92rem;
       font-weight: 500;
-      color: var(--ink-primary);
+      color: inherit;
       white-space: pre-wrap;
       word-break: break-word;
     }
 
     .user-edit-btn {
-      width: 34px;
-      height: 34px;
-      border-radius: 10px;
-      border: 1px solid var(--border-subtle);
-      background-color: var(--bg-surface);
+      order: 1;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      background-color: transparent;
       color: var(--ink-muted);
       display: inline-flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
+      opacity: 0;
+      transition: opacity 120ms ease, background-color 120ms ease, color 120ms ease;
+    }
+
+    .msg-item.user:hover .user-edit-btn,
+    .user-edit-btn:focus-visible {
+      opacity: 1;
     }
 
     .user-edit-btn:hover {
-      border-color: var(--accent-indigo);
+      background-color: var(--bg-active);
       color: var(--accent-indigo);
     }
 
     .msg-item.assistant {
-      padding: 2px 4px 18px;
-      border-bottom: 1px solid rgba(217, 223, 238, 0.55);
+      padding: 4px 0 18px;
+      border-bottom: none;
+      align-self: flex-start;
+      width: 100%;
     }
 
     .msg-header {
@@ -1198,7 +1715,7 @@
     .rag-meta-badge {
       padding: 2px 9px;
       border-radius: var(--radius-pill);
-      border: 1px solid rgba(86, 97, 246, 0.22);
+      border: 1px solid rgba(64, 64, 64, 0.22);
       background-color: var(--accent-indigo-soft);
       color: var(--accent-indigo);
       font-family: var(--font-mono);
@@ -1321,29 +1838,83 @@
       margin-top: 12px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
     }
 
-    .source-chip {
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
-      color: var(--ink-muted);
-      background-color: rgba(255, 255, 255, 0.9);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-sm);
-      padding: 7px 11px;
-    }
-
-    .source-chip summary {
-      list-style: none;
+    .sources-row {
       display: flex;
       align-items: center;
       flex-wrap: wrap;
       gap: 6px;
     }
 
-    .source-chip summary::-webkit-details-marker {
-      display: none;
+    .sources-label {
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--ink-muted);
+    }
+
+    .source-link-btn {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--border-subtle);
+      background-color: #ffffff;
+      color: var(--ink-body);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 120ms ease;
+    }
+
+    .source-link-btn:hover,
+    .source-link-btn.is-active {
+      background-color: var(--bg-hover);
+      border-color: var(--border-strong);
+      color: var(--ink-primary);
+    }
+
+    .source-link-btn:active {
+      transform: scale(0.94);
+    }
+
+    [data-theme="dark"] .source-link-btn {
+      background-color: #1A1A1A;
+      border-color: rgba(255, 255, 255, 0.14);
+      color: #D4D4D4;
+    }
+
+    [data-theme="dark"] .source-link-btn:hover,
+    [data-theme="dark"] .source-link-btn.is-active {
+      background-color: #262626;
+      border-color: rgba(255, 255, 255, 0.28);
+      color: #F5F5F5;
+    }
+
+    .source-detail-card {
+      margin-top: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--ink-muted);
+      background-color: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 8px 11px;
+    }
+
+    [data-theme="dark"] .source-detail-card {
+      background-color: #161616;
+      border-color: rgba(255, 255, 255, 0.12);
+      color: #A3A3A3;
+    }
+
+    .source-detail-header {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
     }
 
     .source-page-badge {
@@ -1374,6 +1945,10 @@
       justify-content: space-between;
       gap: 10px;
       flex-wrap: wrap;
+    }
+
+    .msg-copy-btn {
+      margin-left: auto;
     }
 
     .msg-feedback-pill {
@@ -1441,15 +2016,29 @@
       color: var(--accent-indigo);
     }
 
+    [data-theme="dark"] .regenerate-pill-btn {
+      background-color: #1A1A1A;
+      border-color: rgba(255, 255, 255, 0.14);
+      color: #D4D4D4;
+    }
+
+    [data-theme="dark"] .regenerate-pill-btn:hover {
+      background-color: #262626;
+      border-color: rgba(255, 255, 255, 0.28);
+      color: #F5F5F5;
+    }
+
     .thinking-note {
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      background-color: #ffffff;
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-pill);
-      padding: 10px 16px;
-      box-shadow: var(--shadow-card);
+      background-color: transparent;
+      border: none;
+      color: var(--ink-muted);
+      font-size: 0.84rem;
+      border-radius: 0;
+      padding: 6px 0;
+      box-shadow: none;
     }
 
     .thinking-dots {
@@ -1496,7 +2085,7 @@
     }
 
     .composer-card:focus-within {
-      border-color: rgba(86, 97, 246, 0.45);
+      border-color: rgba(64, 64, 64, 0.45);
     }
 
     .composer-main-row {
@@ -1522,7 +2111,7 @@
       position: absolute;
       inset: 4px;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(244, 114, 182, 0.45), rgba(86, 97, 246, 0.25));
+      background: radial-gradient(circle, rgba(244, 114, 182, 0.45), rgba(64, 64, 64, 0.25));
       filter: blur(5px);
       z-index: 0;
     }
@@ -1565,7 +2154,7 @@
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      box-shadow: 0 6px 16px rgba(86, 97, 246, 0.34);
+      box-shadow: 0 6px 16px rgba(64, 64, 64, 0.34);
       transition: background-color 130ms ease, transform 120ms ease;
     }
 
@@ -1574,14 +2163,212 @@
       transform: scale(1.03);
     }
 
-    .composer-toolbar {
+    /* Custom Popover Dropdowns for RAG & Model */
+    .custom-dropdown {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .custom-dropdown-trigger {
+      height: 32px;
+      padding: 0 11px;
+      border-radius: 999px;
+      border: 1px solid rgba(64, 64, 64, 0.18);
+      background-color: rgba(229, 229, 229, 0.42);
+      color: #171717;
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: transform 120ms cubic-bezier(0.22, 1, 0.36, 1), background-color 140ms ease, border-color 140ms ease;
+    }
+
+    .custom-dropdown-trigger:hover {
+      background-color: #E5E5E5;
+      border-color: #737373;
+    }
+
+    .custom-dropdown-trigger:active {
+      transform: scale(0.95);
+    }
+
+    .custom-dropdown-trigger[aria-expanded="true"] {
+      background-color: #E5E5E5;
+      border-color: #404040;
+    }
+
+    .custom-dropdown-trigger:focus-visible {
+      outline: none;
+      border-color: #404040;
+    }
+
+    .custom-dropdown-trigger svg {
+      color: #404040;
+      transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .custom-dropdown-trigger[aria-expanded="true"] svg {
+      transform: rotate(180deg);
+    }
+
+    .custom-dropdown-menu {
+      position: absolute;
+      top: calc(100% + 10px);
+      bottom: auto;
+      right: 0;
+      min-width: 220px;
+      padding: 6px;
+      border-radius: 16px;
+      background-color: #FAFAFA;
+      border: 1px solid #E5E5E5;
+      box-shadow: 0 16px 40px rgba(23, 23, 23, 0.16);
+      z-index: 60;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateY(-6px) scale(0.97);
+      transform-origin: top left;
+      transition: opacity 160ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1), visibility 180ms;
+    }
+
+    .custom-dropdown-menu.open {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+    }
+
+    .workspace-main.has-messages .custom-dropdown-menu {
+      top: auto;
+      bottom: calc(100% + 10px);
+      transform-origin: bottom left;
+    }
+
+    .project-dropdown {
+      flex-shrink: 0;
+    }
+
+    .project-dropdown .custom-dropdown-trigger {
+      padding: 6px 10px;
+      font-size: 0.78rem;
+      max-width: 150px;
+      gap: 5px;
+    }
+
+    .project-dropdown .custom-dropdown-trigger span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .project-doc-list {
+      list-style: none;
+      margin: 2px 0 6px 12px;
+      padding: 0 0 0 8px;
+      border-left: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .item-add-btn {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--ink-muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      line-height: 1;
+      opacity: 0.75;
+      transition: opacity 0.12s ease, background-color 0.12s ease, color 0.12s ease;
+    }
+
+    .item-row:hover .item-add-btn,
+    .item-row:focus-within .item-add-btn {
+      opacity: 1;
+    }
+
+    .item-add-btn:hover {
+      background: rgba(64, 64, 64, 0.12);
+      color: var(--ink-primary);
+    }
+
+    .custom-dropdown-option {
+      width: 100%;
+      padding: 9px 11px;
+      border: none;
+      border-radius: 11px;
+      background: transparent;
+      color: #171717;
+      font-family: var(--font-sans);
+      text-align: left;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
-      flex-wrap: wrap;
-      padding-top: 6px;
-      border-top: 1px solid var(--border-subtle);
+      gap: 12px;
+      cursor: pointer;
+      transition: background-color 120ms ease, transform 100ms ease;
+    }
+
+    .custom-dropdown-option:active {
+      transform: scale(0.985);
+    }
+
+    .custom-dropdown-option:hover {
+      background-color: rgba(229, 229, 229, 0.65);
+    }
+
+    .custom-dropdown-option.active {
+      background-color: #E5E5E5;
+    }
+
+    .opt-meta {
+      min-width: 0;
+    }
+
+    .opt-title {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #171717;
+      line-height: 1.25;
+    }
+
+    .opt-desc {
+      display: block;
+      font-size: 0.71rem;
+      color: #404040;
+      margin-top: 2px;
+      line-height: 1.25;
+    }
+
+    .opt-check {
+      color: #404040;
+      flex-shrink: 0;
+      opacity: 0;
+    }
+
+    .custom-dropdown-option.active .opt-check {
+      opacity: 1;
+    }
+
+    .composer-toolbar {
+      display: none;
     }
 
     .toolbar-left,
@@ -1596,19 +2383,141 @@
       width: 34px;
       height: 34px;
       border-radius: 50%;
-      border: 1px solid var(--border-subtle);
-      background: var(--bg-subtle);
-      color: var(--ink-body);
+      border: none;
+      background: transparent;
+      color: var(--ink-muted);
       font-size: 1.1rem;
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      cursor: pointer;
+      transition: background-color 140ms ease, color 140ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .plus-btn svg {
+      transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .plus-btn[aria-expanded="true"] svg {
+      transform: rotate(45deg);
     }
 
     .plus-btn:hover {
       background-color: var(--accent-indigo-soft);
       border-color: var(--accent-indigo);
       color: var(--accent-indigo);
+    }
+
+    .radial-menu-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .radial-menu {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 0;
+      height: 0;
+      z-index: 65;
+      pointer-events: none;
+    }
+
+    .radial-menu.open {
+      pointer-events: auto;
+    }
+
+    .radial-item {
+      position: absolute;
+      left: -19px;
+      top: -19px;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1px solid var(--border-strong);
+      background-color: #ffffff;
+      color: var(--ink-primary);
+      box-shadow: 0 8px 20px rgba(23, 23, 23, 0.16);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(0, 0) scale(0.35);
+      will-change: transform, opacity;
+      transition:
+        transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1),
+        opacity 160ms ease,
+        background-color 140ms ease,
+        border-color 140ms ease,
+        color 140ms ease;
+    }
+
+    .radial-menu.open .radial-item {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translate(var(--rx, 0px), var(--ry, 0px)) scale(1);
+    }
+
+    .radial-menu.open .radial-item:nth-child(1) { transition-delay: 0ms; }
+    .radial-menu.open .radial-item:nth-child(2) { transition-delay: 30ms; }
+    .radial-menu.open .radial-item:nth-child(3) { transition-delay: 60ms; }
+    .radial-menu.open .radial-item:nth-child(4) { transition-delay: 90ms; }
+
+    .radial-item:hover,
+    .radial-item:focus-visible {
+      background-color: var(--bg-active);
+      border-color: var(--accent-indigo);
+      color: var(--accent-indigo);
+      outline: none;
+    }
+
+    .radial-item-label {
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%) translateY(4px);
+      padding: 3px 8px;
+      border-radius: 999px;
+      background-color: #171717;
+      color: #FAFAFA;
+      font-family: var(--font-sans);
+      font-size: 0.7rem;
+      font-weight: 500;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 120ms ease, transform 120ms ease;
+    }
+
+    .radial-item:hover .radial-item-label,
+    .radial-item:focus-visible .radial-item-label {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    [data-theme="dark"] .radial-item {
+      background-color: #1A1A1A;
+      border-color: rgba(255, 255, 255, 0.18);
+      color: #F5F5F5;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55);
+    }
+
+    [data-theme="dark"] .radial-item:hover,
+    [data-theme="dark"] .radial-item:focus-visible {
+      background-color: #262626;
+      border-color: rgba(255, 255, 255, 0.35);
+      color: #FFFFFF;
+    }
+
+    [data-theme="dark"] .radial-item-label {
+      background-color: #262626;
+      color: #F5F5F5;
+      border: 1px solid rgba(255, 255, 255, 0.14);
     }
 
     .mode-pill-group {
@@ -1691,6 +2600,14 @@
       color: var(--danger-ink);
     }
 
+    #session-state.status-note:not(.error),
+    #doc-state.status-note:not(.error) {
+      padding: 4px 10px;
+      border: none;
+      background-color: transparent;
+      color: var(--ink-subtle);
+    }
+
     .file-input-hidden {
       position: absolute;
       width: 1px;
@@ -1752,7 +2669,7 @@
     }
 
     .auth-hero-pane {
-      background: linear-gradient(145deg, #4338ca 0%, #5661f6 52%, #f4a28c 100%);
+      background: linear-gradient(145deg, #171717 0%, #404040 52%, #737373 100%);
       color: #ffffff;
       padding: 28px;
       display: flex;
@@ -2005,32 +2922,42 @@
   <div id="app-layout" class="app-layout">
     <aside id="sidebar" class="sidebar" aria-label="Menu utama dan daftar dokumen">
       <div class="sidebar-top">
-        <a href="/" class="sidebar-brand">INSIGHT A.I+</a>
-        <button
-          type="button"
-          id="sidebar-collapse-btn"
-          class="sidebar-toggle-btn"
-          aria-label="Tutup panel samping"
-          title="Tutup panel samping"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
-            <rect x="3" y="4" width="18" height="16" rx="2" />
-            <path d="M9 4v16" />
-          </svg>
-        </button>
+        <a href="/" class="sidebar-brand">InSight</a>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <button
+            type="button"
+            id="toggle-search-btn"
+            class="sidebar-toggle-btn"
+            aria-label="Cari percakapan atau dokumen"
+            title="Cari (Ctrl+K)"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            id="sidebar-collapse-btn"
+            class="sidebar-toggle-btn"
+            aria-label="Tutup panel samping"
+            title="Tutup panel samping"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="16" rx="2" />
+              <path d="M9 4v16" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div class="sidebar-primary-actions">
         <div class="sidebar-cta-row">
           <button type="button" id="new-chat-btn" class="new-chat-pill">
-            <span aria-hidden="true">+</span>
-            <span>New chat</span>
-          </button>
-          <button type="button" id="toggle-search-btn" class="search-circle-btn" aria-label="Cari percakapan atau dokumen" title="Cari (Ctrl+K)">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m20 20-3.5-3.5" />
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
             </svg>
+            <span>Percakapan baru</span>
           </button>
         </div>
       </div>
@@ -2059,27 +2986,17 @@
         accept=".pdf,.docx,.pptx,.xlsx,.html,.htm,.xhtml,.txt,.md,.markdown,.csv,.json,.py,.tex,.yaml,.yml"
       />
 
-      <div id="upload-status" class="status-note" style="margin: 0 14px 8px;" hidden></div>
-
       <div class="sidebar-scroll">
-        <section aria-labelledby="sessions-toggle">
-          <div class="section-header-row">
-            <button type="button" id="sessions-toggle" class="group-toggle" aria-expanded="true">
-              <span>Your conversations</span>
-              <span id="sessions-count-badge" class="group-count-pill">0</span>
-            </button>
-          </div>
-          <div id="sessions-panel">
-            <div id="session-state" class="status-note">Memuat riwayat...</div>
-            <ul id="session-list" class="item-list"></ul>
-          </div>
-        </section>
-
         <section aria-labelledby="docs-toggle">
           <div class="section-header-row">
             <button type="button" id="docs-toggle" class="group-toggle" aria-expanded="true">
-              <span>Documents</span>
-              <span id="docs-count-badge" class="group-count-pill">0</span>
+              <span>Folder Dokumen</span>
+            </button>
+            <button type="button" id="new-project-btn" class="sidebar-toggle-btn" style="width: 24px; height: 24px; min-width: 24px;" title="Buat Project baru" aria-label="Buat Project baru">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 10v6M9 13h6" />
+                <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+              </svg>
             </button>
           </div>
           <div id="docs-panel">
@@ -2087,61 +3004,92 @@
             <ul id="doc-list" class="item-list"></ul>
           </div>
         </section>
-      </div>
 
-      <div class="sidebar-footer">
-        <button type="button" id="open-settings-nav" class="footer-pill-btn">
-          <span class="footer-pill-left">
-            <span class="icon-circle-badge" aria-hidden="true">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
-              </svg>
-            </span>
-            <span class="profile-name">Settings</span>
-          </span>
-          <span id="precision-nav-hint" class="nav-hint">4bit</span>
-        </button>
-
-        <button type="button" id="footer-settings-btn" class="footer-pill-btn">
-          <span class="footer-pill-left">
-            <span class="avatar-circle" aria-hidden="true">IS</span>
-            <span class="profile-meta">
-              <span class="profile-name">InSight Workspace</span>
-              <span id="footer-mode-sub" class="profile-sub">Memuat status...</span>
-            </span>
-          </span>
-        </button>
+        <section aria-labelledby="sessions-toggle">
+          <div class="section-header-row">
+            <button type="button" id="sessions-toggle" class="group-toggle" aria-expanded="true">
+              <span>Percakapan</span>
+            </button>
+          </div>
+          <div id="sessions-panel">
+            <div id="session-state" class="status-note">Memuat riwayat...</div>
+            <ul id="session-list" class="item-list"></ul>
+          </div>
+        </section>
       </div>
     </aside>
 
     <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
 
     <main id="workspace-main" class="workspace-main">
-      <button
-        type="button"
-        id="sidebar-open-btn"
-        class="floating-open-btn"
-        aria-label="Buka panel samping"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
-          <rect x="3" y="4" width="18" height="16" rx="2" />
-          <path d="M9 4v16" />
-        </svg>
-      </button>
+      <div class="workspace-topbar">
+        <div class="workspace-topbar-left">
+          <button
+            type="button"
+            id="sidebar-open-btn"
+            class="floating-open-btn"
+            style="position: static;"
+            aria-label="Buka panel samping"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="16" rx="2" />
+              <path d="M9 4v16" />
+            </svg>
+          </button>
 
-      <div class="top-bar-row">
-        <button type="button" id="top-pill-btn" class="top-pill-btn">
-          <span id="top-pill-text">Memuat runtime...</span>
-          <span class="top-pill-accent">Pengaturan</span>
-        </button>
-        <div id="canvas-theme-group" class="canvas-theme-group" role="group" aria-label="Pilih tema warna kanvas">
-          <button type="button" class="theme-dot-btn active" data-theme="lavender" style="background:#eff2f9;" title="Lavender" aria-label="Tema Lavender"></button>
-          <button type="button" class="theme-dot-btn" data-theme="blush" style="background:#f8eae6;" title="Blush" aria-label="Tema Blush"></button>
-          <button type="button" class="theme-dot-btn" data-theme="cream" style="background:#f2e8c9;" title="Cream" aria-label="Tema Cream"></button>
-          <button type="button" class="theme-dot-btn" data-theme="mint" style="background:#e8f2e2;" title="Mint" aria-label="Tema Mint"></button>
-          <button type="button" class="theme-dot-btn" data-theme="neutral" style="background:#efeff2;" title="Neutral" aria-label="Tema Neutral"></button>
+          <label for="model-select" class="sr-only">Pilih Model</label>
+          <select id="model-select" class="sr-only" aria-label="Pilih Model LLM"></select>
+          <div id="model-dropdown" class="custom-dropdown">
+            <button type="button" id="model-dropdown-btn" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" title="Pilih Model LLM">
+              <span id="model-dropdown-label">Qwen 3 - 0.5B</span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+            <div id="model-dropdown-menu" class="custom-dropdown-menu" role="listbox" aria-label="Pilih Model LLM"></div>
+          </div>
+
+          <label for="rag-mode-select" class="sr-only">Pilih Metode RAG</label>
+          <select id="rag-mode-select" class="sr-only" aria-label="Pilih Metode RAG">
+            <option value="hybrid">Hybrid</option>
+            <option value="adaptive">Adaptive</option>
+          </select>
+          <div id="rag-dropdown" class="custom-dropdown">
+            <button type="button" id="rag-dropdown-btn" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" title="Pilih tipe RAG">
+              <span id="rag-dropdown-label">Hybrid</span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+            <div id="rag-dropdown-menu" class="custom-dropdown-menu" role="listbox" aria-label="Tipe RAG">
+              <button type="button" class="custom-dropdown-option active" data-rag-value="hybrid" role="option" aria-selected="true">
+                <span class="opt-meta">
+                  <span class="opt-title">Hybrid RAG</span>
+                </span>
+                <svg class="opt-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+              </button>
+              <button type="button" class="custom-dropdown-option" data-rag-value="adaptive" role="option" aria-selected="false">
+                <span class="opt-meta">
+                  <span class="opt-title">Adaptive RAG</span>
+                </span>
+                <svg class="opt-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+              </button>
+            </div>
+          </div>
         </div>
+
+        <button
+          type="button"
+          id="header-settings-btn"
+          class="sidebar-toggle-btn"
+          aria-label="Buka Pengaturan"
+          title="Pengaturan"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+          </svg>
+        </button>
       </div>
 
       <div class="banner-stack">
@@ -2166,6 +3114,7 @@
       </div>
 
       <div class="stage-body">
+        <div class="insight-vertical-mark" aria-hidden="true"><span>I</span><span>N</span><span>S</span><span>I</span><span>G</span><span>H</span><span>T</span></div>
         <div id="chat-scroll" class="chat-scroll" aria-live="polite">
           <div id="chat-state" class="status-note" hidden></div>
           <div id="chat-feed" class="chat-feed"></div>
@@ -2188,127 +3137,66 @@
           </div>
         </section>
 
-        <!-- Welcome / New Chat Screen matching Figma 19:914 -->
-        <section class="welcome-stage" aria-label="Ringkasan kemampuan InSight">
-          <div class="welcome-brand-pill">INSIGHT A.I+</div>
-          <h1 class="welcome-title">Good day! How may I assist you today?</h1>
-
-          <div class="welcome-grid">
-            <div class="welcome-row-grid">
-              <div class="cat-card">
-                <span class="cat-card-icon" aria-hidden="true">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                    <circle cx="12" cy="12" r="9" />
-                    <path d="M3.6 9h16.8M3.6 15h16.8M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
-                  </svg>
-                </span>
-                <h2 class="cat-card-title">Explore</h2>
-                <p class="cat-card-desc">Telusuri isi dokumen privat dengan cepat dan terstruktur</p>
-              </div>
-              <div class="triple-bars" aria-hidden="true"><span></span><span></span><span></span></div>
-              <button type="button" class="prompt-card" data-prompt="Jelaskan ringkasan utama dan poin penting dari dokumen yang telah diunggah">
-                <span class="prompt-orb orb-purple" aria-hidden="true">✦</span>
-                <div>
-                  <div class="prompt-card-title">"Explain"</div>
-                  <div class="prompt-card-bottom">
-                    <span class="prompt-card-sub">Ringkas poin utama dan temuan kunci dari dokumen terpilih</span>
-                    <span class="prompt-arrow" aria-hidden="true">→</span>
-                  </div>
-                </div>
-              </button>
-              <button type="button" class="prompt-card" data-prompt="Bandingkan perbedaan atau metrik antar bagian dalam dokumen">
-                <span class="prompt-orb orb-slate" aria-hidden="true">⇄</span>
-                <div>
-                  <div class="prompt-card-title">"How to"</div>
-                  <div class="prompt-card-bottom">
-                    <span class="prompt-card-sub">Bandingkan data dan tabel lintas halaman secara otomatis</span>
-                    <span class="prompt-arrow" aria-hidden="true">→</span>
-                  </div>
-                </div>
-              </button>
-            </div>
-
-            <div class="welcome-row-grid">
-              <div class="cat-card">
-                <span class="cat-card-icon" aria-hidden="true">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                    <path d="M13 2 4 14h7l-1 8 10-12h-7l0-8Z" />
-                  </svg>
-                </span>
-                <h2 class="cat-card-title">Capabilities</h2>
-                <p class="cat-card-desc">HybridRAG &amp; AdaptiveRAG di atas Qdrant Local &amp; BM25</p>
-              </div>
-              <div class="triple-bars" aria-hidden="true"><span></span><span></span><span></span></div>
-              <button type="button" class="prompt-card" data-prompt="Sebutkan fakta spesifik beserta nomor halaman sumbernya">
-                <span class="prompt-orb orb-amber" aria-hidden="true">¶</span>
-                <div>
-                  <div class="prompt-card-title">"Remember"</div>
-                  <div class="prompt-card-bottom">
-                    <span class="prompt-card-sub">Lacak sitasi halaman spesifik dan bagian dokumen asal</span>
-                    <span class="prompt-arrow" aria-hidden="true">→</span>
-                  </div>
-                </div>
-              </button>
-              <button type="button" class="prompt-card" data-prompt="Tampilkan rincian tabel dan angka penting dari dokumen">
-                <span class="prompt-orb orb-blue" aria-hidden="true">⊞</span>
-                <div>
-                  <div class="prompt-card-title">"Allows"</div>
-                  <div class="prompt-card-bottom">
-                    <span class="prompt-card-sub">Gabungkan tabel panjang yang terpotong batas halaman PDF</span>
-                    <span class="prompt-arrow" aria-hidden="true">→</span>
-                  </div>
-                </div>
-              </button>
-            </div>
-
-            <div class="welcome-row-grid">
-              <div class="cat-card">
-                <span class="cat-card-icon" aria-hidden="true">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                    <path d="M12 3 2.5 20h19L12 3Z" />
-                    <path d="M12 9v5M12 17h.01" />
-                  </svg>
-                </span>
-                <h2 class="cat-card-title">Limitation</h2>
-                <p class="cat-card-desc">Fokus ketat pada korpus lokal demi privasi penuh</p>
-              </div>
-              <div class="triple-bars" aria-hidden="true"><span></span><span></span><span></span></div>
-              <button type="button" class="prompt-card" data-prompt="Apa saja batasan informasi yang tidak dijelaskan di dalam dokumen?">
-                <span class="prompt-orb orb-rose" aria-hidden="true">✕</span>
-                <div>
-                  <div class="prompt-card-title">"May"</div>
-                  <div class="prompt-card-bottom">
-                    <span class="prompt-card-sub">Menolak klaim jika informasi tidak ada di dokumen unggahan</span>
-                    <span class="prompt-arrow" aria-hidden="true">→</span>
-                  </div>
-                </div>
-              </button>
-              <button type="button" class="prompt-card" data-prompt="Apa metode RAG dan backend LLM yang sedang aktif?">
-                <span class="prompt-orb orb-teal" aria-hidden="true">🔒</span>
-                <div>
-                  <div class="prompt-card-title">"Limited"</div>
-                  <div class="prompt-card-bottom">
-                    <span class="prompt-card-sub">Zero external LLM API: berjalan 100% lokal &amp; privat</span>
-                    <span class="prompt-arrow" aria-hidden="true">→</span>
-                  </div>
-                </div>
-              </button>
-            </div>
-          </div>
+        <!-- Welcome / New Chat Screen -->
+        <section class="welcome-stage" aria-label="Sapaan InSight">
+          <h1 id="welcome-title" class="welcome-title"><span id="welcome-title-text">Apa yang ingin anda ketahui?</span><span class="typing-caret" aria-hidden="true"></span></h1>
         </section>
 
         <div class="composer-wrap">
           <form id="chat-form" class="composer-card">
             <div class="composer-main-row">
-              <span class="brain-badge" aria-hidden="true"><span>🧠</span></span>
+              <div class="radial-menu-wrap" id="plus-radial-wrap">
+                <button type="button" id="plus-radial-btn" class="plus-btn" aria-haspopup="menu" aria-expanded="false" title="Menu aksi" aria-label="Menu aksi">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </button>
+                <div id="plus-radial-menu" class="radial-menu" role="menu" aria-label="Menu aksi">
+                  <button type="button" class="radial-item" role="menuitem" data-radial-action="upload" style="--rx: -30px; --ry: -65px;" title="Unggah Dokumen" aria-label="Unggah Dokumen">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <span class="radial-item-label">Unggah Dokumen</span>
+                  </button>
+                  <button type="button" class="radial-item" role="menuitem" data-radial-action="new-chat" style="--rx: 10px; --ry: -71px;" title="Chat Baru" aria-label="Chat Baru">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6M9 10h6"/></svg>
+                    <span class="radial-item-label">Chat Baru</span>
+                  </button>
+                  <button type="button" class="radial-item" role="menuitem" data-radial-action="docs" style="--rx: 47px; --ry: -54px;" title="Daftar Dokumen" aria-label="Daftar Dokumen">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    <span class="radial-item-label">Dokumen</span>
+                  </button>
+                  <button type="button" class="radial-item" role="menuitem" data-radial-action="settings" style="--rx: 69px; --ry: -20px;" title="Pengaturan" aria-label="Pengaturan">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    <span class="radial-item-label">Pengaturan</span>
+                  </button>
+                </div>
+              </div>
               <label for="question-input" class="sr-only">Pertanyaan untuk dokumen</label>
               <textarea
                 id="question-input"
                 class="composer-input"
                 rows="1"
-                placeholder="What's in your mind?..."
+                placeholder="Tanyakan sesuatu..."
                 required
               ></textarea>
+              <div class="custom-dropdown project-dropdown" id="project-dropdown">
+                <button
+                  type="button"
+                  id="project-dropdown-btn"
+                  class="custom-dropdown-trigger"
+                  aria-haspopup="listbox"
+                  aria-expanded="false"
+                  title="Pilih Project untuk percakapan ini"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  </svg>
+                  <span id="project-dropdown-label">Semua</span>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
+                <div id="project-dropdown-menu" class="custom-dropdown-menu" role="listbox" aria-label="Pilih Project"></div>
+              </div>
               <button type="submit" id="send-btn" class="send-btn" aria-label="Kirim pertanyaan">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M22 2 11 13" />
@@ -2319,27 +3207,26 @@
 
             <div class="composer-toolbar">
               <div class="toolbar-left">
-                <label for="file-upload" class="plus-btn" title="Unggah dokumen" aria-label="Unggah dokumen">+</label>
                 <div class="mode-pill-group" role="tablist" aria-label="Tampilan cepat">
                   <button type="button" id="mode-chat-btn" class="mode-pill-btn active" role="tab" aria-selected="true">Chat</button>
                   <button type="button" id="mode-docs-btn" class="mode-pill-btn" role="tab" aria-selected="false">Dokumen (<span id="pill-doc-count">0</span>)</button>
                 </div>
-                <label for="rag-mode-select" class="sr-only">Pilih Metode RAG</label>
-                <select id="rag-mode-select" class="rag-select" aria-label="Pilih Metode RAG" title="Pilih metode RAG (HybridRAG atau AdaptiveRAG)">
-                  <option value="hybrid">HybridRAG</option>
-                  <option value="adaptive">AdaptiveRAG</option>
-                </select>
               </div>
 
               <div class="toolbar-right">
-                <label for="model-select" class="sr-only">Pilih Model</label>
-                <select id="model-select" class="rag-select" aria-label="Pilih Model LLM" title="Pilih Model LLM"></select>
                 <button type="button" id="model-trigger-btn" class="model-trigger-btn">
                   <span id="model-label">llamacpp · 4bit</span>
                 </button>
               </div>
             </div>
           </form>
+        </div>
+
+        <div class="welcome-chips-wrap" aria-label="Saran cepat">
+          <button type="button" class="welcome-chip" data-prompt="Jelaskan ringkasan utama dari dokumen yang diunggah">Ringkas Dokumen</button>
+          <button type="button" class="welcome-chip" data-prompt="Sebutkan poin-poin penting dari dokumen">Poin Penting</button>
+          <button type="button" class="welcome-chip" data-prompt="Bandingkan informasi utama yang ada pada dokumen">Bandingkan Data</button>
+          <button type="button" class="welcome-chip" data-prompt="Sebutkan fakta dan angka penting beserta sumbernya">Cek Fakta</button>
         </div>
       </div>
     </main>
@@ -2348,35 +3235,71 @@
   <!-- Settings Modal -->
   <div id="settings-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="settings-title">
     <div class="modal-card">
-      <h2 id="settings-title" class="modal-title">Pengaturan &amp; Status Runtime</h2>
-      <dl class="modal-kv">
-        <dt>LLM Backend</dt>
-        <dd id="set-backend">-</dd>
-        <dt>LLM Model</dt>
-        <dd>
-          <select id="settings-model-select" class="rag-select" style="width: 100%; max-width: 280px; margin-bottom: 4px;"></select>
-          <div id="set-model" style="font-size: 0.72rem; color: var(--ink-muted);">-</div>
-        </dd>
-        <dt>Metode RAG</dt>
-        <dd id="set-rag-mode">-</dd>
-        <dt>Presisi</dt>
-        <dd id="set-precision">-</dd>
-        <dt>Embedder</dt>
-        <dd id="set-embedder">-</dd>
-        <dt>Reranker</dt>
-        <dd id="set-reranker">-</dd>
-        <dt>Dokumen</dt>
-        <dd id="set-docs">-</dd>
-        <dt>Resources</dt>
-        <dd id="set-resources">-</dd>
-        <dt>Auto-Shutdown</dt>
-        <dd id="set-autoshutdown">-</dd>
-      </dl>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px;">
+        <h2 id="settings-title" class="modal-title" style="margin: 0;">Pengaturan</h2>
+        <button type="button" id="close-settings-btn" class="sidebar-toggle-btn" aria-label="Tutup Pengaturan" title="Tutup">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Mode Gelap</span>
+        <label class="theme-switch" aria-label="Aktifkan Mode Gelap">
+          <input type="checkbox" id="dark-mode-toggle" />
+          <span class="theme-switch-slider"></span>
+        </label>
+      </div>
+      <details class="advanced-settings-details" id="advanced-settings-details">
+        <summary class="advanced-settings-summary">
+          <span>Pengaturan Lanjutan</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </summary>
+        <div class="advanced-settings-body">
+          <div class="advanced-settings-grid">
+            <div class="adv-field">
+              <label for="param-temperature">Temperature</label>
+              <input type="number" id="param-temperature" min="0" max="2" step="0.05" />
+            </div>
+            <div class="adv-field">
+              <label for="param-max-tokens">Max. Token</label>
+              <input type="number" id="param-max-tokens" min="64" max="8192" step="64" />
+            </div>
+            <div class="adv-field">
+              <label for="param-top-k">Top K</label>
+              <input type="number" id="param-top-k" min="0" max="200" step="1" />
+            </div>
+            <div class="adv-field">
+              <label for="param-top-p">Top P</label>
+              <input type="number" id="param-top-p" min="0" max="1" step="0.05" />
+            </div>
+            <div class="adv-field">
+              <label for="param-min-p">Min. P</label>
+              <input type="number" id="param-min-p" min="0" max="1" step="0.01" />
+            </div>
+            <div class="adv-field">
+              <label for="param-repeat-penalty">Repeat Penalty</label>
+              <input type="number" id="param-repeat-penalty" min="0.5" max="2" step="0.05" />
+            </div>
+            <div class="adv-field">
+              <label for="param-frequency-penalty">Frequency Penalty</label>
+              <input type="number" id="param-frequency-penalty" min="-2" max="2" step="0.05" />
+            </div>
+            <div class="adv-field">
+              <label for="param-presence-penalty">Presence Penalty</label>
+              <input type="number" id="param-presence-penalty" min="-2" max="2" step="0.05" />
+            </div>
+          </div>
+          <div class="adv-reset-row">
+            <button type="button" id="reset-sampling-btn" class="adv-reset-btn">Reset Default</button>
+          </div>
+        </div>
+      </details>
       <div class="modal-actions-grid">
-        <a href="/docs" target="_blank" rel="noopener" class="btn-secondary-warm">Buka API Docs</a>
-        <button type="button" id="clear-active-modal-btn" class="btn-secondary-warm">Bersihkan Chat Aktif</button>
-        <button type="button" id="shutdown-server-btn" class="btn-danger-warm span-full">Matikan Server Lokal</button>
-        <button type="button" id="close-settings-btn" class="btn-primary-warm span-full">Tutup</button>
+        <button type="button" id="clear-active-modal-btn" class="btn-secondary-warm">Hapus Riwayat Percakapan</button>
+        <button type="button" id="shutdown-server-btn" class="btn-danger-warm">Matikan Server Lokal</button>
       </div>
     </div>
   </div>
@@ -2385,7 +3308,7 @@
   <div id="auth-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="auth-title">
     <div class="auth-modal-card">
       <div class="auth-hero-pane">
-        <div class="auth-hero-brand">INSIGHT A.I+</div>
+        <div class="auth-hero-brand">InSight</div>
         <h2 class="auth-hero-title">Learn, Discover &amp; Automate in One Place.</h2>
         <div class="auth-hero-preview">
           Tanya-jawab dokumen privat dengan <strong>HybridRAG</strong> dan <strong>AdaptiveRAG</strong> di atas Qdrant Local, pelacakan nomor halaman, serta model lokal.
@@ -2439,8 +3362,12 @@
     const state = {
       token: sessionStorage.getItem(TOKEN_KEY) || "",
       sessionId: `chat-${Date.now().toString(36)}`,
+      activeDocId: null,
+      activeProjectId: null,
+      uploadTargetProjectId: null,
       ragMode: normalizeRagMode(savedRagMode),
       busy: false,
+      projects: [],
       docs: [],
       sessions: [],
       filterQuery: "",
@@ -2468,7 +3395,6 @@
       openSettingsNav: document.getElementById("open-settings-nav"),
       precisionNavHint: document.getElementById("precision-nav-hint"),
       fileUpload: document.getElementById("file-upload"),
-      uploadStatus: document.getElementById("upload-status"),
       docsToggle: document.getElementById("docs-toggle"),
       docsPanel: document.getElementById("docs-panel"),
       docsCountBadge: document.getElementById("docs-count-badge"),
@@ -2589,10 +3515,18 @@
       localStorage.setItem(SESSION_KEY, sessionId);
     }
 
-    async function startNewConversation() {
+    async function startNewConversation(docId = null, projectId = undefined) {
+      state.activeDocId = docId || null;
+      if (projectId !== undefined) {
+        state.activeProjectId = projectId || null;
+      } else if (docId) {
+        state.activeProjectId = null;
+      }
+      renderProjectDropdown();
       setWorkspaceView("chat");
       setActiveSession(`chat-${Date.now().toString(36)}`);
       await Promise.all([loadHistory(), loadSessions()]);
+      renderDocuments();
       el.questionInput.focus();
       closeMobileSidebar();
     }
@@ -2610,10 +3544,10 @@
           state.ragMode = normalizeRagMode(info.rag_mode);
         }
         el.ragModeSelect.value = state.ragMode;
-        el.topPillText.textContent = `Mode ${info.llm_backend} (${info.precision_mode})`;
+        if (el.topPillText) el.topPillText.textContent = `Mode ${info.llm_backend} (${info.precision_mode})`;
         el.modelLabel.textContent = `${info.llm_backend} · ${info.precision_mode}`;
-        el.precisionNavHint.textContent = info.precision_mode;
-        el.footerModeSub.textContent = `${info.llm_backend} | ${info.precision_mode}`;
+        if (el.precisionNavHint) el.precisionNavHint.textContent = info.precision_mode;
+        if (el.footerModeSub) el.footerModeSub.textContent = `${info.llm_backend} | ${info.precision_mode}`;
         el.pillDocCount.textContent = String(info.document_count);
 
         const isFallback = Boolean(info.embedder_fallback);
@@ -2626,23 +3560,28 @@
           el.embedderWarningBanner.hidden = true;
         }
 
-        document.getElementById("set-backend").textContent = info.llm_runtime || info.llm_backend;
-        document.getElementById("set-model").textContent = info.llm_model;
+        const setEl = (id, val) => {
+          const node = document.getElementById(id);
+          if (node) node.textContent = val;
+        };
+        setEl("set-backend", info.llm_runtime || info.llm_backend);
+        setEl("set-model", info.llm_model);
         if (info.active_model_id) {
           state.activeModelId = info.active_model_id;
           renderModelSelects();
         }
-        document.getElementById("set-rag-mode").textContent = formatRagLabel(state.ragMode);
-        document.getElementById("set-precision").textContent = info.precision_mode;
-        document.getElementById("set-embedder").textContent = isFallback
-          ? `${info.embedder} (fallback)`
-          : info.embedder;
-        document.getElementById("set-reranker").textContent = info.use_reranker ? "enabled" : "disabled";
-        document.getElementById("set-docs").textContent = String(info.document_count);
-        document.getElementById("set-resources").textContent = info.resources_dir
-          ? `${info.resources_dir} (${info.resources_mb || 0} MB, ${info.resources_files || 0} file)`
-          : "-";
-        document.getElementById("set-autoshutdown").textContent = info.auto_shutdown ? "active (stops on UI close)" : "off";
+        setEl("set-rag-mode", formatRagLabel(state.ragMode));
+        setEl("set-precision", info.precision_mode);
+        setEl("set-embedder", isFallback ? `${info.embedder} (fallback)` : info.embedder);
+        setEl("set-reranker", info.use_reranker ? "enabled" : "disabled");
+        setEl("set-docs", String(info.document_count));
+        setEl(
+          "set-resources",
+          info.resources_dir
+            ? `${info.resources_dir} (${info.resources_mb || 0} MB, ${info.resources_files || 0} file)`
+            : "-"
+        );
+        setEl("set-autoshutdown", info.auto_shutdown ? "active (stops on UI close)" : "off");
 
         if (info.auth_required && !state.token) {
           openAuthModal();
@@ -2651,7 +3590,7 @@
         }
       } catch {
         state.serverOffline = true;
-        el.topPillText.textContent = "Server offline";
+        if (el.topPillText) el.topPillText.textContent = "Server offline";
         el.modelLabel.textContent = "Offline";
       }
     }
@@ -2673,7 +3612,229 @@
           sel.appendChild(opt);
         }
       }
+
+      const dropdownTargets = [
+        ["model-dropdown-menu", "model-dropdown-label", el.modelSelect],
+        ["settings-model-dropdown-menu", "settings-model-dropdown-label", el.settingsModelSelect],
+      ];
+      for (const [menuId, labelId, targetSelect] of dropdownTargets) {
+        const modelMenu = document.getElementById(menuId);
+        const modelLabel = document.getElementById(labelId);
+        if (!modelMenu || !modelLabel) continue;
+        modelMenu.innerHTML = "";
+        const active = (state.models || []).find((m) => m.id === state.activeModelId) || (state.models || [])[0];
+        if (active) modelLabel.textContent = active.name;
+        for (const m of state.models || []) {
+          const isActive = m.id === state.activeModelId;
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = `custom-dropdown-option${isActive ? " active" : ""}`;
+          btn.setAttribute("role", "option");
+          btn.setAttribute("aria-selected", isActive ? "true" : "false");
+          const desc = m.description || (m.downloaded ? "Siap digunakan" : "Unduh otomatis saat dipilih");
+          btn.innerHTML = `
+            <span class="opt-meta">
+              <span class="opt-title"></span>
+              <span class="opt-desc"></span>
+            </span>
+            <svg class="opt-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+          `;
+          btn.querySelector(".opt-title").textContent = m.name;
+          btn.querySelector(".opt-desc").textContent = desc;
+          btn.addEventListener("click", () => {
+            if (targetSelect) {
+              targetSelect.value = m.id;
+              targetSelect.dispatchEvent(new Event("change"));
+            }
+            closeCustomDropdowns();
+          });
+          modelMenu.appendChild(btn);
+        }
+      }
     }
+
+    function syncRagDropdownUI() {
+      const val = el.ragModeSelect ? el.ragModeSelect.value : "hybrid";
+      const ragLabel = document.getElementById("rag-dropdown-label");
+      if (ragLabel) ragLabel.textContent = val === "adaptive" ? "Adaptive" : "Hybrid";
+      document.querySelectorAll("#rag-dropdown-menu [data-rag-value]").forEach((btn) => {
+        const isActive = btn.dataset.ragValue === val;
+        btn.classList.toggle("active", isActive);
+        btn.setAttribute("aria-selected", isActive ? "true" : "false");
+      });
+    }
+
+    function closeCustomDropdowns() {
+      const pairs = [
+        ["rag-dropdown-btn", "rag-dropdown-menu"],
+        ["model-dropdown-btn", "model-dropdown-menu"],
+        ["settings-model-dropdown-btn", "settings-model-dropdown-menu"],
+        ["project-dropdown-btn", "project-dropdown-menu"],
+      ];
+      for (const [btnId, menuId] of pairs) {
+        const btn = document.getElementById(btnId);
+        const menu = document.getElementById(menuId);
+        if (btn) btn.setAttribute("aria-expanded", "false");
+        if (menu) menu.classList.remove("open");
+      }
+    }
+
+    (function initCustomDropdowns() {
+      const pairs = [
+        ["rag-dropdown-btn", "rag-dropdown-menu"],
+        ["model-dropdown-btn", "model-dropdown-menu"],
+        ["settings-model-dropdown-btn", "settings-model-dropdown-menu"],
+        ["project-dropdown-btn", "project-dropdown-menu"],
+      ];
+      for (const [btnId, menuId] of pairs) {
+        const btn = document.getElementById(btnId);
+        const menu = document.getElementById(menuId);
+        if (!btn || !menu) continue;
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const willOpen = !menu.classList.contains("open");
+          closeCustomDropdowns();
+          if (willOpen) {
+            menu.classList.add("open");
+            btn.setAttribute("aria-expanded", "true");
+          }
+        });
+      }
+      document.querySelectorAll("#rag-dropdown-menu [data-rag-value]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (el.ragModeSelect) {
+            el.ragModeSelect.value = btn.dataset.ragValue;
+            el.ragModeSelect.dispatchEvent(new Event("change"));
+          }
+          syncRagDropdownUI();
+          closeCustomDropdowns();
+        });
+      });
+      if (el.ragModeSelect) {
+        el.ragModeSelect.addEventListener("change", syncRagDropdownUI);
+        syncRagDropdownUI();
+      }
+      document.addEventListener("click", (e) => {
+        if (!e.target.closest(".custom-dropdown")) {
+          closeCustomDropdowns();
+        }
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeCustomDropdowns();
+      });
+
+      (function initPlusRadialMenu() {
+        const wrap = document.getElementById("plus-radial-wrap");
+        const btn = document.getElementById("plus-radial-btn");
+        const menu = document.getElementById("plus-radial-menu");
+        if (!wrap || !btn || !menu) return;
+
+        function setOpen(open) {
+          menu.classList.toggle("open", open);
+          btn.setAttribute("aria-expanded", String(open));
+        }
+
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          closeCustomDropdowns();
+          setOpen(!menu.classList.contains("open"));
+        });
+
+        menu.querySelectorAll("[data-radial-action]").forEach((item) => {
+          item.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const action = item.dataset.radialAction;
+            setOpen(false);
+            if (action === "upload") {
+              const fileInput = document.getElementById("file-upload");
+              if (fileInput) fileInput.click();
+            } else if (action === "new-chat") {
+              const newChatBtn = document.getElementById("new-chat-btn");
+              if (newChatBtn) newChatBtn.click();
+            } else if (action === "docs") {
+              const docsBtn = document.getElementById("mode-docs-btn");
+              if (docsBtn) docsBtn.click();
+            } else if (action === "settings") {
+              if (typeof openSettingsModal === "function") openSettingsModal();
+            }
+          });
+        });
+
+        document.addEventListener("click", (e) => {
+          if (!wrap.contains(e.target)) setOpen(false);
+        });
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") setOpen(false);
+        });
+      })();
+      document.querySelectorAll(".welcome-chip").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          const text = chip.dataset.prompt || "";
+          if (!text || !el.questionInput) return;
+          el.questionInput.value = text;
+          autoResizeTextarea();
+          el.questionInput.focus();
+        });
+      });
+
+      (function initWelcomeTypewriter() {
+        const textNode = document.getElementById("welcome-title-text");
+        if (!textNode) return;
+        const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (reduced) return;
+
+        const phrases = [
+          "Apa yang ingin anda ketahui?",
+          "Tanyakan ke InSight",
+          "Bagaimana kopi anda pagi ini?",
+          "Unggah, tanyakan, dan dapatkan hasilnya",
+          "Bagaimana kabar anda hari ini?",
+          "Bagaimana cuaca hari ini?",
+          "English or Spanish?",
+        ];
+
+        let phraseIdx = 0;
+        let charIdx = phrases[0].length;
+        let deleting = false;
+
+        function tick() {
+          const isVisible =
+            !el.workspaceMain.classList.contains("has-messages") &&
+            !el.workspaceMain.classList.contains("docs-view");
+          if (!isVisible) {
+            setTimeout(tick, 500);
+            return;
+          }
+
+          const current = phrases[phraseIdx];
+          if (!deleting) {
+            if (charIdx < current.length) {
+              charIdx += 1;
+              textNode.textContent = current.slice(0, charIdx);
+              setTimeout(tick, 45);
+            } else {
+              deleting = true;
+              setTimeout(tick, 10000);
+            }
+          } else {
+            if (charIdx > 0) {
+              charIdx -= 1;
+              textNode.textContent = current.slice(0, charIdx);
+              setTimeout(tick, 24);
+            } else {
+              deleting = false;
+              phraseIdx = (phraseIdx + 1) % phrases.length;
+              setTimeout(tick, 320);
+            }
+          }
+        }
+
+        setTimeout(() => {
+          deleting = true;
+          tick();
+        }, 10000);
+      })();
+    })();
 
     async function loadModels() {
       try {
@@ -2818,7 +3979,7 @@
       const span = document.createElement("span");
       span.className = "item-icon";
       span.setAttribute("aria-hidden", "true");
-      span.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>';
+      span.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
       return span;
     }
 
@@ -2830,64 +3991,351 @@
       return span;
     }
 
+    async function handleRenameDoc(docId, newName) {
+      const cleaned = String(newName || "").trim();
+      if (!cleaned) return false;
+      try {
+        await apiFetch(`/documents/${encodeURIComponent(docId)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename: cleaned }),
+        });
+        await loadDocuments();
+        return true;
+      } catch (err) {
+        setNote(el.workspaceNotice, err.message, true);
+        return false;
+      }
+    }
+
+    async function handleRenameSession(sessionId, newTitle) {
+      const cleaned = String(newTitle || "").trim();
+      if (!cleaned) return false;
+      try {
+        await apiFetch(`/sessions/${encodeURIComponent(sessionId)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: cleaned }),
+        });
+        await loadSessions();
+        return true;
+      } catch (err) {
+        setNote(el.workspaceNotice, err.message, true);
+        return false;
+      }
+    }
+
+    function createEditActionButton(label, onClick) {
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.className = "item-edit-btn";
+      editBtn.title = label;
+      editBtn.setAttribute("aria-label", label);
+      editBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+      editBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onClick();
+      });
+      return editBtn;
+    }
+
+    function startInlineRename(currentName, btnEl, titleEl, onCommit) {
+      if (btnEl.querySelector(".item-rename-input")) return;
+      const input = document.createElement("input");
+      input.type = "text";
+      input.className = "item-rename-input";
+      input.value = currentName;
+      input.setAttribute("aria-label", `Edit nama ${currentName}`);
+
+      let finished = false;
+      const cancel = () => {
+        if (finished) return;
+        finished = true;
+        input.replaceWith(titleEl);
+      };
+      const commit = async () => {
+        if (finished) return;
+        finished = true;
+        const nextName = input.value.trim();
+        if (!nextName || nextName === currentName) {
+          input.replaceWith(titleEl);
+          return;
+        }
+        input.disabled = true;
+        const ok = await onCommit(nextName);
+        if (!ok) {
+          input.replaceWith(titleEl);
+        }
+      };
+
+      input.addEventListener("click", (e) => e.stopPropagation());
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commit();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          cancel();
+        }
+      });
+      input.addEventListener("blur", commit);
+
+      titleEl.replaceWith(input);
+      input.focus();
+      input.select();
+    }
+
+    function createFolderIcon() {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("width", "15");
+      svg.setAttribute("height", "15");
+      svg.setAttribute("viewBox", "0 0 24 24");
+      svg.setAttribute("fill", "none");
+      svg.setAttribute("stroke", "currentColor");
+      svg.setAttribute("stroke-width", "1.9");
+      svg.setAttribute("stroke-linecap", "round");
+      svg.setAttribute("stroke-linejoin", "round");
+      svg.setAttribute("aria-hidden", "true");
+      svg.style.flexShrink = "0";
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", "M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z");
+      svg.appendChild(path);
+      return svg;
+    }
+
+    function renderProjectDropdown() {
+      const menu = document.getElementById("project-dropdown-menu");
+      const label = document.getElementById("project-dropdown-label");
+      if (!menu || !label) return;
+      const activeProj = (state.projects || []).find((p) => p.project_id === state.activeProjectId);
+      if (state.activeProjectId && !activeProj) {
+        state.activeProjectId = null;
+      }
+      label.textContent = activeProj ? activeProj.name : "Semua";
+      menu.innerHTML = "";
+
+      const makeOption = (projId, titleText, descText, isActive) => {
+        const opt = document.createElement("button");
+        opt.type = "button";
+        opt.className = `custom-dropdown-option${isActive ? " active" : ""}`;
+        opt.setAttribute("role", "option");
+        opt.setAttribute("aria-selected", String(isActive));
+        const meta = document.createElement("span");
+        meta.className = "opt-meta";
+        const t = document.createElement("span");
+        t.className = "opt-title";
+        t.textContent = titleText;
+        const d = document.createElement("span");
+        d.className = "opt-desc";
+        d.textContent = descText;
+        meta.append(t, d);
+        opt.appendChild(meta);
+        if (isActive) {
+          const chk = document.createElement("span");
+          chk.className = "opt-check";
+          chk.textContent = "✓";
+          opt.appendChild(chk);
+        }
+        opt.addEventListener("click", () => {
+          state.activeProjectId = projId;
+          if (projId) state.activeDocId = null;
+          renderProjectDropdown();
+          renderDocuments();
+          closeCustomDropdowns();
+        });
+        return opt;
+      };
+
+      menu.appendChild(makeOption(null, "Semua Dokumen", "Cari di seluruh dokumen yang terindeks", !state.activeProjectId));
+      for (const proj of state.projects || []) {
+        const count = (state.docs || []).filter((d) => d.project_id === proj.project_id).length;
+        menu.appendChild(makeOption(proj.project_id, proj.name, `${count} dokumen`, state.activeProjectId === proj.project_id));
+      }
+    }
+
+    async function loadProjects() {
+      try {
+        const data = await apiFetch("/projects");
+        state.projects = data.projects || [];
+        renderProjectDropdown();
+        renderDocuments();
+      } catch (err) {
+        setNote(el.workspaceNotice, err.message, true);
+      }
+    }
+
+    async function handleCreateProject() {
+      const name = window.prompt("Nama project baru:");
+      if (!name || !name.trim()) return;
+      try {
+        const data = await apiFetch("/projects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: name.trim() }),
+        });
+        if (data.project) {
+          state.activeProjectId = data.project.project_id;
+          state.activeDocId = null;
+        }
+        await loadProjects();
+      } catch (err) {
+        setNote(el.workspaceNotice, err.message, true);
+      }
+    }
+
+    async function handleRenameProject(projectId, nextName) {
+      const data = await apiFetch(`/projects/${encodeURIComponent(projectId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: nextName }),
+      });
+      await loadProjects();
+      return data;
+    }
+
+    async function handleDeleteProject(projectId, projectName) {
+      try {
+        await apiFetch(`/projects/${encodeURIComponent(projectId)}`, { method: "DELETE" });
+        if (state.activeProjectId === projectId) {
+          state.activeProjectId = null;
+        }
+        await Promise.all([loadProjects(), loadDocuments(), loadSessions()]);
+        renderProjectDropdown();
+      } catch (err) {
+        setNote(el.workspaceNotice, `Gagal menghapus ${projectName}: ${err.message}`, true);
+      }
+    }
+
+    const newProjectBtn = document.getElementById("new-project-btn");
+    if (newProjectBtn) {
+      newProjectBtn.addEventListener("click", handleCreateProject);
+    }
+
+    function buildDocRow(doc) {
+      const li = document.createElement("li");
+      li.className = `item-row${state.activeDocId === doc.doc_id ? " active" : ""}`;
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "item-main-btn";
+      btn.title = `${doc.filename} — klik untuk mulai percakapan baru di dokumen ini`;
+      btn.addEventListener("click", () => {
+        startNewConversation(doc.doc_id, null);
+      });
+
+      const title = document.createElement("span");
+      title.className = "item-title";
+      title.textContent = doc.filename;
+
+      btn.append(createDocIcon(), title);
+
+      const editBtn = createEditActionButton(`Ubah nama dokumen ${doc.filename}`, () => {
+        startInlineRename(doc.filename, btn, title, (nextName) => handleRenameDoc(doc.doc_id, nextName));
+      });
+
+      const delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "item-del-btn";
+      delBtn.textContent = "×";
+      delBtn.setAttribute("aria-label", `Hapus dokumen ${doc.filename}`);
+      delBtn.addEventListener("click", async () => {
+        delBtn.disabled = true;
+        await handleDeleteDoc(doc.doc_id, doc.filename);
+        delBtn.disabled = false;
+      });
+
+      li.append(btn, editBtn, delBtn);
+      return li;
+    }
+
     function renderDocuments() {
       el.docList.innerHTML = "";
       const q = state.filterQuery.toLowerCase();
-      const filtered = state.docs.filter((d) => d.filename.toLowerCase().includes(q));
-      el.docsCountBadge.textContent = String(state.docs.length);
+      const projects = state.projects || [];
+      const unassignedDocs = state.docs.filter((d) => !d.project_id);
+      const filteredUnassigned = unassignedDocs.filter((d) => d.filename.toLowerCase().includes(q));
+      const filteredProjects = projects.filter((p) => {
+        if (!q) return true;
+        if (p.name.toLowerCase().includes(q)) return true;
+        return state.docs.some((d) => d.project_id === p.project_id && d.filename.toLowerCase().includes(q));
+      });
+      if (el.docsCountBadge) el.docsCountBadge.textContent = String(state.docs.length);
       el.pillDocCount.textContent = String(state.docs.length);
       renderDocsStage();
+      renderProjectDropdown();
 
-      if (state.docs.length === 0) {
-        setNote(el.docState, "Belum ada dokumen.");
+      if (projects.length === 0 && state.docs.length === 0) {
+        setNote(el.docState, "Belum ada dokumen atau project.");
         return;
       }
-      if (filtered.length === 0) {
+      if (filteredProjects.length === 0 && filteredUnassigned.length === 0) {
         setNote(el.docState, "Tidak ada dokumen cocok.");
         return;
       }
 
       el.docState.hidden = true;
-      for (const doc of filtered) {
+      for (const proj of filteredProjects) {
         const li = document.createElement("li");
-        li.className = "item-row";
+        li.className = `item-row${state.activeProjectId === proj.project_id && !state.activeDocId ? " active" : ""}`;
 
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "item-main-btn";
-        btn.title = `${doc.filename} (${doc.chunk_count} chunks)`;
+        btn.title = `Project ${proj.name} — klik untuk mulai percakapan di project ini`;
         btn.addEventListener("click", () => {
-          setWorkspaceView("chat");
-          el.questionInput.value = `Ringkas isi dokumen ${doc.filename}`;
-          autoResizeTextarea();
-          el.questionInput.focus();
-          closeMobileSidebar();
+          startNewConversation(null, proj.project_id);
         });
 
         const title = document.createElement("span");
         title.className = "item-title";
-        title.textContent = doc.filename;
+        title.textContent = proj.name;
 
-        const count = document.createElement("span");
-        count.className = "item-count";
-        count.textContent = `${doc.chunk_count}c`;
-        count.title = `${doc.chunk_count} chunks`;
+        btn.append(createFolderIcon(), title);
 
-        btn.append(createDocIcon(), title, count);
+        const addBtn = document.createElement("button");
+        addBtn.type = "button";
+        addBtn.className = "item-add-btn";
+        addBtn.textContent = "+";
+        addBtn.title = `Unggah dokumen ke ${proj.name}`;
+        addBtn.setAttribute("aria-label", `Unggah dokumen ke ${proj.name}`);
+        addBtn.addEventListener("click", () => {
+          state.uploadTargetProjectId = proj.project_id;
+          el.fileUpload.click();
+        });
+
+        const editBtn = createEditActionButton(`Ubah nama project ${proj.name}`, () => {
+          startInlineRename(proj.name, btn, title, (nextName) => handleRenameProject(proj.project_id, nextName));
+        });
 
         const delBtn = document.createElement("button");
         delBtn.type = "button";
         delBtn.className = "item-del-btn";
         delBtn.textContent = "×";
-        delBtn.setAttribute("aria-label", `Hapus dokumen ${doc.filename}`);
+        delBtn.setAttribute("aria-label", `Hapus project ${proj.name}`);
         delBtn.addEventListener("click", async () => {
           delBtn.disabled = true;
-          await handleDeleteDoc(doc.doc_id, doc.filename);
+          await handleDeleteProject(proj.project_id, proj.name);
           delBtn.disabled = false;
         });
 
-        li.append(btn, delBtn);
+        li.append(btn, addBtn, editBtn, delBtn);
         el.docList.appendChild(li);
+
+        const projDocs = state.docs.filter(
+          (d) => d.project_id === proj.project_id && (!q || d.filename.toLowerCase().includes(q) || proj.name.toLowerCase().includes(q))
+        );
+        if (projDocs.length > 0) {
+          const subUl = document.createElement("ul");
+          subUl.className = "project-doc-list";
+          for (const doc of projDocs) {
+            subUl.appendChild(buildDocRow(doc));
+          }
+          el.docList.appendChild(subUl);
+        }
+      }
+
+      for (const doc of filteredUnassigned) {
+        el.docList.appendChild(buildDocRow(doc));
       }
     }
 
@@ -2902,14 +4350,69 @@
       }
     }
 
+    function buildSessionRow(sess) {
+      const li = document.createElement("li");
+      li.className = `item-row${sess.session_id === state.sessionId ? " active" : ""}`;
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "item-main-btn";
+      btn.addEventListener("click", async () => {
+        state.activeDocId = sess.doc_id || null;
+        state.activeProjectId = sess.project_id || null;
+        renderProjectDropdown();
+        setWorkspaceView("chat");
+        setActiveSession(sess.session_id);
+        await Promise.all([loadHistory(), loadSessions()]);
+        renderDocuments();
+        closeMobileSidebar();
+      });
+
+      const title = document.createElement("span");
+      title.className = "item-title";
+      title.textContent = sess.title || sess.session_id;
+
+      btn.append(title);
+
+      const currentTitle = sess.title || sess.session_id;
+      const editBtn = createEditActionButton(`Ubah nama percakapan ${currentTitle}`, () => {
+        startInlineRename(currentTitle, btn, title, (nextTitle) => handleRenameSession(sess.session_id, nextTitle));
+      });
+
+      const delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "item-del-btn";
+      delBtn.textContent = "×";
+      delBtn.setAttribute("aria-label", `Hapus riwayat ${currentTitle}`);
+      delBtn.addEventListener("click", async () => {
+        delBtn.disabled = true;
+        try {
+          await apiFetch(`/history?session_id=${encodeURIComponent(sess.session_id)}`, { method: "DELETE" });
+          if (sess.session_id === state.sessionId) {
+            await loadHistory();
+          }
+          await loadSessions();
+          renderDocuments();
+        } catch (err) {
+          setNote(el.workspaceNotice, err.message, true);
+        } finally {
+          delBtn.disabled = false;
+        }
+      });
+
+      li.append(btn, editBtn, delBtn);
+      return li;
+    }
+
     function renderSessions() {
       el.sessionList.innerHTML = "";
       const q = state.filterQuery.toLowerCase();
-      const filtered = state.sessions.filter((s) => (s.title || s.session_id).toLowerCase().includes(q));
-      el.sessionsCountBadge.textContent = String(state.sessions.length);
+      const allSessions = state.sessions || [];
+      const filtered = allSessions.filter((s) => (s.title || s.session_id).toLowerCase().includes(q));
+      if (el.sessionsCountBadge) el.sessionsCountBadge.textContent = String(allSessions.length);
 
-      if (state.sessions.length === 0) {
-        setNote(el.sessionState, "Belum ada riwayat.");
+      if (allSessions.length === 0) {
+        setNote(el.sessionState, "Tidak ada percakapan");
         return;
       }
       if (filtered.length === 0) {
@@ -2919,52 +4422,7 @@
 
       el.sessionState.hidden = true;
       for (const sess of filtered) {
-        const li = document.createElement("li");
-        li.className = `item-row${sess.session_id === state.sessionId ? " active" : ""}`;
-
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "item-main-btn";
-        btn.addEventListener("click", async () => {
-          setWorkspaceView("chat");
-          setActiveSession(sess.session_id);
-          await Promise.all([loadHistory(), loadSessions()]);
-          closeMobileSidebar();
-        });
-
-        const title = document.createElement("span");
-        title.className = "item-title";
-        title.textContent = sess.title || sess.session_id;
-
-        const count = document.createElement("span");
-        count.className = "item-count";
-        count.textContent = `${sess.message_count}`;
-        count.title = `${sess.message_count} pesan dalam sesi ini`;
-
-        btn.append(createChatIcon(), title, count);
-
-        const delBtn = document.createElement("button");
-        delBtn.type = "button";
-        delBtn.className = "item-del-btn";
-        delBtn.textContent = "×";
-        delBtn.setAttribute("aria-label", `Hapus riwayat ${sess.title || sess.session_id}`);
-        delBtn.addEventListener("click", async () => {
-          delBtn.disabled = true;
-          try {
-            await apiFetch(`/history?session_id=${encodeURIComponent(sess.session_id)}`, { method: "DELETE" });
-            if (sess.session_id === state.sessionId) {
-              await loadHistory();
-            }
-            await loadSessions();
-          } catch (err) {
-            setNote(el.workspaceNotice, err.message, true);
-          } finally {
-            delBtn.disabled = false;
-          }
-        });
-
-        li.append(btn, delBtn);
-        el.sessionList.appendChild(li);
+        el.sessionList.appendChild(buildSessionRow(sess));
       }
     }
 
@@ -2974,6 +4432,7 @@
         const data = await apiFetch("/sessions");
         state.sessions = data.sessions || [];
         renderSessions();
+        renderDocuments();
       } catch (err) {
         setNote(el.sessionState, err.message, true);
       }
@@ -3207,139 +4666,115 @@
         return;
       }
 
-      const header = document.createElement("div");
-      header.className = "msg-header";
-
-      const roleGroup = document.createElement("div");
-      roleGroup.className = "msg-role-group";
-
-      const roleLabel = document.createElement("div");
-      roleLabel.className = "msg-role";
-      roleLabel.innerHTML = '<span>INSIGHT A.I+</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg>';
-      roleGroup.appendChild(roleLabel);
-
-      if (meta && meta.rag_mode) {
-        const ragBadge = document.createElement("span");
-        ragBadge.className = "rag-meta-badge";
-        const modeText = formatRagLabel(meta.rag_mode);
-        const strategy = meta.retrieval_strategy && meta.retrieval_strategy !== "none"
-          ? ` · ${meta.retrieval_strategy}`
-          : "";
-        ragBadge.textContent = `${modeText}${strategy}`;
-        roleGroup.appendChild(ragBadge);
-      }
-
-      header.appendChild(roleGroup);
-
       const body = document.createElement("div");
       body.className = "msg-body md-content";
       renderMarkdownInto(body, content);
 
-      card.append(header, body);
+      card.append(body);
 
-      if (sources && sources.length > 0) {
-        const srcWrap = document.createElement("div");
-        srcWrap.className = "sources-wrap";
-        for (const src of sources) {
-          const hasExcerpt = Boolean(src.excerpt && String(src.excerpt).trim());
-          const chip = document.createElement(hasExcerpt ? "details" : "div");
-          chip.className = "source-chip";
-
-          const line = document.createElement(hasExcerpt ? "summary" : "div");
-          const labelSpan = document.createElement("span");
-          labelSpan.textContent = `Sumber: ${src.filename} | Bagian: ${src.section}`;
-          line.appendChild(labelSpan);
-
-          if (src.page_label) {
-            const pageBadge = document.createElement("span");
-            pageBadge.className = "source-page-badge";
-            pageBadge.textContent = `Hal. ${src.page_label}`;
-            line.appendChild(pageBadge);
-          }
-
-          const scoreSpan = document.createElement("span");
-          scoreSpan.textContent = `(skor ${src.score})`;
-          line.appendChild(scoreSpan);
-
-          chip.appendChild(line);
-
-          if (hasExcerpt) {
-            const excerpt = document.createElement("p");
-            excerpt.className = "source-excerpt";
-            excerpt.textContent = src.excerpt;
-            chip.appendChild(excerpt);
-          }
-          srcWrap.appendChild(chip);
-        }
-        card.appendChild(srcWrap);
-      }
-
-      if (content) {
+      const hasSources = Boolean(sources && sources.length > 0);
+      if (hasSources || content) {
         const actionsBar = document.createElement("div");
         actionsBar.className = "msg-actions-bar";
+        let detailCard = null;
 
-        const feedbackPill = document.createElement("div");
-        feedbackPill.className = "msg-feedback-pill";
+        if (hasSources) {
+          const srcRow = document.createElement("div");
+          srcRow.className = "sources-row";
 
-        const likeBtn = document.createElement("button");
-        likeBtn.type = "button";
-        likeBtn.className = "msg-icon-btn";
-        likeBtn.setAttribute("aria-label", "Sukai jawaban");
-        likeBtn.textContent = "👍";
+          const srcLabel = document.createElement("span");
+          srcLabel.className = "sources-label";
+          srcLabel.textContent = "Sumber :";
+          srcRow.appendChild(srcLabel);
 
-        const dislikeBtn = document.createElement("button");
-        dislikeBtn.type = "button";
-        dislikeBtn.className = "msg-icon-btn";
-        dislikeBtn.setAttribute("aria-label", "Kurang membantu");
-        dislikeBtn.textContent = "👎";
+          detailCard = document.createElement("div");
+          detailCard.className = "source-detail-card";
+          detailCard.hidden = true;
 
-        likeBtn.addEventListener("click", () => {
-          const next = !likeBtn.classList.contains("is-active");
-          likeBtn.classList.toggle("is-active", next);
-          if (next) dislikeBtn.classList.remove("is-active");
-        });
-        dislikeBtn.addEventListener("click", () => {
-          const next = !dislikeBtn.classList.contains("is-active");
-          dislikeBtn.classList.toggle("is-active", next);
-          if (next) likeBtn.classList.remove("is-active");
-        });
+          let activeIdx = -1;
+          const linkButtons = [];
 
-        const copyBtn = document.createElement("button");
-        copyBtn.type = "button";
-        copyBtn.className = "msg-icon-btn msg-copy-btn";
-        copyBtn.textContent = "Salin";
-        copyBtn.addEventListener("click", async () => {
-          try {
-            await navigator.clipboard.writeText(content);
-            copyBtn.textContent = "Disalin";
-            setTimeout(() => { copyBtn.textContent = "Salin"; }, 1400);
-          } catch {
-            copyBtn.textContent = "Gagal";
-            setTimeout(() => { copyBtn.textContent = "Salin"; }, 1400);
-          }
-        });
+          sources.forEach((src, idx) => {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "source-link-btn";
+            const pageText = src.page_label ? ` • Hal. ${src.page_label}` : "";
+            const tip = `${src.filename} | Bagian: ${src.section}${pageText} (skor ${src.score})`;
+            btn.title = tip;
+            btn.setAttribute("aria-label", `Sumber ${idx + 1}: ${tip}`);
+            btn.setAttribute("aria-expanded", "false");
+            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
 
-        const div1 = document.createElement("span");
-        div1.className = "msg-divider-v";
-        const div2 = document.createElement("span");
-        div2.className = "msg-divider-v";
+            btn.addEventListener("click", () => {
+              const closing = activeIdx === idx;
+              activeIdx = closing ? -1 : idx;
+              linkButtons.forEach((b, i) => {
+                const isSelected = !closing && i === idx;
+                b.classList.toggle("is-active", isSelected);
+                b.setAttribute("aria-expanded", String(isSelected));
+              });
 
-        feedbackPill.append(likeBtn, div1, dislikeBtn, div2, copyBtn);
+              if (closing) {
+                detailCard.hidden = true;
+                detailCard.innerHTML = "";
+                return;
+              }
 
-        const regenBtn = document.createElement("button");
-        regenBtn.type = "button";
-        regenBtn.className = "regenerate-pill-btn";
-        regenBtn.textContent = "↻ Regenerate";
-        const promptForRegen = (meta && meta.question) || state.lastQuestion;
-        regenBtn.addEventListener("click", () => {
-          if (!promptForRegen || state.busy) return;
-          el.questionInput.value = promptForRegen;
-          autoResizeTextarea();
-          submitQuestion();
-        });
+              detailCard.innerHTML = "";
+              const header = document.createElement("div");
+              header.className = "source-detail-header";
+              const labelSpan = document.createElement("span");
+              labelSpan.textContent = `${src.filename} | Bagian: ${src.section}`;
+              header.appendChild(labelSpan);
 
-        actionsBar.append(feedbackPill, regenBtn);
+              if (src.page_label) {
+                const pageBadge = document.createElement("span");
+                pageBadge.className = "source-page-badge";
+                pageBadge.textContent = `Hal. ${src.page_label}`;
+                header.appendChild(pageBadge);
+              }
+
+              const scoreSpan = document.createElement("span");
+              scoreSpan.textContent = `(skor ${src.score})`;
+              header.appendChild(scoreSpan);
+              detailCard.appendChild(header);
+
+              if (src.excerpt && String(src.excerpt).trim()) {
+                const excerpt = document.createElement("p");
+                excerpt.className = "source-excerpt";
+                excerpt.textContent = src.excerpt;
+                detailCard.appendChild(excerpt);
+              }
+              detailCard.hidden = false;
+            });
+
+            linkButtons.push(btn);
+            srcRow.appendChild(btn);
+          });
+
+          actionsBar.appendChild(srcRow);
+        }
+
+        if (content) {
+          const copyBtn = document.createElement("button");
+          copyBtn.type = "button";
+          copyBtn.className = "regenerate-pill-btn msg-copy-btn";
+          copyBtn.textContent = "Salin";
+          copyBtn.addEventListener("click", async () => {
+            try {
+              await navigator.clipboard.writeText(content);
+              copyBtn.textContent = "Disalin";
+              setTimeout(() => { copyBtn.textContent = "Salin"; }, 1400);
+            } catch {
+              copyBtn.textContent = "Gagal";
+              setTimeout(() => { copyBtn.textContent = "Salin"; }, 1400);
+            }
+          });
+          actionsBar.appendChild(copyBtn);
+        }
+
         card.appendChild(actionsBar);
+        if (detailCard) card.appendChild(detailCard);
       }
 
       el.chatFeed.appendChild(card);
@@ -3370,12 +4805,8 @@
     }
 
     function showUploadFeedback(text, isError = false) {
-      setNote(el.uploadStatus, text, isError);
-      const sidebarHidden =
-        el.appLayout.classList.contains("sidebar-collapsed") ||
-        (window.innerWidth <= 768 && !el.sidebar.classList.contains("mobile-open"));
-      if (sidebarHidden || isError) {
-        setNote(el.workspaceNotice, text, isError);
+      if (isError) {
+        setNote(el.workspaceNotice, text, true);
       } else {
         el.workspaceNotice.hidden = true;
       }
@@ -3396,6 +4827,8 @@
       const files = Array.from(fileList || []);
       if (files.length === 0) return;
 
+      const targetProjectId = state.uploadTargetProjectId;
+      state.uploadTargetProjectId = null;
       let okCount = 0;
       const errors = [];
       for (let idx = 0; idx < files.length; idx += 1) {
@@ -3404,6 +4837,9 @@
         showUploadFeedback(`${prefix}Mengindeks ${file.name}...`);
         const formData = new FormData();
         formData.append("file", file);
+        if (targetProjectId) {
+          formData.append("project_id", targetProjectId);
+        }
         try {
           await apiFetch("/documents/upload", {
             method: "POST",
@@ -3424,7 +4860,7 @@
         const okPart = okCount > 0 ? `${okCount} berhasil. ` : "";
         showUploadFeedback(`${okPart}Gagal: ${errors.join("; ")}`, true);
       }
-      await Promise.all([loadDocuments(), loadHealth()]);
+      await Promise.all([loadProjects(), loadDocuments(), loadHealth()]);
     }
 
     el.fileUpload.addEventListener("change", async (event) => {
@@ -3492,13 +4928,39 @@
       autoResizeTextarea();
 
       const pending = document.createElement("div");
-      pending.className = "status-note thinking-note";
+      pending.className = "thinking-note";
       const dots = document.createElement("span");
       dots.className = "thinking-dots";
       dots.setAttribute("aria-hidden", "true");
       dots.append(document.createElement("span"), document.createElement("span"), document.createElement("span"));
       const pendingText = document.createElement("span");
-      pendingText.textContent = "Menelusuri dokumen dan menyusun jawaban...";
+      const thinkingStages = [
+        "Berpikir",
+        "Menyusun kerangka",
+        "Memproses",
+        "Mencari jawaban terbaik",
+        "Menyusun jawaban",
+        "Memvalidasi",
+      ];
+      let stageIdx = 0;
+      let dotCount = 1;
+      const updatePendingText = () => {
+        pendingText.textContent = `${thinkingStages[stageIdx]}${".".repeat(dotCount)}`;
+      };
+      updatePendingText();
+      const dotTimer = setInterval(() => {
+        dotCount = (dotCount % 3) + 1;
+        updatePendingText();
+      }, 360);
+      const stageTimer = setInterval(() => {
+        stageIdx = (stageIdx + 1) % thinkingStages.length;
+        dotCount = 1;
+        updatePendingText();
+      }, 10000);
+      const stopPendingAnim = () => {
+        clearInterval(dotTimer);
+        clearInterval(stageTimer);
+      };
       pending.append(dots, pendingText);
       el.chatFeed.appendChild(pending);
       el.chatScroll.scrollTop = el.chatScroll.scrollHeight;
@@ -3515,6 +4977,9 @@
             question: text,
             session_id: state.sessionId,
             rag_mode: state.ragMode,
+            doc_id: state.activeDocId,
+            project_id: state.activeProjectId,
+            sampling: getSamplingParams(),
           }),
         });
         if (!streamResp.ok || !streamResp.body) {
@@ -3536,6 +5001,7 @@
 
         const ensureLiveBubble = () => {
           if (liveRow) return;
+          stopPendingAnim();
           pending.remove();
           liveRow = document.createElement("article");
           liveRow.className = "msg-row assistant";
@@ -3563,11 +5029,11 @@
             const payload = JSON.parse(dataLine.slice(5).trim());
             if (payload.type === "meta") {
               meta = payload;
-              ensureLiveBubble();
             } else if (payload.type === "token") {
-              ensureLiveBubble();
               fullAnswer += payload.delta || "";
-              liveBody.textContent = fullAnswer;
+              if (!fullAnswer.trim()) continue;
+              ensureLiveBubble();
+              liveBody.textContent = fullAnswer.trimStart();
               el.chatScroll.scrollTop = el.chatScroll.scrollHeight;
             } else if (payload.type === "done") {
               fullAnswer = payload.answer || fullAnswer;
@@ -3576,7 +5042,10 @@
         }
 
         if (liveRow) liveRow.remove();
-        else pending.remove();
+        else {
+          stopPendingAnim();
+          pending.remove();
+        }
 
         renderMessage("assistant", fullAnswer, meta.sources || [], {
           rag_mode: meta.rag_mode || state.ragMode,
@@ -3612,7 +5081,7 @@
       el.embedderWarningBanner.hidden = true;
     });
 
-    el.newChatBtn.addEventListener("click", startNewConversation);
+    el.newChatBtn.addEventListener("click", () => startNewConversation(null));
 
     el.sidebarCollapseBtn.addEventListener("click", () => {
       if (window.innerWidth <= 768) {
@@ -3699,40 +5168,136 @@
       }
     });
 
-    el.openSettingsNav.addEventListener("click", openSettingsModal);
-    el.footerSettingsBtn.addEventListener("click", openSettingsModal);
-    el.topPillBtn.addEventListener("click", openSettingsModal);
+    if (el.openSettingsNav) el.openSettingsNav.addEventListener("click", openSettingsModal);
+    document.getElementById("header-settings-btn")?.addEventListener("click", openSettingsModal);
+    if (el.footerSettingsBtn) el.footerSettingsBtn.addEventListener("click", openSettingsModal);
+    if (el.topPillBtn) el.topPillBtn.addEventListener("click", openSettingsModal);
     el.modelTriggerBtn.addEventListener("click", openSettingsModal);
     el.closeSettingsBtn.addEventListener("click", closeSettingsModal);
 
-    el.clearActiveModalBtn.addEventListener("click", async () => {
-      await apiFetch(`/history?session_id=${encodeURIComponent(state.sessionId)}`, { method: "DELETE" });
-      closeSettingsModal();
-      await Promise.all([loadHistory(), loadSessions()]);
-    });
+    const DARK_MODE_KEY = "insight_dark_mode";
+    const darkModeToggle = document.getElementById("dark-mode-toggle");
+    function applyDarkMode(enabled) {
+      document.documentElement.setAttribute("data-theme", enabled ? "dark" : "light");
+      if (darkModeToggle) darkModeToggle.checked = Boolean(enabled);
+      localStorage.setItem(DARK_MODE_KEY, enabled ? "1" : "0");
+    }
+    applyDarkMode(localStorage.getItem(DARK_MODE_KEY) === "1");
+    if (darkModeToggle) {
+      darkModeToggle.addEventListener("change", () => applyDarkMode(darkModeToggle.checked));
+    }
 
-    el.shutdownServerBtn.addEventListener("click", async () => {
-      if (!confirm("Matikan server lokal InSight? Untuk menyalakan lagi, jalankan InSight.bat / run.py.")) {
-        return;
-      }
-      el.shutdownServerBtn.disabled = true;
+    const SAMPLING_PARAMS_KEY = "insight_sampling_params";
+    const DEFAULT_SAMPLING_PARAMS = {
+      temperature: 0.2,
+      max_tokens: 2048,
+      top_k: 20,
+      top_p: 0.8,
+      min_p: 0.0,
+      repeat_penalty: 1.1,
+      frequency_penalty: 0.0,
+      presence_penalty: 0.0,
+    };
+    const SAMPLING_INPUT_MAP = [
+      ["temperature", "param-temperature", false],
+      ["max_tokens", "param-max-tokens", true],
+      ["top_k", "param-top-k", true],
+      ["top_p", "param-top-p", false],
+      ["min_p", "param-min-p", false],
+      ["repeat_penalty", "param-repeat-penalty", false],
+      ["frequency_penalty", "param-frequency-penalty", false],
+      ["presence_penalty", "param-presence-penalty", false],
+    ];
+
+    function loadSamplingParams() {
       try {
-        await apiFetch("/runtime/shutdown", { method: "POST" });
-        state.serverStopped = true;
-        if (heartbeatTimer) {
-          clearInterval(heartbeatTimer);
-          heartbeatTimer = null;
+        const raw = localStorage.getItem(SAMPLING_PARAMS_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === "object") {
+            return { ...DEFAULT_SAMPLING_PARAMS, ...parsed };
+          }
         }
-        closeSettingsModal();
-        el.topPillText.textContent = "Server dimatikan";
-        el.modelLabel.textContent = "Offline";
-        setNote(el.workspaceNotice, "Server lokal telah dimatikan. Jalankan InSight.bat atau run.py untuk menyalakannya kembali.");
-      } catch (err) {
-        setNote(el.workspaceNotice, err.message, true);
-      } finally {
-        el.shutdownServerBtn.disabled = false;
+      } catch {}
+      return { ...DEFAULT_SAMPLING_PARAMS };
+    }
+
+    function applySamplingInputs(params) {
+      for (const [key, inputId] of SAMPLING_INPUT_MAP) {
+        const input = document.getElementById(inputId);
+        if (input && params[key] !== undefined) {
+          input.value = String(params[key]);
+        }
       }
-    });
+    }
+
+    function getSamplingParams() {
+      const params = { ...DEFAULT_SAMPLING_PARAMS };
+      for (const [key, inputId, isInt] of SAMPLING_INPUT_MAP) {
+        const input = document.getElementById(inputId);
+        if (!input) continue;
+        const parsed = isInt ? parseInt(input.value, 10) : parseFloat(input.value);
+        if (!Number.isNaN(parsed)) {
+          params[key] = parsed;
+        }
+      }
+      return params;
+    }
+
+    function saveSamplingParams() {
+      localStorage.setItem(SAMPLING_PARAMS_KEY, JSON.stringify(getSamplingParams()));
+    }
+
+    applySamplingInputs(loadSamplingParams());
+    for (const [, inputId] of SAMPLING_INPUT_MAP) {
+      const input = document.getElementById(inputId);
+      if (input) {
+        input.addEventListener("change", saveSamplingParams);
+      }
+    }
+    const resetSamplingBtn = document.getElementById("reset-sampling-btn");
+    if (resetSamplingBtn) {
+      resetSamplingBtn.addEventListener("click", () => {
+        applySamplingInputs(DEFAULT_SAMPLING_PARAMS);
+        localStorage.setItem(SAMPLING_PARAMS_KEY, JSON.stringify(DEFAULT_SAMPLING_PARAMS));
+      });
+    }
+
+    if (el.clearActiveModalBtn) {
+      el.clearActiveModalBtn.addEventListener("click", async () => {
+        if (!confirm("Hapus semua riwayat percakapan? Tindakan ini tidak dapat dibatalkan.")) {
+          return;
+        }
+        await apiFetch("/history?all=true", { method: "DELETE" });
+        closeSettingsModal();
+        await Promise.all([loadHistory(), loadSessions()]);
+      });
+    }
+
+    if (el.shutdownServerBtn) {
+      el.shutdownServerBtn.addEventListener("click", async () => {
+        if (!confirm("Matikan server lokal InSight? Untuk menyalakan lagi, jalankan InSight.bat / run.py.")) {
+          return;
+        }
+        el.shutdownServerBtn.disabled = true;
+        try {
+          await apiFetch("/runtime/shutdown", { method: "POST" });
+          state.serverStopped = true;
+          if (heartbeatTimer) {
+            clearInterval(heartbeatTimer);
+            heartbeatTimer = null;
+          }
+          closeSettingsModal();
+          if (el.topPillText) el.topPillText.textContent = "Server dimatikan";
+          el.modelLabel.textContent = "Offline";
+          setNote(el.workspaceNotice, "Server lokal telah dimatikan. Jalankan InSight.bat atau run.py untuk menyalakannya kembali.");
+        } catch (err) {
+          setNote(el.workspaceNotice, err.message, true);
+        } finally {
+          el.shutdownServerBtn.disabled = false;
+        }
+      });
+    }
 
     el.settingsModal.addEventListener("click", (event) => {
       if (event.target === el.settingsModal) closeSettingsModal();
@@ -3819,7 +5384,7 @@
     async function refreshAll() {
       await loadHealth();
       if (!el.authModal.classList.contains("open")) {
-        await Promise.all([loadDocuments(), loadSessions(), loadHistory(), loadModels()]);
+        await Promise.all([loadProjects(), loadDocuments(), loadSessions(), loadHistory(), loadModels()]);
       } else {
         await loadModels();
       }

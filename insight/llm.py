@@ -19,21 +19,21 @@ from insight.vectorstore import STOPWORDS, RetrievedChunk
 PRESET_MODELS: list[dict[str, Any]] = [
     {
         "id": "qwen2.5-0.5b",
-        "name": "Qwen2.5 0.5B (Super Cepat)",
+        "name": "Qwen 3 - 0.5B",
         "backend": "llamacpp",
         "repo_id": "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
         "filename": "qwen2.5-0.5b-instruct-q4_k_m.gguf",
         "size_label": "~398 MB",
-        "description": "Super ringan & cepat, respons 2–4 detik di CPU laptop",
+        "description": "Jawaban cepat",
     },
     {
         "id": "qwen3-1.7b",
-        "name": "Qwen3 1.7B (Detail)",
+        "name": "Qwen 3 - 1.7B",
         "backend": "llamacpp",
         "repo_id": "unsloth/Qwen3-1.7B-GGUF",
         "filename": "Qwen3-1.7B-UD-Q4_K_XL.gguf",
         "size_label": "~1.08 GB",
-        "description": "Analisis lebih detail & penalaran mendalam",
+        "description": "Penalaran mendalam",
     },
 ]
 
@@ -107,7 +107,8 @@ def _is_gguf_repo_or_file(model_name: str) -> bool:
 
 SYSTEM_PROMPT = (
     "You are InSight, a private document assistant. "
-    "Answer the user's question concisely using ONLY the provided document excerpts. "
+    "Answer the user's question using ONLY the provided document excerpts. "
+    "When presenting multiple items, steps, or points, format them as Markdown bullet points (`- `). "
     "Cite filenames when referencing information. "
     "Never invent file paths or details not present in the excerpts, and never repeat sentences. "
     "If the excerpts do not contain the answer, say so clearly in the same language as the question."
@@ -127,8 +128,8 @@ def _format_chunk_loc(chunk: RetrievedChunk) -> str:
 
 def _trim_chat_history(
     history: list[dict[str, str]] | None,
-    max_messages: int = 4,
-    max_chars: int = 220,
+    max_messages: int = 8,
+    max_chars: int = 800,
 ) -> list[dict[str, str]]:
     """Keep the most recent user/assistant turns within a compact character budget."""
     if not history:
@@ -141,6 +142,23 @@ def _trim_chat_history(
             continue
         cleaned.append({"role": role, "content": content[:max_chars]})
     return cleaned
+
+
+def build_chat_messages(
+    question: str,
+    contexts: list[RetrievedChunk],
+    history: list[dict[str, str]] | None = None,
+    prompt_suffix: str = "",
+) -> list[dict[str, str]]:
+    """Build multi-turn chat messages with system prompt, trimmed history, and grounded user prompt."""
+    messages: list[dict[str, str]] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    for item in _trim_chat_history(history):
+        messages.append({"role": item["role"], "content": item["content"]})
+    user_prompt = build_prompt(question, contexts, history=None)
+    if prompt_suffix:
+        user_prompt = f"{user_prompt}{prompt_suffix}"
+    messages.append({"role": "user", "content": user_prompt})
+    return messages
 
 
 def build_prompt(
@@ -247,17 +265,14 @@ class OllamaRunner:
     ) -> str:
         import httpx
 
-        user_prompt = build_prompt(question, contexts, history=history)
+        messages = build_chat_messages(question, contexts, history=history)
         try:
             response = httpx.post(
                 f"{self.base_url}/api/chat",
                 json={
                     "model": self.model,
                     "stream": False,
-                    "messages": [
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": user_prompt},
-                    ],
+                    "messages": messages,
                 },
                 timeout=120.0,
             )
@@ -278,7 +293,7 @@ class OllamaRunner:
     ) -> Iterator[str]:
         import httpx
 
-        user_prompt = build_prompt(question, contexts, history=history)
+        messages = build_chat_messages(question, contexts, history=history)
         emitted = False
         try:
             def _raw_tokens() -> Iterator[str]:
@@ -288,10 +303,7 @@ class OllamaRunner:
                     json={
                         "model": self.model,
                         "stream": True,
-                        "messages": [
-                            {"role": "system", "content": SYSTEM_PROMPT},
-                            {"role": "user", "content": user_prompt},
-                        ],
+                        "messages": messages,
                     },
                     timeout=120.0,
                 ) as response:
@@ -609,6 +621,7 @@ class LlamaCppRunner:
             model_path=str(model_path),
             n_ctx=n_ctx,
             n_threads=n_threads,
+            last_n_tokens_size=256,
             verbose=False,
         )
         self.settings = settings
@@ -616,34 +629,57 @@ class LlamaCppRunner:
         self._is_qwen3 = _is_qwen3_model(model_path.name) or _is_qwen3_model(settings.llm_model)
         self.label = f"llamacpp:{model_path.name}"
 
+    _SAMPLING_INT_KEYS = ("max_tokens", "top_k")
+    _SAMPLING_FLOAT_KEYS = (
+        "temperature",
+        "top_p",
+        "min_p",
+        "repeat_penalty",
+        "frequency_penalty",
+        "presence_penalty",
+    )
+
     def _prepare_chat_call(
         self,
         question: str,
         contexts: list[RetrievedChunk],
         history: list[dict[str, str]] | None = None,
+        sampling_params: dict[str, Any] | None = None,
     ) -> tuple[list[dict[str, str]], dict]:
-        user_prompt = build_prompt(question, contexts, history=history)
         if self._is_qwen3:
-            user_prompt = f"{user_prompt}\n/no_think"
-            sampling = {
-                "max_tokens": min(self.settings.max_new_tokens, 512),
-                "temperature": 0.7,
+            messages = build_chat_messages(question, contexts, history=history, prompt_suffix="\n/no_think")
+            sampling: dict[str, Any] = {
+                "max_tokens": min(self.settings.max_new_tokens, 2048),
+                "temperature": 0.2,
                 "top_p": 0.8,
                 "top_k": 20,
                 "min_p": 0.0,
                 "repeat_penalty": 1.1,
             }
         else:
+            messages = build_chat_messages(question, contexts, history=history)
             sampling = {
-                "max_tokens": min(self.settings.max_new_tokens, 320),
+                "max_tokens": min(self.settings.max_new_tokens, 1024),
                 "temperature": 0.2,
                 "top_p": 0.9,
                 "repeat_penalty": 1.18,
+                "frequency_penalty": 0.2,
+                "presence_penalty": 0.2,
             }
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ]
+        if sampling_params:
+            for key in self._SAMPLING_INT_KEYS:
+                if key in sampling_params and sampling_params[key] is not None:
+                    try:
+                        val = int(sampling_params[key])
+                        sampling[key] = max(1, val) if key == "max_tokens" else max(0, val)
+                    except (TypeError, ValueError):
+                        pass
+            for key in self._SAMPLING_FLOAT_KEYS:
+                if key in sampling_params and sampling_params[key] is not None:
+                    try:
+                        sampling[key] = float(sampling_params[key])
+                    except (TypeError, ValueError):
+                        pass
         return messages, sampling
 
     def _get_lock(self) -> threading.Lock:
@@ -658,8 +694,11 @@ class LlamaCppRunner:
         question: str,
         contexts: list[RetrievedChunk],
         history: list[dict[str, str]] | None = None,
+        sampling_params: dict[str, Any] | None = None,
     ) -> str:
-        messages, sampling = self._prepare_chat_call(question, contexts, history=history)
+        messages, sampling = self._prepare_chat_call(
+            question, contexts, history=history, sampling_params=sampling_params
+        )
         try:
             with self._get_lock():
                 response = self._model.create_chat_completion(messages=messages, **sampling)
@@ -675,8 +714,11 @@ class LlamaCppRunner:
         question: str,
         contexts: list[RetrievedChunk],
         history: list[dict[str, str]] | None = None,
+        sampling_params: dict[str, Any] | None = None,
     ) -> Iterator[str]:
-        messages, sampling = self._prepare_chat_call(question, contexts, history=history)
+        messages, sampling = self._prepare_chat_call(
+            question, contexts, history=history, sampling_params=sampling_params
+        )
         emitted = False
         try:
             def _raw_tokens() -> Iterator[str]:
@@ -862,7 +904,13 @@ def _call_runner_generate(
     question: str,
     contexts: list[RetrievedChunk],
     history: list[dict[str, str]] | None = None,
+    sampling_params: dict[str, Any] | None = None,
 ) -> str:
+    if sampling_params:
+        try:
+            return runner.generate(question, contexts, history=history, sampling_params=sampling_params)  # type: ignore[call-arg]
+        except TypeError:
+            pass
     if history is not None:
         try:
             return runner.generate(question, contexts, history=history)  # type: ignore[call-arg]
@@ -876,16 +924,23 @@ def _call_runner_generate_stream(
     question: str,
     contexts: list[RetrievedChunk],
     history: list[dict[str, str]] | None = None,
+    sampling_params: dict[str, Any] | None = None,
 ) -> Iterator[str]:
     stream_fn = getattr(runner, "generate_stream", None)
     if callable(stream_fn):
+        if sampling_params:
+            try:
+                yield from stream_fn(question, contexts, history=history, sampling_params=sampling_params)
+                return
+            except TypeError:
+                pass
         try:
             yield from stream_fn(question, contexts, history=history)
             return
         except TypeError:
             yield from stream_fn(question, contexts)
             return
-    yield _call_runner_generate(runner, question, contexts, history=history)
+    yield _call_runner_generate(runner, question, contexts, history=history, sampling_params=sampling_params)
 
 
 @dataclass
@@ -1028,13 +1083,19 @@ class LazyLLM:
         question: str,
         contexts: list[RetrievedChunk],
         history: list[dict[str, str]] | None = None,
+        sampling_params: dict[str, Any] | None = None,
     ) -> str:
-        return _call_runner_generate(self._get_runner(), question, contexts, history=history)
+        return _call_runner_generate(
+            self._get_runner(), question, contexts, history=history, sampling_params=sampling_params
+        )
 
     def generate_stream(
         self,
         question: str,
         contexts: list[RetrievedChunk],
         history: list[dict[str, str]] | None = None,
+        sampling_params: dict[str, Any] | None = None,
     ) -> Iterator[str]:
-        return _call_runner_generate_stream(self._get_runner(), question, contexts, history=history)
+        return _call_runner_generate_stream(
+            self._get_runner(), question, contexts, history=history, sampling_params=sampling_params
+        )
