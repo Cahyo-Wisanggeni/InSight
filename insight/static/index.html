@@ -3636,6 +3636,8 @@
           btn.setAttribute("role", "option");
           btn.setAttribute("aria-selected", isActive ? "true" : "false");
           const desc = m.description || (m.downloaded ? "Siap digunakan" : "Unduh otomatis saat dipilih");
+          const sizePart = m.size_label ? ` · ${m.size_label}` : "";
+          const dlPart = m.downloaded ? "" : " · Unduh otomatis";
           btn.innerHTML = `
             <span class="opt-meta">
               <span class="opt-title"></span>
@@ -3644,7 +3646,7 @@
             <svg class="opt-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
           `;
           btn.querySelector(".opt-title").textContent = m.name;
-          btn.querySelector(".opt-desc").textContent = desc;
+          btn.querySelector(".opt-desc").textContent = `${desc}${sizePart}${dlPart}`;
           btn.addEventListener("click", () => {
             if (targetSelect) {
               targetSelect.value = m.id;

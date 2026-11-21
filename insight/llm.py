@@ -27,6 +27,15 @@ PRESET_MODELS: list[dict[str, Any]] = [
         "description": "Jawaban cepat",
     },
     {
+        "id": "qwen3.5-0.8b",
+        "name": "Qwen 3.5 - 0.8B",
+        "backend": "llamacpp",
+        "repo_id": "unsloth/Qwen3.5-0.8B-GGUF",
+        "filename": "Qwen3.5-0.8B-UD-Q4_K_XL.gguf",
+        "size_label": "~533 MB",
+        "description": "Seimbang & cepat",
+    },
+    {
         "id": "qwen3-1.7b",
         "name": "Qwen 3 - 1.7B",
         "backend": "llamacpp",

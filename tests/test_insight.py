@@ -1186,9 +1186,10 @@ def test_model_selection_api_and_engine_switching(tmp_path: Path, monkeypatch) -
 
     # 1. Verify list_models returns presets with download status
     models = engine.list_models()
-    assert len(models) >= 2
+    assert len(models) >= 3
     preset_ids = [m["id"] for m in models]
     assert "qwen3-0.6b" in preset_ids
+    assert "qwen3.5-0.8b" in preset_ids
     assert "qwen3-1.7b" in preset_ids
 
     # 2. Mock ensure_gguf_model so test doesn't hit HuggingFace download
@@ -1196,6 +1197,8 @@ def test_model_selection_api_and_engine_switching(tmp_path: Path, monkeypatch) -
     gguf_dir.mkdir(parents=True, exist_ok=True)
     fake_06b = gguf_dir / "Qwen3-0.6B-UD-Q4_K_XL.gguf"
     fake_06b.write_bytes(b"GGUF")
+    fake_08b = gguf_dir / "Qwen3.5-0.8B-UD-Q4_K_XL.gguf"
+    fake_08b.write_bytes(b"GGUF")
 
     monkeypatch.setattr("insight.llm.ensure_gguf_model", lambda _cfg: fake_06b)
 
@@ -1213,6 +1216,11 @@ def test_model_selection_api_and_engine_switching(tmp_path: Path, monkeypatch) -
     data = get_res.json()
     assert data["active_model_id"] == "qwen3-0.6b"
     assert any(m["id"] == "qwen3-0.6b" and m["active"] for m in data["models"])
+
+    post_q35 = client.post("/models/select", json={"model_id": "qwen3.5-0.8b"})
+    assert post_q35.status_code == 200
+    assert post_q35.json()["model"]["name"] == "Qwen 3.5 - 0.8B"
+    assert engine.active_model_id == "qwen3.5-0.8b"
 
     post_res = client.post("/models/select", json={"model_id": "qwen3-1.7b"})
     assert post_res.status_code == 200
