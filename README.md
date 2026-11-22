@@ -186,13 +186,13 @@ flowchart TD
 
 | Komponen | Spesifikasi |
 |---|---|
-| **Backend Web & API** | FastAPI + Uvicorn (termasuk SSE streaming di `/chat/stream`) |
+| **Backend Web & API** | FastAPI + Uvicorn |
 | **Parser Dokumen** | `pypdfium2`, `python-docx`, `python-pptx`, `openpyxl`, `beautifulsoup4` |
-| **Vector Database** | Qdrant (`Dense` + `BM25Okapi` Sparse) tanpa Docker |
-| **Database Metadata** | SQLite (`data/insight.sqlite`) untuk proyek, dokumen, dan riwayat sesi |
-| **Strategi RAG** | `HybridRAG` (0.70/0.30 + rewrite) & `AdaptiveRAG` (`QueryAnalyzer` + routing) |
-| **Inferensi LLM Lokal** | `llama-cpp-python` (GGUF `Qwen3-0.6B` / `3.5-0.8B` / `3-1.7B`) atau `Ollama` |
-| **Keamanan Opsional** | Session token `X-InSight-Token` dengan TTL dan rate-limit login (`HTTP 429`) |
+| **Vector Database** | Qdrant (`Dense` + `BM25Okapi`) |
+| **Database Metadata** | SQLite |
+| **Strategi RAG** | `HybridRAG` & `AdaptiveRAG` |
+| **Inferensi LLM Lokal** | `llama-cpp-python` (`Qwen3-0.6B` / `3.5-0.8B` / `3-1.7B`) & `Ollama` |
+| **Keamanan Opsional** | Session Token + Rate Limit Login |
 
 ---
 
