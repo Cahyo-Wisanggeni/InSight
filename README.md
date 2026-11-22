@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>InSight</h1>
+  <h1><picture><source media="(prefers-color-scheme: dark)" srcset="insight/static/logo-dark.svg" /><source media="(prefers-color-scheme: light)" srcset="insight/static/logo.svg" /><img src="insight/static/logo-dark.svg" alt="InSight Logo" width="32" height="32" /></picture> InSight</h1>
   <p><strong>Private Document RAG Workspace with Lightweight Parsers, Qdrant Local, SQLite, and Selectable Full/Quantized LLM Inference.</strong></p>
 
   [![Python](https://img.shields.io/badge/Python-3.10%2B-145347?style=flat-square)](https://www.python.org/)
