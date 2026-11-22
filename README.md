@@ -63,23 +63,20 @@
 **Privasi 100% Lokal & Offline**<br>
 FastAPI, parser dokumen ringan, Qdrant, SQLite, direktori `resources/`, dan LLM lokal (`llama.cpp` GGUF / Ollama / `local_smart`) berjalan sepenuhnya di PC Anda. Dokumen dan pertanyaan tidak pernah keluar dari perangkat.
 
-**Dual RAG Ketat: HybridRAG & AdaptiveRAG**<br>
-Memilih secara langsung antara `HybridRAG` (vektor dense + BM25 sparse + *query rewriting* otomatis) atau `AdaptiveRAG` (analisis kompleksitas pertanyaan untuk merutekan strategi pencarian terbaik).
-
 **Pilihan Model LLM Dinamis dari UI**<br>
-Beralih cepat antara `Qwen3-0.6B` (super cepat & hemat RAM), `Qwen3.5-0.8B` (seimbang), `Qwen3-1.7B` (analisis mendalam), atau model Ollama lokal tanpa perlu restart server.
+Model LLM menggunakan Qwen antara lain: `Qwen3-0.6B`, `Qwen3.5-0.8B`, `Qwen3-1.7B`, atau model Ollama lokal tanpa perlu restart server.
 
 **Parsing Ringan & Sitasi Halaman Akurat**<br>
-Mengonversi PDF (`pypdfium2`), DOCX, PPTX, XLSX, dan HTML ke Markdown terstruktur tanpa beban PyTorch/OCR, melacak `page_label` per chunk, serta menggabungkan tabel Markdown yang terpecah lintas halaman.
+Mengonversi PDF, DOCX, PPTX, XLSX, dan HTML ke Markdown terstruktur tanpa beban PyTorch/OCR, melacak nomor halaman per chunk, serta menggabungkan tabel Markdown yang terpecah lintas halaman.
 
 **Folder Proyek & Pencarian Terfokus**<br>
-Kelompokkan dokumen ke dalam folder proyek (mis. `Project KP`), lalu arahkan pencarian ke proyek tertentu atau seluruh dokumen terindeks langsung dari kolom *composer*.
+Kelompokkan dokumen ke dalam folder proyek, lalu arahkan pencarian ke proyek tertentu atau seluruh dokumen terindeks langsung dari kolom *composer*.
 
 **Streaming Jawaban Real-Time & Tema Adaptif**<br>
-Mendukung *token streaming* via Server-Sent Events (SSE), mode gelap/terang, riwayat percakapan SQLite, serta penghapusan vektor Qdrant otomatis saat dokumen dihapus.
+Mendukung *token streaming* via Server-Sent Events, mode gelap/terang, riwayat percakapan SQLite, serta penghapusan vektor Qdrant otomatis saat dokumen dihapus.
 
 **Folder `resources/` Terpusat & Proteksi Opsional**<br>
-Seluruh cache model (`HF_HOME`, `FASTEMBED_CACHE_PATH`, `OLLAMA_MODELS`, `TORCH_HOME`) terpusat di `./resources` yang dapat dipantau via UI, ditambah proteksi kata sandi opsional (`INSIGHT_PASSWORD`) dengan *rate-limiting* dan TTL token.
+Seluruh cache model terpusat di `./resources` yang dapat dipantau via UI, ditambah proteksi kata sandi opsional dengan *rate-limiting* dan TTL token.
 
 ---
 
