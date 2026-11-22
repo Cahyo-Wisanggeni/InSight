@@ -85,11 +85,11 @@ Seluruh cache model (`HF_HOME`, `FASTEMBED_CACHE_PATH`, `OLLAMA_MODELS`, `TORCH_
 
 ## Pratinjau Aplikasi
 
-Antarmuka Web UI minimalis dengan manajemen folder proyek, pemilih model & mode RAG di toolbar atas, streaming jawaban real-time, serta tautan sitasi sumber per respons:
+Antarmuka Web UI minimalis dengan dukungan **Mode Gelap** dan **Mode Terang**, manajemen folder proyek, pemilih model & mode RAG di toolbar atas, serta pengalaman tanya-jawab dokumen yang bersih:
 
-<div align="center">
-  <img src="assets/ui_preview.png" alt="Tampilan Web UI InSight" width="950"/>
-</div>
+| Mode Gelap | Mode Terang |
+| :---: | :---: |
+| <img src="assets/ui_preview_dark.png" alt="Tampilan Mode Gelap InSight" width="470"/> | <img src="assets/ui_preview_light.png" alt="Tampilan Mode Terang InSight" width="470"/> |
 
 ---
 
@@ -285,7 +285,8 @@ InSight/
 ├── run.py
 ├── assets/
 │   ├── demo.webp
-│   └── ui_preview.png
+│   ├── ui_preview_dark.png
+│   └── ui_preview_light.png
 ├── insight/
 │   ├── __init__.py
 │   ├── api.py
