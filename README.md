@@ -49,7 +49,6 @@
 - [Pratinjau Aplikasi](#pratinjau-aplikasi)
 - [Rincian Mode RAG & Pilihan Model](#rincian-mode-rag--pilihan-model)
 - [Panduan Memulai Cepat](#panduan-memulai-cepat)
-- [Konfigurasi Environment (.env)](#konfigurasi-environment-env)
 - [Arsitektur Sistem](#arsitektur-sistem)
 - [Ringkasan API](#ringkasan-api)
 - [Struktur Repositori](#struktur-repositori)
@@ -151,41 +150,6 @@ INSIGHT_LLM_BACKEND=ollama INSIGHT_LLM_MODEL=qwen2.5:7b python run.py
 
 ### 4. Buka Aplikasi
 Akses `http://127.0.0.1:8000` di browser, unggah dokumen ke folder proyek di panel kiri, pilih model dan mode RAG, lalu ajukan pertanyaan Anda.
-
----
-
-## Konfigurasi Environment (`.env`)
-
-Salin `.env.example` menjadi `.env` untuk menyimpan pengaturan secara persisten. Berikut variabel utama yang paling sering disesuaikan:
-
-| Variabel | Default | Keterangan |
-|---|---|---|
-| `INSIGHT_HOST` / `INSIGHT_PORT` | `127.0.0.1` / `8000` | Alamat host dan port server FastAPI |
-| `INSIGHT_LLM_BACKEND` | `auto` (`llamacpp` di `.env.example`) | Pilihan: `auto`, `llamacpp`, `local_smart`, `retrieval_only`, `ollama`, `unsloth`, `hf` |
-| `INSIGHT_LLM_MODEL` | `unsloth/Qwen3-1.7B-GGUF` | Repo/model LLM lokal (GGUF `resources/gguf`, Ollama, atau Hugging Face) |
-| `INSIGHT_RAG_MODE` | `hybrid` | Pilihan metode RAG: `hybrid` (`HybridRAG`) atau `adaptive` (`AdaptiveRAG`) |
-| `INSIGHT_PRECISION` | `4bit` | Presisi model: `4bit`, `8bit`, atau `full` |
-| `INSIGHT_PASSWORD` | `""` (kosong) | Kata sandi sesi opsional untuk melindungi akses endpoint |
-
-<details>
-<summary><b>Klik untuk melihat seluruh variabel konfigurasi lanjutan</b></summary>
-
-| Variabel | Default | Keterangan |
-|---|---|---|
-| `INSIGHT_DATA_DIR` | `./data` | Direktori penyimpanan SQLite dan Qdrant |
-| `INSIGHT_RESOURCES_DIR` | `./resources` | Direktori terpusat untuk semua model dan cache terunduh |
-| `INSIGHT_GGUF_FILE` | `Qwen3-1.7B-UD-Q4_K_XL.gguf` | Nama file `.gguf` pilihan dari repo model |
-| `INSIGHT_EMBED_MODEL` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | Model embedding multibahasa (Indonesia/Inggris) |
-| `INSIGHT_STRICT_EMBEDDER` | `false` | Set `true` agar server menolak startup jika hanya `HashingEmbedder` fallback yang tersedia |
-| `INSIGHT_USE_RERANKER` | `false` | Aktifkan Cross-Encoder reranker (`true` / `false`) |
-| `INSIGHT_RERANK_MODEL` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | Model reranker ringan |
-| `INSIGHT_MAX_UPLOAD_MB` | `50` | Batas maksimal ukuran file unggahan (MB) |
-| `INSIGHT_TOKEN_TTL_SECONDS` | `43200` | Masa berlaku token sesi login dalam detik (12 jam) |
-| `INSIGHT_LOGIN_MAX_ATTEMPTS` | `5` | Batas percobaan login gagal per IP sebelum `HTTP 429` |
-| `INSIGHT_LOGIN_WINDOW_SECONDS` | `60` | Jendela waktu rate-limit login (detik) |
-| `INSIGHT_AUTO_SHUTDOWN` | `0` (`1` di `launch.py`) | Matikan server otomatis saat tab/jendela UI ditutup |
-
-</details>
 
 ---
 
