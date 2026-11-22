@@ -95,14 +95,6 @@ Antarmuka Web UI minimalis dengan dukungan **Mode Gelap** dan **Mode Terang**, m
 
 ## Rincian Mode RAG & Pilihan Model
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────────────────────────┐
-│  Mode RAG:   HybridRAG (Dense + BM25 + Rewrite)   │   AdaptiveRAG (QueryAnalyzer + Auto-Route)  │
-├─────────────────────────────────────────────────────────────────────────────────────────────────┤
-│  Model LLM:  Qwen3-0.6B (Cepat)  │  Qwen3.5-0.8B (Seimbang)  │  Qwen3-1.7B (Mendalam)  │ Ollama │
-└─────────────────────────────────────────────────────────────────────────────────────────────────┘
-```
-
 1. **HybridRAG (`hybrid`)**:
    - Menggabungkan pencarian vektor *dense* dan *sparse* BM25/leksikal (`0.70 dense + 0.30 sparse`) dengan evaluasi relevansi dan *query rewriting* otomatis 1x bila hasil awal kurang relevan.
 2. **AdaptiveRAG (`adaptive`)**:
