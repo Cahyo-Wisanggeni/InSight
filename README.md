@@ -37,7 +37,7 @@
     <img src="assets/demo.webp" alt="Demo InSight Workspace" width="950"/>
   </a>
   <p>
-    <sub>Sorotan demo otomatis — <a href="https://github.com/Cahyo-Wisanggeni/InSight/releases/download/v0.1.0/InSight-Demo.mp4">tonton video demo lengkap HD (5 menit 07 detik)</a></sub>
+    <sub><a href="https://github.com/Cahyo-Wisanggeni/InSight/releases/download/v0.1.0/InSight-Demo.mp4">video demo lengkap</a></sub>
   </p>
 </div>
 
