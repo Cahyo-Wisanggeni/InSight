@@ -7,14 +7,14 @@
   </p>
 
   <p>
-    Ajukan pertanyaan langsung ke koleksi dokumen Anda (PDF, DOCX, PPTX, XLSX, HTML, Markdown, TXT, CSV, JSON, YAML, LaTeX, dan Python) secara privat di perangkat sendiri menggunakan parser ringan, Qdrant Local, SQLite, dan LLM lokal tanpa mengirim data ke API pihak ketiga.
+    Ajukan pertanyaan langsung ke koleksi dokumen Anda (PDF, DOCX, PPTX, XLSX, HTML, Markdown, TXT, CSV, JSON, YAML, LaTeX, dan Python) secara privat di perangkat sendiri menggunakan parser ringan, Qdrant, SQLite, dan LLM lokal tanpa mengirim data ke API pihak ketiga.
   </p>
 
   <p>
     <a href="https://github.com/Cahyo-Wisanggeni/InSight/releases/tag/v0.1.0"><img src="https://img.shields.io/badge/Release-v0.1.0-2563EB?style=flat-square" alt="Release v0.1.0"/></a>
     <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.10+"/></a>
     <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/Backend-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"/></a>
-    <a href="https://qdrant.tech/"><img src="https://img.shields.io/badge/VectorDB-Qdrant_Local-DC2626?style=flat-square" alt="Qdrant Local"/></a>
+    <a href="https://qdrant.tech/"><img src="https://img.shields.io/badge/VectorDB-Qdrant-DC2626?style=flat-square" alt="Qdrant"/></a>
     <a href="https://www.sqlite.org/"><img src="https://img.shields.io/badge/Database-SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white" alt="SQLite"/></a>
     <a href="https://github.com/ggml-org/llama.cpp"><img src="https://img.shields.io/badge/LLM-llama.cpp_%2F_Ollama-7C3AED?style=flat-square" alt="llama.cpp / Ollama"/></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/Lisensi-MIT-EAB308?style=flat-square" alt="MIT License"/></a>
@@ -61,7 +61,7 @@
 ## Keunggulan & Fitur Utama
 
 **Privasi 100% Lokal & Offline**<br>
-FastAPI, parser dokumen ringan, Qdrant Local, SQLite, direktori `resources/`, dan LLM lokal (`llama.cpp` GGUF / Ollama / `local_smart`) berjalan sepenuhnya di PC Anda. Dokumen dan pertanyaan tidak pernah keluar dari perangkat.
+FastAPI, parser dokumen ringan, Qdrant, SQLite, direktori `resources/`, dan LLM lokal (`llama.cpp` GGUF / Ollama / `local_smart`) berjalan sepenuhnya di PC Anda. Dokumen dan pertanyaan tidak pernah keluar dari perangkat.
 
 **Dual RAG Ketat: HybridRAG & AdaptiveRAG**<br>
 Memilih secara langsung antara `HybridRAG` (vektor dense + BM25 sparse + *query rewriting* otomatis) atau `AdaptiveRAG` (analisis kompleksitas pertanyaan untuk merutekan strategi pencarian terbaik).
@@ -175,7 +175,7 @@ Salin `.env.example` menjadi `.env` untuk menyimpan pengaturan secara persisten.
 
 | Variabel | Default | Keterangan |
 |---|---|---|
-| `INSIGHT_DATA_DIR` | `./data` | Direktori penyimpanan SQLite dan Qdrant lokal |
+| `INSIGHT_DATA_DIR` | `./data` | Direktori penyimpanan SQLite dan Qdrant |
 | `INSIGHT_RESOURCES_DIR` | `./resources` | Direktori terpusat untuk semua model dan cache terunduh |
 | `INSIGHT_GGUF_FILE` | `Qwen3-1.7B-UD-Q4_K_XL.gguf` | Nama file `.gguf` pilihan dari repo model |
 | `INSIGHT_EMBED_MODEL` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | Model embedding multibahasa (Indonesia/Inggris) |
@@ -209,7 +209,7 @@ flowchart TD
     end
 
     subgraph STORE ["Penyimpanan & Inferensi 100% Lokal"]
-        G[(Qdrant Local: Dense + BM25 Sparse)]
+        G[(Qdrant: Dense + BM25 Sparse)]
         H[(SQLite: Proyek, Dokumen & Riwayat Chat)]
         I[LLM Lokal: llama.cpp GGUF / Ollama / local_smart]
     end
@@ -227,7 +227,7 @@ flowchart TD
 |---|---|
 | **Backend Web & API** | FastAPI + Uvicorn (termasuk SSE streaming di `/chat/stream`) |
 | **Parser Dokumen** | `pypdfium2`, `python-docx`, `python-pptx`, `openpyxl`, `beautifulsoup4` |
-| **Vector Database** | Qdrant Local Mode (`Dense` + `BM25Okapi` Sparse) tanpa Docker |
+| **Vector Database** | Qdrant (`Dense` + `BM25Okapi` Sparse) tanpa Docker |
 | **Database Metadata** | SQLite (`data/insight.sqlite`) untuk proyek, dokumen, dan riwayat sesi |
 | **Strategi RAG** | `HybridRAG` (0.70/0.30 + rewrite) & `AdaptiveRAG` (`QueryAnalyzer` + routing) |
 | **Inferensi LLM Lokal** | `llama-cpp-python` (GGUF `Qwen3-0.6B` / `3.5-0.8B` / `3-1.7B`) atau `Ollama` |
