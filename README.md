@@ -1,6 +1,6 @@
 <div align="center">
 
-  <h1><picture><source media="(prefers-color-scheme: dark)" srcset="insight/static/logo-dark.svg" /><source media="(prefers-color-scheme: light)" srcset="insight/static/logo.svg" /><img src="insight/static/logo-dark.svg" alt="InSight Logo" width="36" height="36" /></picture> InSight</h1>
+  <h1><sub><picture><source media="(prefers-color-scheme: dark)" srcset="insight/static/logo-dark.svg" /><source media="(prefers-color-scheme: light)" srcset="insight/static/logo.svg" /><img src="insight/static/logo-dark.svg" alt="InSight Logo" width="34" height="34" /></picture></sub> InSight</h1>
 
   <p>
     <strong>Workspace <em>Retrieval-Augmented Generation</em> (RAG) Dokumen Privat 100% Lokal &amp; Offline</strong>
