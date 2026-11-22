@@ -19,6 +19,14 @@ FastAPI, parser dokumen ringan (`pypdfium2`, `python-docx`, `python-pptx`, `open
 
 ---
 
+## Demo
+
+[![Tonton Video Demo InSight](https://github.com/Cahyo-Wisanggeni/InSight/releases/download/v0.1.0/InSight-Demo-Preview.png)](https://github.com/Cahyo-Wisanggeni/InSight/releases/download/v0.1.0/InSight-Demo.mp4)
+
+> Klik pratinjau di atas atau buka langsung [InSight-Demo.mp4 (v0.1.0 Release)](https://github.com/Cahyo-Wisanggeni/InSight/releases/download/v0.1.0/InSight-Demo.mp4) untuk menonton video demo lengkap (pemilihan model, mode RAG `Adaptive`/`Hybrid`, proyek dokumen, pengaturan tema, hingga tanya-jawab terverifikasi dengan dokumen PDF).
+
+---
+
 ## Arsitektur
 
 ```mermaid
