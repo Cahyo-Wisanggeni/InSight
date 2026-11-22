@@ -123,15 +123,15 @@
 
     [data-theme="dark"] .send-btn,
     [data-theme="dark"] .workspace-main:not(.has-messages):not(.docs-view) .send-btn {
-      background-color: #262626;
-      color: #F5F5F5;
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      background-color: transparent;
+      color: #D4D4D4;
+      border: none;
       box-shadow: none;
     }
 
     [data-theme="dark"] .send-btn:hover:not(:disabled),
     [data-theme="dark"] .workspace-main:not(.has-messages):not(.docs-view) .send-btn:hover:not(:disabled) {
-      background-color: #363636;
+      background-color: transparent;
       color: #FFFFFF;
     }
 
@@ -172,6 +172,21 @@
     [data-theme="dark"] .opt-desc,
     [data-theme="dark"] .opt-check {
       color: #A3A3A3;
+    }
+
+    [data-theme="dark"] .rag-opt-info {
+      color: #A3A3A3;
+    }
+
+    [data-theme="dark"] .rag-opt-info:hover {
+      color: #F5F5F5;
+    }
+
+    [data-theme="dark"] .rag-opt-tooltip {
+      background-color: #1F1F1F;
+      border-color: rgba(255, 255, 255, 0.16);
+      color: #F5F5F5;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.65);
     }
 
     .setting-row {
@@ -1181,6 +1196,63 @@
       right: auto;
     }
 
+    .rag-opt-title-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .rag-opt-info {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      color: #737373;
+      cursor: help;
+      flex-shrink: 0;
+      transition: color 140ms ease;
+    }
+
+    .rag-opt-info:hover,
+    .rag-opt-info:focus-visible {
+      color: #171717;
+      outline: none;
+    }
+
+    .rag-opt-tooltip {
+      position: absolute;
+      left: calc(100% + 10px);
+      top: 50%;
+      transform: translateY(-50%) translateX(-4px);
+      width: max-content;
+      max-width: 230px;
+      padding: 7px 10px;
+      border-radius: 10px;
+      background-color: #FAFAFA;
+      border: 1px solid #E5E5E5;
+      color: #171717;
+      font-size: 0.74rem;
+      font-weight: 400;
+      line-height: 1.4;
+      white-space: normal;
+      box-shadow: 0 12px 28px rgba(23, 23, 23, 0.16);
+      z-index: 80;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 140ms ease, transform 160ms ease, visibility 160ms;
+    }
+
+    .rag-opt-info:hover .rag-opt-tooltip,
+    .rag-opt-info:focus-visible .rag-opt-tooltip {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(-50%) translateX(0);
+    }
+
     /* Welcome / Empty Screen */
     .welcome-stage {
       flex: 0 0 auto;
@@ -1252,7 +1324,7 @@
 
     .workspace-main:not(.has-messages):not(.docs-view) .composer-input {
       color: var(--ink-primary);
-      padding: 6px 4px;
+      padding: 2px 4px 4px;
     }
 
     .workspace-main:not(.has-messages):not(.docs-view) .composer-input::placeholder {
@@ -1275,14 +1347,14 @@
     .workspace-main:not(.has-messages):not(.docs-view) .send-btn {
       width: 36px;
       height: 36px;
-      background-color: #404040;
-      color: #FAFAFA;
+      background-color: transparent;
+      color: var(--ink-muted);
       box-shadow: none;
     }
 
     .workspace-main:not(.has-messages):not(.docs-view) .send-btn:hover:not(:disabled) {
-      background-color: #737373;
-      color: #FAFAFA;
+      background-color: transparent;
+      color: var(--ink-primary);
     }
 
     .welcome-chips-wrap {
@@ -2123,16 +2195,23 @@
 
     .composer-input {
       flex: 1;
-      min-height: 28px;
+      min-height: 24px;
       max-height: 140px;
       border: none;
       resize: none;
+      overflow-y: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
       background: transparent;
       color: var(--ink-primary);
       font-family: var(--font-sans);
       font-size: 0.92rem;
-      line-height: 1.45;
-      padding: 4px 0;
+      line-height: 1.4;
+      padding: 2px 0 4px;
+    }
+
+    .composer-input::-webkit-scrollbar {
+      display: none;
     }
 
     .composer-input::placeholder {
@@ -2144,23 +2223,24 @@
     }
 
     .send-btn {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      border-radius: 0;
       border: none;
-      background-color: var(--accent-indigo);
-      color: #ffffff;
+      background-color: transparent;
+      color: var(--ink-muted);
       display: inline-flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      box-shadow: 0 6px 16px rgba(64, 64, 64, 0.34);
-      transition: background-color 130ms ease, transform 120ms ease;
+      box-shadow: none;
+      transition: color 130ms ease, transform 120ms ease;
     }
 
     .send-btn:hover:not(:disabled) {
-      background-color: var(--accent-indigo-hover);
-      transform: scale(1.03);
+      background-color: transparent;
+      color: var(--ink-primary);
+      transform: scale(1.06);
     }
 
     /* Custom Popover Dropdowns for RAG & Model */
@@ -2258,10 +2338,21 @@
     }
 
     .project-dropdown .custom-dropdown-trigger {
-      padding: 6px 10px;
+      padding: 6px 8px;
       font-size: 0.78rem;
       max-width: 150px;
       gap: 5px;
+      border: none;
+      border-radius: 8px;
+      background-color: transparent;
+    }
+
+    .project-dropdown .custom-dropdown-trigger:hover,
+    .project-dropdown .custom-dropdown-trigger[aria-expanded="true"],
+    [data-theme="dark"] .project-dropdown .custom-dropdown-trigger:hover,
+    [data-theme="dark"] .project-dropdown .custom-dropdown-trigger[aria-expanded="true"] {
+      background-color: var(--bg-subtle);
+      border-color: transparent;
     }
 
     .project-dropdown .custom-dropdown-trigger span {
@@ -2294,12 +2385,12 @@
       justify-content: center;
       font-size: 0.95rem;
       line-height: 1;
-      opacity: 0.75;
+      opacity: 0;
       transition: opacity 0.12s ease, background-color 0.12s ease, color 0.12s ease;
     }
 
     .item-row:hover .item-add-btn,
-    .item-row:focus-within .item-add-btn {
+    .item-add-btn:focus-visible {
       opacity: 1;
     }
 
@@ -2813,11 +2904,19 @@
       padding: 0 14px;
       border: 1px solid var(--danger-border);
       border-radius: var(--radius-pill);
-      background-color: var(--danger-bg);
+      background-color: transparent;
       color: var(--danger-ink);
       font-family: var(--font-sans);
       font-size: 0.84rem;
       font-weight: 500;
+    }
+
+    [data-theme="dark"] .btn-danger-warm {
+      color: var(--danger-border);
+    }
+
+    .btn-danger-warm:hover {
+      background-color: var(--bg-subtle);
     }
 
     .text-input {
@@ -3064,13 +3163,35 @@
             <div id="rag-dropdown-menu" class="custom-dropdown-menu" role="listbox" aria-label="Tipe RAG">
               <button type="button" class="custom-dropdown-option active" data-rag-value="hybrid" role="option" aria-selected="true">
                 <span class="opt-meta">
-                  <span class="opt-title">Hybrid RAG</span>
+                  <span class="opt-title rag-opt-title-row">
+                    <span>Hybrid</span>
+                    <span class="rag-opt-info" aria-label="Hybrid RAG: Cepat dan stabil">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 16v-4" />
+                        <path d="M12 8h.01" />
+                      </svg>
+                      <span class="rag-opt-tooltip" role="tooltip">Cepat dan stabil</span>
+                    </span>
+                  </span>
+                  <span class="opt-desc">Pencarian seimbang</span>
                 </span>
                 <svg class="opt-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
               </button>
               <button type="button" class="custom-dropdown-option" data-rag-value="adaptive" role="option" aria-selected="false">
                 <span class="opt-meta">
-                  <span class="opt-title">Adaptive RAG</span>
+                  <span class="opt-title rag-opt-title-row">
+                    <span>Adaptive</span>
+                    <span class="rag-opt-info" aria-label="Adaptive RAG: Penyesuaian kompleksitas masalah secara otomatis">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 16v-4" />
+                        <path d="M12 8h.01" />
+                      </svg>
+                      <span class="rag-opt-tooltip" role="tooltip">Penyesuaian kompleksitas masalah secara otomatis</span>
+                    </span>
+                  </span>
+                  <span class="opt-desc">Menyesuaikan pertanyaan</span>
                 </span>
                 <svg class="opt-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
               </button>
@@ -3636,7 +3757,6 @@
           btn.setAttribute("role", "option");
           btn.setAttribute("aria-selected", isActive ? "true" : "false");
           const desc = m.description || (m.downloaded ? "Siap digunakan" : "Unduh otomatis saat dipilih");
-          const sizePart = m.size_label ? ` · ${m.size_label}` : "";
           const dlPart = m.downloaded ? "" : " · Unduh otomatis";
           btn.innerHTML = `
             <span class="opt-meta">
@@ -3646,7 +3766,7 @@
             <svg class="opt-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
           `;
           btn.querySelector(".opt-title").textContent = m.name;
-          btn.querySelector(".opt-desc").textContent = `${desc}${sizePart}${dlPart}`;
+          btn.querySelector(".opt-desc").textContent = `${desc}${dlPart}`;
           btn.addEventListener("click", () => {
             if (targetSelect) {
               targetSelect.value = m.id;
