@@ -7,7 +7,7 @@
   </p>
 
   <p>
-    Ajukan pertanyaan langsung ke koleksi dokumen Anda (PDF, DOCX, PPTX, XLSX, HTML, Markdown, TXT, CSV, JSON, dan kode) secara privat di perangkat sendiri menggunakan parser ringan, Qdrant Local, SQLite, dan LLM lokal tanpa mengirim data ke API pihak ketiga.
+    Ajukan pertanyaan langsung ke koleksi dokumen Anda (PDF, DOCX, PPTX, XLSX, HTML, Markdown, TXT, CSV, JSON, YAML, LaTeX, dan Python) secara privat di perangkat sendiri menggunakan parser ringan, Qdrant Local, SQLite, dan LLM lokal tanpa mengirim data ke API pihak ketiga.
   </p>
 
   <p>
