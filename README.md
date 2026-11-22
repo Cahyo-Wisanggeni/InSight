@@ -24,8 +24,7 @@
     <a href="#pratinjau-aplikasi">Pratinjau</a> &middot;
     <a href="#keunggulan--fitur-utama">Fitur Utama</a> &middot;
     <a href="#rincian-mode-rag--pilihan-model">Mode RAG &amp; Model</a> &middot;
-    <a href="#panduan-memulai-cepat">Panduan Memulai</a> &middot;
-    <a href="#ringkasan-api">API</a>
+    <a href="#panduan-memulai-cepat">Panduan Memulai</a>
   </p>
 
 </div>
@@ -50,7 +49,6 @@
 - [Rincian Mode RAG & Pilihan Model](#rincian-mode-rag--pilihan-model)
 - [Panduan Memulai Cepat](#panduan-memulai-cepat)
 - [Arsitektur Sistem](#arsitektur-sistem)
-- [Ringkasan API](#ringkasan-api)
 - [Struktur Repositori](#struktur-repositori)
 - [Pengujian](#pengujian)
 - [Lisensi](#lisensi)
@@ -193,33 +191,6 @@ flowchart TD
 | **Strategi RAG** | `HybridRAG` & `AdaptiveRAG` |
 | **Inferensi LLM Lokal** | `llama-cpp-python` (`Qwen3-0.6B` / `3.5-0.8B` / `3-1.7B`) & `Ollama` |
 | **Keamanan Opsional** | Session Token + Rate Limit Login |
-
----
-
-## Ringkasan API
-
-FastAPI menyediakan dokumentasi interaktif otomatis (Swagger UI) di `http://127.0.0.1:8000/docs`.
-
-<details>
-<summary><b>Klik untuk melihat daftar lengkap endpoint REST &amp; SSE</b></summary>
-
-| Method & Path | Fungsi |
-|---|---|
-| `GET /health` | Cek status server, backend LLM, metode RAG aktif, status embedder, folder `resources`, dan jumlah dokumen |
-| `GET /resources` | Pantau daftar file dan ukuran cache/model terunduh di `INSIGHT_RESOURCES_DIR` |
-| `POST /auth/login` | Tukar `INSIGHT_PASSWORD` menjadi token sesi `X-InSight-Token` (rate-limited + TTL) |
-| `GET /models` | Ambil daftar model LLM lokal dan preset yang tersedia beserta status aktif/unduhan |
-| `POST /models/select` | Beralih model LLM aktif secara instan (`qwen3-0.6b`, `qwen3.5-0.8b`, `qwen3-1.7b`, atau Ollama) |
-| `POST /documents/upload` | Unggah dan indeks dokumen ke Qdrant + SQLite |
-| `GET /documents` | Ambil daftar dokumen terindeks |
-| `DELETE /documents/{doc_id}` | Hapus dokumen dari SQLite dan vektornya dari Qdrant |
-| `POST /chat` | Ajukan pertanyaan dengan `rag_mode` (`hybrid` atau `adaptive`) dan simpan ke riwayat SQLite |
-| `POST /chat/stream` | Ajukan pertanyaan dengan streaming token Server-Sent Events (SSE) langsung ke UI |
-| `GET /history` | Ambil riwayat chat per sesi |
-| `DELETE /history` | Bersihkan riwayat chat per sesi |
-| `GET /sessions` | Ambil daftar sesi percakapan tersimpan |
-
-</details>
 
 ---
 
